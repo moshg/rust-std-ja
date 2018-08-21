@@ -1,29 +1,48 @@
-//! A contiguous growable array type with heap-allocated contents, written
-//! `Vec<T>`.
+//! ヒープアロケートされたデータを伴う、連続する拡張可能な配列型。`Vec<T>`と書かれます。
 //!
-//! Vectors have `O(1)` indexing, amortized `O(1)` push (to the end) and
-//! `O(1)` pop (from the end).
+//! <!-- A contiguous growable array type with heap-allocated contents, written
+//! `Vec<T>`. -->
+//!
+//! ベクターは`O(1)`のインデクシングができ、償却`O(1)`の (最後への) プッシュと`O(1)`の
+//! (最後からの) ポップができます。
+//!
+//! <!-- Vectors have `O(1)` indexing, amortized `O(1)` push (to the end) and
+//! `O(1)` pop (from the end). -->
 //!
 //! # Examples
 //!
-//! You can explicitly create a [`Vec<T>`] with [`new`]:
+//! [`new`]を使って明示的に[`Vec<T>`]を作成することができます:
+//!
+//! <!-- You can explicitly create a [`Vec<T>`] with [`new`]: -->
 //!
 //! ```
 //! let v: Vec<i32> = Vec::new();
 //! ```
 //!
-//! ...or by using the [`vec!`] macro:
+//! ...または[`vec!`]マクロを使って:
+//!
+//! <!-- ...or by using the [`vec!`] macro: -->
 //!
 //! ```
 //! let v: Vec<i32> = vec![];
 //!
 //! let v = vec![1, 2, 3, 4, 5];
 //!
-//! let v = vec![0; 10]; // ten zeroes
+//! let v = vec![0; 10]; // 10個のゼロ
 //! ```
 //!
-//! You can [`push`] values onto the end of a vector (which will grow the vector
-//! as needed):
+//! <!-- ``` -->
+//! <!-- let v: Vec<i32> = vec![];
+//!
+//! let v = vec![1, 2, 3, 4, 5];
+//!
+//! let v = vec![0; 10]; // ten zeroes -->
+//! <!-- ``` -->
+//!
+//! 値をベクターの最後に[`push`]することができます (必要に応じてベクターを拡張します):
+//!
+//! <!-- You can [`push`] values onto the end of a vector (which will grow the vector
+//! as needed): -->
 //!
 //! ```
 //! let mut v = vec![1, 2];
@@ -31,7 +50,9 @@
 //! v.push(3);
 //! ```
 //!
-//! Popping values works in much the same way:
+//! 値のポップはほとんど同じようにできます:
+//!
+//! <!-- Popping values works in much the same way: -->
 //!
 //! ```
 //! let mut v = vec![1, 2];
@@ -39,7 +60,9 @@
 //! let two = v.pop();
 //! ```
 //!
-//! Vectors also support indexing (through the [`Index`] and [`IndexMut`] traits):
+//! ベクターはインデクシングもサポートします ([`Index`]と[`IndexMut`]トレイトを通して):
+//!
+//! <!-- Vectors also support indexing (through the [`Index`] and [`IndexMut`] traits): -->
 //!
 //! ```
 //! let mut v = vec![1, 2, 3];
@@ -73,7 +96,9 @@ use crate::collections::CollectionAllocErr;
 use crate::boxed::Box;
 use crate::raw_vec::RawVec;
 
-/// A contiguous growable array type, written `Vec<T>` but pronounced 'vector'.
+/// 連続する拡張可能な配列型。`Vec<T>`と書かれますが「ベクター」と発音されます。
+///
+/// <!-- A contiguous growable array type, written `Vec<T>` but pronounced 'vector'. -->
 ///
 /// # Examples
 ///
@@ -99,7 +124,9 @@ use crate::raw_vec::RawVec;
 /// assert_eq!(vec, [7, 1, 2, 3]);
 /// ```
 ///
-/// The [`vec!`] macro is provided to make initialization more convenient:
+/// 初期化を便利にするために[`vec!`]マクロが提供されています:
+///
+/// <!-- The [`vec!`] macro is provided to make initialization more convenient: -->
 ///
 /// ```
 /// let mut vec = vec![1, 2, 3];
@@ -107,20 +134,33 @@ use crate::raw_vec::RawVec;
 /// assert_eq!(vec, [1, 2, 3, 4]);
 /// ```
 ///
-/// It can also initialize each element of a `Vec<T>` with a given value.
+/// 与えられた値から各要素を初期化することも[`vec`]マクロでできます。これはメモリを確保し、別々に初期化するよりも効率的かもしれません。特にベクターをゼロで初期化するときはそうかもしれません。
+///
+/// <!-  It can also initialize each element of a `Vec<T>` with a given value.
 /// This may be more efficient than performing allocation and initialization
-/// in separate steps, especially when initializing a vector of zeros:
+/// in separate steps, especially when initializing a vector of zeros: -->
 ///
 /// ```
 /// let vec = vec![0; 5];
 /// assert_eq!(vec, [0, 0, 0, 0, 0]);
 ///
-/// // The following is equivalent, but potentially slower:
+/// // 次の方法は同値ですが、もしかするとより遅いかもしれません:
 /// let mut vec1 = Vec::with_capacity(5);
 /// vec1.resize(5, 0);
 /// ```
 ///
-/// Use a `Vec<T>` as an efficient stack:
+/// <!-- ``` -->
+/// <!-- let vec = vec![0; 5];
+/// assert_eq!(vec, [0, 0, 0, 0, 0]);
+///
+/// // The following is equivalent, but potentially slower:
+/// let mut vec1 = Vec::with_capacity(5);
+/// vec1.resize(5, 0); -->
+/// <!-- ``` -->
+///
+/// `Vec<T>`を効率的なスタックとして使ってください:
+///
+/// <!-- Use a `Vec<T>` as an efficient stack: -->
 ///
 /// ```
 /// let mut stack = Vec::new();
@@ -130,36 +170,71 @@ use crate::raw_vec::RawVec;
 /// stack.push(3);
 ///
 /// while let Some(top) = stack.pop() {
-///     // Prints 3, 2, 1
+///     // 3, 2, 1をプリントします
 ///     println!("{}", top);
 /// }
 /// ```
 ///
-/// # Indexing
+/// <!-- ``` -->
+/// <!-- let mut stack = Vec::new();
 ///
-/// The `Vec` type allows to access values by index, because it implements the
-/// [`Index`] trait. An example will be more explicit:
+/// stack.push(1);
+/// stack.push(2);
+/// stack.push(3);
+///
+/// while let Some(top) = stack.pop() {
+///     // Prints 3, 2, 1
+///     println!("{}", top);
+/// } -->
+/// <!-- ``` -->
+///
+/// # インデクシング
+///
+/// <!-- # Indexing -->
+///
+/// `Vec`型は[`Index`]トレイトを実装しているので、インデックスを使って値にアクセスすることができます。次の例はより明白でしょう:
+///
+/// <!-- The `Vec` type allows to access values by index, because it implements the
+/// [`Index`] trait. An example will be more explicit: -->
 ///
 /// ```
 /// let v = vec![0, 2, 4, 6];
-/// println!("{}", v[1]); // it will display '2'
+/// println!("{}", v[1]); // 「2」を表示します
 /// ```
 ///
-/// However be careful: if you try to access an index which isn't in the `Vec`,
-/// your software will panic! You cannot do this:
+/// <!-- ``` -->
+/// <!-- let v = vec![0, 2, 4, 6];
+/// println!("{}", v[1]); // it will display '2' -->
+/// <!-- ``` -->
+///
+/// しかし注意してください: `Vec`に含まれないインデックスにアクセスしようとすると、あなたのソフトウェアはパニックします！このようなことはできません:
+///
+/// <!-- However be careful: if you try to access an index which isn't in the `Vec`,
+/// your software will panic! You cannot do this: -->
 ///
 /// ```should_panic
 /// let v = vec![0, 2, 4, 6];
-/// println!("{}", v[6]); // it will panic!
+/// println!("{}", v[6]); // パニックします！
 /// ```
 ///
-/// In conclusion: always check if the index you want to get really exists
-/// before doing it.
+/// <!-- ```should_panic -->
+/// <!-- let v = vec![0, 2, 4, 6];
+/// println!("{}", v[6]); // it will panic! -->
+/// <!-- ``` -->
 ///
-/// # Slicing
+/// 結論: インデクシングの前にそのインデックスが本当に存在するかを常に確認してください。
 ///
-/// A `Vec` can be mutable. Slices, on the other hand, are read-only objects.
-/// To get a slice, use `&`. Example:
+/// <!-- In conclusion: always check if the index you want to get really exists
+/// before doing it. -->
+///
+/// # スライシング
+///
+/// <!-- # Slicing -->
+///
+/// `Vec`はミュータブルになり得ます。一方、スライスは読み取り専用オブジェクトです。スライスを得るには、`&`を使ってください。例:
+///
+/// <!-- A `Vec` can be mutable. Slices, on the other hand, are read-only objects.
+/// To get a slice, use `&`. Example: -->
 ///
 /// ```
 /// fn read_slice(slice: &[usize]) {
@@ -169,46 +244,75 @@ use crate::raw_vec::RawVec;
 /// let v = vec![0, 1];
 /// read_slice(&v);
 ///
-/// // ... and that's all!
-/// // you can also do it like this:
+/// // ... そしてこれだけです！
+/// // このようにもできます:
 /// let x : &[usize] = &v;
 /// ```
 ///
-/// In Rust, it's more common to pass slices as arguments rather than vectors
+/// <!-- ``` -->
+/// <!-- fn read_slice(slice: &[usize]) {
+///     // ...
+/// }
+///
+/// let v = vec![0, 1];
+/// read_slice(&v);
+///
+/// // ... and that's all!
+/// // you can also do it like this:
+/// let x : &[usize] = &v; -->
+/// <!-- ``` -->
+///
+/// Rustにおいて、単に読み取りアクセスできるようにしたいときはベクターよりもスライスを引数として渡すことが一般的です。[`String`]と[`&str`]についても同様です。
+///
+/// <!-- In Rust, it's more common to pass slices as arguments rather than vectors
 /// when you just want to provide a read access. The same goes for [`String`] and
-/// [`&str`].
+/// [`&str`]. -->
 ///
-/// # Capacity and reallocation
+/// # 容量とメモリの再確保
 ///
-/// The capacity of a vector is the amount of space allocated for any future
+/// <!-- # Capacity and reallocation -->
+///
+/// ベクターの容量 (capacity) とは将来ベクターに追加される要素のためにアロケートされる領域の量のことです。これをベクターの*長さ (length)* と混同しないでください。ベクターの長さとはそのベクターに入っている実際の要素の個数のことです。ベクターの長さが容量を超えると、容量は自動的に増えますが、その要素は再確保されなければなりません。
+///
+/// <!-- The capacity of a vector is the amount of space allocated for any future
 /// elements that will be added onto the vector. This is not to be confused with
 /// the *length* of a vector, which specifies the number of actual elements
 /// within the vector. If a vector's length exceeds its capacity, its capacity
 /// will automatically be increased, but its elements will have to be
-/// reallocated.
+/// reallocated. -->
 ///
-/// For example, a vector with capacity 10 and length 0 would be an empty vector
+/// 例えば、容量10で長さ0のベクターは追加10要素分の領域をもった空のベクターです。10またはそれ以下の要素をベクターにプッシュしてもベクターの容量は変わりませんし、メモリの再確保も起きません。しかし、ベクターの長さが11まで増加すると、ベクターはメモリを再確保しなければならず、遅いです。このため、ベクターがどれだけ大きくなるかが予期できるときは常に[`Vec::with_capacity`]を利用することが推奨されます。
+///
+/// <!-- For example, a vector with capacity 10 and length 0 would be an empty vector
 /// with space for 10 more elements. Pushing 10 or fewer elements onto the
 /// vector will not change its capacity or cause reallocation to occur. However,
 /// if the vector's length is increased to 11, it will have to reallocate, which
 /// can be slow. For this reason, it is recommended to use [`Vec::with_capacity`]
-/// whenever possible to specify how big the vector is expected to get.
+/// whenever possible to specify how big the vector is expected to get. -->
 ///
-/// # Guarantees
+/// # 保証
 ///
-/// Due to its incredibly fundamental nature, `Vec` makes a lot of guarantees
+/// <!-- # Guarantees -->
+///
+/// そのとてつもなく基本的な性質のために、`Vec`はデザインについて多くのことを保証します。`Vec`は可能な限りロー・オーバーヘッドであり、アンセーフコードからプリミティブな方法で正しく操作することができます。これらの保証は制限のない`Vec<T>`を指すことに注意してください。もし追加の型パラメータが追加されれば (例えばカスタムアロケータのサポートのために)、`Vec`のデフォルトを上書きすることで動作が変わるかもしれません。
+///
+/// <!-- Due to its incredibly fundamental nature, `Vec` makes a lot of guarantees
 /// about its design. This ensures that it's as low-overhead as possible in
 /// the general case, and can be correctly manipulated in primitive ways
 /// by unsafe code. Note that these guarantees refer to an unqualified `Vec<T>`.
 /// If additional type parameters are added (e.g., to support custom allocators),
-/// overriding their defaults may change the behavior.
+/// overriding their defaults may change the behavior. -->
 ///
-/// Most fundamentally, `Vec` is and always will be a (pointer, capacity, length)
+/// 最も基本的なこととして、`Vec`は (ポインタ, 容量, 長さ) の三つ組であり将来的にも常にそうです。それ以上でも以下でもありません。これらのフィールドの順序は完全に未規定であり、その値を変更するためには適切なメソッドを使うべきです。ポインタは決してヌルにはなりません。ですので、この型はヌルポインタ最適化されます。
+///
+/// <!-- Most fundamentally, `Vec` is and always will be a (pointer, capacity, length)
 /// triplet. No more, no less. The order of these fields is completely
 /// unspecified, and you should use the appropriate methods to modify these.
-/// The pointer will never be null, so this type is null-pointer-optimized.
+/// The pointer will never be null, so this type is null-pointer-optimized. -->
 ///
-/// However, the pointer may not actually point to allocated memory. In particular,
+/// しかし、ポインタは実際には確保されたメモリを指さないかもしれません。特に、空のベクターの作成を[`Vec::new`]や[`vec![]`][`vec!`]や[`Vec::with_capacity(0)`][`Vec::with_capacity`]により行ったり、[`shrink_to_fit`]の空のベクターでの呼び出しから行ったりするとき、メモリを確保しません。同様に、ゼロサイズ型を`Vec`に格納するとき、それらのための領域を確保しません。*この場合`Vec`は[`capacity`]がゼロであると伝えないかもしれないことに注意してください。*`Vec`は[`mem::size_of::<T>`]`() * capacity() > 0`のとき、またそのときに限りメモリを確保します。一般に、`Vec`のアロケーションの詳細はとても微妙です &mdash; もし`Vec`を使ってメモリを確保し他の何か (アンセーフコードに渡す、またはメモリが背後にあるあなた自身のコレクションのいずれか) に使うつもりなら、必ず`from_raw_parts`を使って`Vec`を復元しドロップすることでそのメモリを解放してください。
+///
+/// <!-- However, the pointer may not actually point to allocated memory. In particular,
 /// if you construct a `Vec` with capacity 0 via [`Vec::new`], [`vec![]`][`vec!`],
 /// [`Vec::with_capacity(0)`][`Vec::with_capacity`], or by calling [`shrink_to_fit`]
 /// on an empty Vec, it will not allocate memory. Similarly, if you store zero-sized
@@ -218,50 +322,68 @@ use crate::raw_vec::RawVec;
 /// details are very subtle &mdash; if you intend to allocate memory using a `Vec`
 /// and use it for something else (either to pass to unsafe code, or to build your
 /// own memory-backed collection), be sure to deallocate this memory by using
-/// `from_raw_parts` to recover the `Vec` and then dropping it.
+/// `from_raw_parts` to recover the `Vec` and then dropping it. -->
 ///
-/// If a `Vec` *has* allocated memory, then the memory it points to is on the heap
+/// `Vec`がメモリを確保*している*とき、`Vec`が指すメモリはヒープにあり (Rustがデフォルトで使うよう設定されたアロケータによって定義されるように) 、ポインタは[`len`]個の初期化された、連続する (スライスに強制したときと同じ) 順に並んだ要素を指し、[`capacity`]` - `[`len`]個の論理的な初期化がされていない、連続する要素が後続します。
+///
+/// <!-- If a `Vec` *has* allocated memory, then the memory it points to is on the heap
 /// (as defined by the allocator Rust is configured to use by default), and its
 /// pointer points to [`len`] initialized, contiguous elements in order (what
 /// you would see if you coerced it to a slice), followed by [`capacity`]` -
-/// `[`len`] logically uninitialized, contiguous elements.
+/// `[`len`] logically uninitialized, contiguous elements. -->
 ///
-/// `Vec` will never perform a "small optimization" where elements are actually
-/// stored on the stack for two reasons:
+/// `Vec`は要素を実際にはスタックに格納する"small optimization"を決して行いません。それは2つの理由のためです:
 ///
-/// * It would make it more difficult for unsafe code to correctly manipulate
+/// <!-- `Vec` will never perform a "small optimization" where elements are actually
+/// stored on the stack for two reasons: -->
+///
+/// * アンセーフコードが`Vec`を扱うことを難しくします。`Vec`が単にムーブされるとき`Vec`の中身は安定したアドレスを持たないでしょう。そして`Vec`が実際に確保されたメモリを持っているかを決定することが難しくなるでしょう。
+///
+/// <!-- * It would make it more difficult for unsafe code to correctly manipulate
 ///   a `Vec`. The contents of a `Vec` wouldn't have a stable address if it were
 ///   only moved, and it would be more difficult to determine if a `Vec` had
-///   actually allocated memory.
+///   actually allocated memory. -->
 ///
-/// * It would penalize the general case, incurring an additional branch
-///   on every access.
+/// * アクセス毎に追加の分岐を招くことで、一般的な状況で不利になるでしょう。
 ///
-/// `Vec` will never automatically shrink itself, even if completely empty. This
+/// <!-- * It would penalize the general case, incurring an additional branch
+///   on every access. -->
+///
+/// `Vec`は決して自動で縮みません。まったく空のときでさえもです。これによりメモリの不要な確保や解放が発生しないことが確実になります。`Vec`を空にし、それから同じ[`len`]以下まで埋め直すことがアロケータへの呼び出しを招くことは決してありません。もし使われていないメモリを解放したいなら、[`shrink_to_fit`][`shrink_to_fit`]を使ってください。
+///
+/// <!-- `Vec` will never automatically shrink itself, even if completely empty. This
 /// ensures no unnecessary allocations or deallocations occur. Emptying a `Vec`
 /// and then filling it back up to the same [`len`] should incur no calls to
 /// the allocator. If you wish to free up unused memory, use
-/// [`shrink_to_fit`][`shrink_to_fit`].
+/// [`shrink_to_fit`][`shrink_to_fit`]. -->
 ///
-/// [`push`] and [`insert`] will never (re)allocate if the reported capacity is
+/// 通知された容量が十分なとき[`push`]と[`insert`]は絶対にメモリを(再)確保しません。[`push`]と[`insert`]は[`len`]` == `[`capacity`]のときメモリを(再)確保*します*。つまり、知らされる容量は完全に正確で、信頼することができます。必要に応じて`Vec`によって確保されたメモリを手動で解放することもできます。バラバラに挿入するメソッドは必要がない場合もメモリの再確保をしてしまう*かも*しれません。
+///
+/// <!-- [`push`] and [`insert`] will never (re)allocate if the reported capacity is
 /// sufficient. [`push`] and [`insert`] *will* (re)allocate if
 /// [`len`]` == `[`capacity`]. That is, the reported capacity is completely
 /// accurate, and can be relied on. It can even be used to manually free the memory
 /// allocated by a `Vec` if desired. Bulk insertion methods *may* reallocate, even
-/// when not necessary.
+/// when not necessary. -->
 ///
-/// `Vec` does not guarantee any particular growth strategy when reallocating
+/// `Vec`は満杯になったときや[`reserve`]が呼び出されたときにメモリの再確保をする際の特定の拡張戦略をまったく保証しません。現在の戦略は基本的であり、定数でない増大係数が望ましいことが証明されるかもしれません。どのような戦略を使うとしても当然[`push`]が償却`O(1)`であることは保証されます。
+///
+/// <!-- `Vec` does not guarantee any particular growth strategy when reallocating
 /// when full, nor when [`reserve`] is called. The current strategy is basic
 /// and it may prove desirable to use a non-constant growth factor. Whatever
-/// strategy is used will of course guarantee `O(1)` amortized [`push`].
+/// strategy is used will of course guarantee `O(1)` amortized [`push`]. -->
 ///
-/// `vec![x; n]`, `vec![a, b, c, d]`, and
+/// `vec![x; n]`と`vec![a, b, c, d]`と[`Vec::with_capacity(n)`][`Vec::with_capacity`]は全て正確に要求した容量を持つ`Vec`を提供します。([`vec`]マクロの場合のように) [`len`]` == `[`capacity`]ならば、`Vec<T>`はメモリの再確保や要素の移動なしに[`Box<[T]>`][owned slice]と相互に変換できます。
+///
+/// <!-- `vec![x; n]`, `vec![a, b, c, d]`, and
 /// [`Vec::with_capacity(n)`][`Vec::with_capacity`], will all produce a `Vec`
 /// with exactly the requested capacity. If [`len`]` == `[`capacity`],
 /// (as is the case for the [`vec!`] macro), then a `Vec<T>` can be converted to
-/// and from a [`Box<[T]>`][owned slice] without reallocating or moving the elements.
+/// and from a [`Box<[T]>`][owned slice] without reallocating or moving the elements. -->
 ///
-/// `Vec` will not specifically overwrite any data that is removed from it,
+/// `Vec`は特に取り除かれたデータを上書きするとは限りませんが、特に取っておくとも限りません。未初期化メモリは必要ならばいつでも`Vec`が使ってよい一時領域です。`Vec`は一般に最も効率がいいような、または実装しやすいような動作をします。セキュリティ目的で取り除かれたデータが消去されることを頼ってはいけません。`Vec`をドロップしたとしても、その`Vec`のバッファは他の`Vec`に再利用されるかもしれません。`Vec`のメモリを最初にゼロにしたとしても、オプティマイザが保護すべき副作用だと考えないためにそれが実際には起こらないかもしれません。しかしながら、私達が破壊しないであろうケースが一つあります: `unsafe`コードを使って過剰分の容量に書き込んでから、それに合うように長さを増加させることは常に正当です.
+///
+/// <!-- `Vec` will not specifically overwrite any data that is removed from it,
 /// but also won't specifically preserve it. Its uninitialized memory is
 /// scratch space that it may use however it wants. It will generally just do
 /// whatever is most efficient or otherwise easy to implement. Do not rely on
@@ -270,10 +392,12 @@ use crate::raw_vec::RawVec;
 /// first, that may not actually happen because the optimizer does not consider
 /// this a side-effect that must be preserved. There is one case which we will
 /// not break, however: using `unsafe` code to write to the excess capacity,
-/// and then increasing the length to match, is always valid.
+/// and then increasing the length to match, is always valid. -->
 ///
-/// `Vec` does not currently guarantee the order in which elements are dropped.
-/// The order has changed in the past and may change again.
+/// `Vec`は現在、要素をドロップする順序を保証しません。過去に順序を変更したことがあり、また変更するかもしれません。
+///
+/// <!-- `Vec` does not currently guarantee the order in which elements are dropped.
+/// The order has changed in the past and may change again. -->
 ///
 /// [`vec!`]: ../../std/macro.vec.html
 /// [`Index`]: ../../std/ops/trait.Index.html
@@ -300,9 +424,13 @@ pub struct Vec<T> {
 ////////////////////////////////////////////////////////////////////////////////
 
 impl<T> Vec<T> {
-    /// Constructs a new, empty `Vec<T>`.
+    /// 新しい空の`Vec<T>`を作成します。
     ///
-    /// The vector will not allocate until elements are pushed onto it.
+    /// <!-- Constructs a new, empty `Vec<T>`. -->
+    ///
+    /// ベクターは要素をプッシュされるまでメモリを確保しません。
+    ///
+    /// <!-- The vector will not allocate until elements are pushed onto it. -->
     ///
     /// # Examples
     ///
@@ -320,22 +448,45 @@ impl<T> Vec<T> {
         }
     }
 
-    /// Constructs a new, empty `Vec<T>` with the specified capacity.
+    /// 新しい空の`Vec<T>`を指定された容量で作成します。
     ///
-    /// The vector will be able to hold exactly `capacity` elements without
-    /// reallocating. If `capacity` is 0, the vector will not allocate.
+    /// <!-- Constructs a new, empty `Vec<T>` with the specified capacity. -->
     ///
-    /// It is important to note that although the returned vector has the
+    /// 返されたベクターはメモリの再確保なしにちょうど`capacity`個の要素を格納することができます。`capacity`が0ならばメモリを確保しません。
+    ///
+    /// <!-- The vector will be able to hold exactly `capacity` elements without
+    /// reallocating. If `capacity` is 0, the vector will not allocate. -->
+    ///
+    /// 返されたベクタは指定された*容量*を持ちますが、長さが0であることに注意することが大切です。長さと容量の違いの説明については*[容量とメモリの再確保]*を見てください。
+    ///
+    /// <!-- It is important to note that although the returned vector has the
     /// *capacity* specified, the vector will have a zero *length*. For an
     /// explanation of the difference between length and capacity, see
-    /// *[Capacity and reallocation]*.
+    /// *[Capacity and reallocation]*. -->
     ///
-    /// [Capacity and reallocation]: #capacity-and-reallocation
+    /// [容量とメモリの再確保]: #容量とメモリの再確保
+    ///
+    /// <!-- [Capacity and reallocation]: #capacity-and-reallocation -->
     ///
     /// # Examples
     ///
     /// ```
     /// let mut vec = Vec::with_capacity(10);
+    ///
+    /// // 0より大きい容量を持ちますが、要素は持ちません。
+    /// assert_eq!(vec.len(), 0);
+    ///
+    /// これらは全てメモリの再確保なしに行われます...
+    /// for i in 0..10 {
+    ///     vec.push(i)
+    /// }
+    ///
+    /// // ...しかしこれはメモリを再確保するかもしれません
+    /// vec.push(11);
+    /// ```
+    ///
+    /// <!-- ``` -->
+    /// <!-- let mut vec = Vec::with_capacity(10);
     ///
     /// // The vector contains no items, even though it has capacity for more
     /// assert_eq!(vec.len(), 0);
@@ -346,8 +497,8 @@ impl<T> Vec<T> {
     /// }
     ///
     /// // ...but this may make the vector reallocate
-    /// vec.push(11);
-    /// ```
+    /// vec.push(11); -->
+    /// <!-- ``` -->
     #[inline]
     #[stable(feature = "rust1", since = "1.0.0")]
     pub fn with_capacity(capacity: usize) -> Vec<T> {
@@ -357,28 +508,41 @@ impl<T> Vec<T> {
         }
     }
 
-    /// Creates a `Vec<T>` directly from the raw components of another vector.
+    /// `Vec<T>`を他のベクターの生の構成要素から直接作成します。
+    ///
+    /// <!-- Creates a `Vec<T>` directly from the raw components of another vector. -->
     ///
     /// # Safety
     ///
-    /// This is highly unsafe, due to the number of invariants that aren't
-    /// checked:
+    /// このメソッドは非常にアンセーフです。いくつものチェックされない不変量があるためです:
     ///
-    /// * `ptr` needs to have been previously allocated via [`String`]/`Vec<T>`
+    /// <!-- This is highly unsafe, due to the number of invariants that aren't
+    /// checked: -->
+    ///
+    /// * `ptr`は以前に[`String`]/`Vec<T>`で確保されいる必要があります (少なくともそうでなければ非常に不適切です)。
+    /// * `ptr`の`T`はアロケートされたときと同じサイズ、同じアラインメントである必要があります。
+    /// * `length`は`capacity`以下である必要があります。
+    /// * `capacity`はポインタがアロケートされたときの容量である必要があります。
+    ///
+    /// <!-- * `ptr` needs to have been previously allocated via [`String`]/`Vec<T>`
     ///   (at least, it's highly likely to be incorrect if it wasn't).
     /// * `ptr`'s `T` needs to have the same size and alignment as it was allocated with.
     /// * `length` needs to be less than or equal to `capacity`.
-    /// * `capacity` needs to be the capacity that the pointer was allocated with.
+    /// * `capacity` needs to be the capacity that the pointer was allocated with. -->
     ///
-    /// Violating these may cause problems like corrupting the allocator's
+    /// これらに違反すると、アロケータの内部データ構造を破壊することになるかもしれません。例えば`Vec<u8>`をCの`char`配列と`size_t`から作成することは安全では**ありません**。
+    ///
+    /// <!-- Violating these may cause problems like corrupting the allocator's
     /// internal data structures. For example it is **not** safe
-    /// to build a `Vec<u8>` from a pointer to a C `char` array and a `size_t`.
+    /// to build a `Vec<u8>` from a pointer to a C `char` array and a `size_t`. -->
     ///
-    /// The ownership of `ptr` is effectively transferred to the
+    /// `ptr`の所有権は有効に`Vec<T>`に移り、その`Vec<T>`は思うままにメモリの破棄や再確保やポインタの指すメモリの内容の変更する権利を得ます。この関数を呼んだ後にポインタを使うことがないことを確実にしてください。
+    ///
+    /// <!-- The ownership of `ptr` is effectively transferred to the
     /// `Vec<T>` which may then deallocate, reallocate or change the
     /// contents of memory pointed to by the pointer at will. Ensure
     /// that nothing else uses the pointer after calling this
-    /// function.
+    /// function. -->
     ///
     /// [`String`]: ../../std/string/struct.String.html
     ///
@@ -386,6 +550,35 @@ impl<T> Vec<T> {
     ///
     /// ```
     /// use std::ptr;
+    /// use std::mem;
+    ///
+    /// fn main() {
+    ///     let mut v = vec![1, 2, 3];
+    ///
+    ///     // さまざまな`v`の情報の重要な断片を抜き出します
+    ///     let p = v.as_mut_ptr();
+    ///     let len = v.len();
+    ///     let cap = v.capacity();
+    ///
+    ///     unsafe {
+    ///         // `v`をvoidにキャストします: デストラクタは走りません。
+    ///         // よって`p`が指す確保されたメモリを完全に管理することになります。
+    ///         mem::forget(v);
+    ///
+    ///         // メモリを4, 5, 6で上書きします
+    ///         for i in 0..len as isize {
+    ///             ptr::write(p.offset(i), 4 + i);
+    ///         }
+    ///
+    ///         // 全てを合わせてVecに戻します
+    ///         let rebuilt = Vec::from_raw_parts(p, len, cap);
+    ///         assert_eq!(rebuilt, [4, 5, 6]);
+    ///     }
+    /// }
+    /// ```
+    ///
+    /// <!-- ``` -->
+    /// <!-- use std::ptr;
     /// use std::mem;
     ///
     /// fn main() {
@@ -410,8 +603,8 @@ impl<T> Vec<T> {
     ///         let rebuilt = Vec::from_raw_parts(p, len, cap);
     ///         assert_eq!(rebuilt, [4, 5, 6]);
     ///     }
-    /// }
-    /// ```
+    /// } -->
+    /// <!-- ``` -->
     #[stable(feature = "rust1", since = "1.0.0")]
     pub unsafe fn from_raw_parts(ptr: *mut T, length: usize, capacity: usize) -> Vec<T> {
         Vec {
@@ -420,8 +613,10 @@ impl<T> Vec<T> {
         }
     }
 
-    /// Returns the number of elements the vector can hold without
-    /// reallocating.
+    /// ベクターがメモリの再確保なしに保持することのできる要素の数を返します。
+    ///
+    /// <!-- Returns the number of elements the vector can hold without
+    /// reallocating. -->
     ///
     /// # Examples
     ///
@@ -435,15 +630,19 @@ impl<T> Vec<T> {
         self.buf.cap()
     }
 
-    /// Reserves capacity for at least `additional` more elements to be inserted
+    /// 少なくとも`additional`個の要素与えられた`Vec<T>`に挿入できるように容量を確保します。コレクションは頻繁なメモリの再確保を避けるために領域を多めに確保するかもしれません。`reserve`を呼び出した後、容量は`self.len() + addtional`以上になります。容量が既に十分なときは何もしません。
+    ///
+    /// <!-- Reserves capacity for at least `additional` more elements to be inserted
     /// in the given `Vec<T>`. The collection may reserve more space to avoid
     /// frequent reallocations. After calling `reserve`, capacity will be
     /// greater than or equal to `self.len() + additional`. Does nothing if
-    /// capacity is already sufficient.
+    /// capacity is already sufficient. -->
     ///
     /// # Panics
     ///
-    /// Panics if the new capacity overflows `usize`.
+    /// 新たな容量が`usize`に収まらないときパニックします。
+    ///
+    /// <!-- Panics if the new capacity overflows `usize`. -->
     ///
     /// # Examples
     ///
@@ -457,18 +656,24 @@ impl<T> Vec<T> {
         self.buf.reserve(self.len, additional);
     }
 
-    /// Reserves the minimum capacity for exactly `additional` more elements to
+    /// ちょうど`additional`個の要素を与えられた`Vec<T>`に挿入できるように最低限の容量を確保します。`reserve_exact`を呼び出した後、容量は`self.len() + additional`以上になります。容量が既に十分なときは何もしません。
+    ///
+    /// <!-- Reserves the minimum capacity for exactly `additional` more elements to
     /// be inserted in the given `Vec<T>`. After calling `reserve_exact`,
     /// capacity will be greater than or equal to `self.len() + additional`.
-    /// Does nothing if the capacity is already sufficient.
+    /// Does nothing if the capacity is already sufficient. -->
     ///
-    /// Note that the allocator may give the collection more space than it
+    /// アロケータは要求したより多くの領域を確保するかもしれないことに注意してください。そのためキャパシティが正確に最低限であることに依存することはできません。将来の挿入が予期される場合`reserve`のほうが好ましいです。
+    ///
+    /// <!-- Note that the allocator may give the collection more space than it
     /// requests. Therefore, capacity can not be relied upon to be precisely
-    /// minimal. Prefer `reserve` if future insertions are expected.
+    /// minimal. Prefer `reserve` if future insertions are expected. -->
     ///
     /// # Panics
     ///
-    /// Panics if the new capacity overflows `usize`.
+    /// 新たな容量が`usize`に収まらないときパニックします。
+    ///
+    /// <!-- Panics if the new capacity overflows `usize`. -->
     ///
     /// # Examples
     ///
@@ -482,21 +687,46 @@ impl<T> Vec<T> {
         self.buf.reserve_exact(self.len, additional);
     }
 
-    /// Tries to reserve capacity for at least `additional` more elements to be inserted
+    /// 少なくとも`additional`個の要素を与えられた`Vec<T>`に挿入できるように容量を確保することを試みます。コレクションは頻繁なリメモリの再確保を避けるために領域を多めに確保するかもしれません。`reserve`を呼び出した後、容量は`self.len() + addtional`以上になります。容量が既に十分なときは何もしません。
+    ///
+    /// <!-- Tries to reserve capacity for at least `additional` more elements to be inserted
     /// in the given `Vec<T>`. The collection may reserve more space to avoid
     /// frequent reallocations. After calling `reserve`, capacity will be
     /// greater than or equal to `self.len() + additional`. Does nothing if
-    /// capacity is already sufficient.
+    /// capacity is already sufficient. -->
     ///
     /// # Errors
     ///
-    /// If the capacity overflows, or the allocator reports a failure, then an error
-    /// is returned.
+    /// 容量がオーバーフローする、またはアロケータが失敗を通知するときエラーを返します。
+    ///
+    /// <!-- If the capacity overflows, or the allocator reports a failure, then an error
+    /// is returned. -->
     ///
     /// # Examples
     ///
     /// ```
     /// #![feature(try_reserve)]
+    /// use std::collections::CollectionAllocErr;
+    ///
+    /// fn process_data(data: &[u32]) -> Result<Vec<u32>, CollectionAllocErr> {
+    ///     let mut output = Vec::new();
+    ///
+    ///     // 予めメモリを確保し、できなければ脱出する
+    ///     output.try_reserve(data.len())?;
+    ///
+    ///     // 今、これが複雑な作業の途中でOOMし得ないことがわかっています
+    ///     // Now we know this can't OOM in the middle of our complex work
+    ///     output.extend(data.iter().map(|&val| {
+    ///         val * 2 + 5 // すごく複雑
+    ///     }));
+    ///
+    ///     Ok(output)
+    /// }
+    /// # process_data(&[1, 2, 3]).expect("なんでテストフレームワークが12バイトでOOMしてるんだ？");
+    /// ```
+    ///
+    /// <!-- ``` -->
+    /// <!-- #![feature(try_reserve)]
     /// use std::collections::CollectionAllocErr;
     ///
     /// fn process_data(data: &[u32]) -> Result<Vec<u32>, CollectionAllocErr> {
@@ -512,31 +742,58 @@ impl<T> Vec<T> {
     ///
     ///     Ok(output)
     /// }
-    /// # process_data(&[1, 2, 3]).expect("why is the test harness OOMing on 12 bytes?");
-    /// ```
+    /// # process_data(&[1, 2, 3]).expect("why is the test harness OOMing on 12 bytes?"); -->
+    /// <!-- ``` -->
     #[unstable(feature = "try_reserve", reason = "new API", issue="48043")]
     pub fn try_reserve(&mut self, additional: usize) -> Result<(), CollectionAllocErr> {
         self.buf.try_reserve(self.len, additional)
     }
 
-    /// Tries to reserves the minimum capacity for exactly `additional` more elements to
+    /// ちょうど`additional`個の要素与えられた`Vec<T>`に挿入できるように最低限の容量を確保することを試みます。コレクションは頻繁なメモリの再確保を避けるために領域を多めに確保するかもしれません。`reserve_exact`を呼び出した後、容量は`self.len() + addtional`以上になります。容量が既に十分なときは何もしません。
+    ///
+    /// <!-- Tries to reserves the minimum capacity for exactly `additional` more elements to
     /// be inserted in the given `Vec<T>`. After calling `reserve_exact`,
     /// capacity will be greater than or equal to `self.len() + additional`.
-    /// Does nothing if the capacity is already sufficient.
+    /// Does nothing if the capacity is already sufficient. -->
     ///
-    /// Note that the allocator may give the collection more space than it
+    /// アロケータは要求したより多くの領域を確保するかもしれないことに注意してください。そのためキャパシティが正確に最小であることに依存することはできません。将来の挿入が予期される場合`reserve`のほうが好ましいです。
+    ///
+    /// <!-- Note that the allocator may give the collection more space than it
     /// requests. Therefore, capacity can not be relied upon to be precisely
-    /// minimal. Prefer `reserve` if future insertions are expected.
+    /// minimal. Prefer `reserve` if future insertions are expected. -->
     ///
     /// # Errors
     ///
-    /// If the capacity overflows, or the allocator reports a failure, then an error
-    /// is returned.
+    /// 容量がオーバーフローする、またはアロケータが失敗を通知するときエラーを返します。
+    ///
+    /// <!-- If the capacity overflows, or the allocator reports a failure, then an error
+    /// is returned. -->
     ///
     /// # Examples
     ///
     /// ```
     /// #![feature(try_reserve)]
+    /// use std::collections::CollectionAllocErr;
+    ///
+    /// fn process_data(data: &[u32]) -> Result<Vec<u32>, CollectionAllocErr> {
+    ///     let mut output = Vec::new();
+    ///
+    ///     // 予めメモリを確保し、できなければ脱出する
+    ///     output.try_reserve(data.len())?;
+    ///
+    ///     // 今、これが複雑な作業の途中でOOMし得ないことがわかっています
+    ///     // Now we know this can't OOM in the middle of our complex work
+    ///     output.extend(data.iter().map(|&val| {
+    ///         val * 2 + 5 // すごく複雑
+    ///     }));
+    ///
+    ///     Ok(output)
+    /// }
+    /// # process_data(&[1, 2, 3]).expect("なんでテストフレームワークが12バイトでOOMしてるんだ？");
+    /// ```
+    ///
+    /// <!-- ``` -->
+    /// <!-- #![feature(try_reserve)]
     /// use std::collections::CollectionAllocErr;
     ///
     /// fn process_data(data: &[u32]) -> Result<Vec<u32>, CollectionAllocErr> {
@@ -552,17 +809,21 @@ impl<T> Vec<T> {
     ///
     ///     Ok(output)
     /// }
-    /// # process_data(&[1, 2, 3]).expect("why is the test harness OOMing on 12 bytes?");
-    /// ```
+    /// # process_data(&[1, 2, 3]).expect("why is the test harness OOMing on 12 bytes?"); -->
+    /// <!-- ``` -->
     #[unstable(feature = "try_reserve", reason = "new API", issue="48043")]
     pub fn try_reserve_exact(&mut self, additional: usize) -> Result<(), CollectionAllocErr>  {
         self.buf.try_reserve_exact(self.len, additional)
     }
 
-    /// Shrinks the capacity of the vector as much as possible.
+    /// ベクターの容量を可能な限り縮小します。
     ///
-    /// It will drop down as close as possible to the length but the allocator
-    /// may still inform the vector that there is space for a few more elements.
+    /// <!-- Shrinks the capacity of the vector as much as possible. -->
+    ///
+    /// 可能な限り長さの近くまで領域を破棄しますが、アロケータはまだ少し要素を格納できる領域があるとベクターに通知するかもしれません。
+    ///
+    /// <!-- It will drop down as close as possible to the length but the allocator
+    /// may still inform the vector that there is space for a few more elements. -->
     ///
     /// # Examples
     ///
@@ -580,13 +841,19 @@ impl<T> Vec<T> {
         }
     }
 
-    /// Shrinks the capacity of the vector with a lower bound.
+    /// 下限付きでベクターを縮小します。
     ///
-    /// The capacity will remain at least as large as both the length
-    /// and the supplied value.
+    /// <!-- Shrinks the capacity of the vector with a lower bound. -->
     ///
-    /// Panics if the current capacity is smaller than the supplied
-    /// minimum capacity.
+    /// 容量は最低でも長さと与えられた値以上になります。
+    ///
+    /// <!-- The capacity will remain at least as large as both the length
+    /// and the supplied value. -->
+    ///
+    /// 現在の容量が与えられた値より小さい場合パニックします。
+    ///
+    /// <!-- Panics if the current capacity is smaller than the supplied
+    /// minimum capacity. -->
     ///
     /// # Examples
     ///
@@ -605,9 +872,13 @@ impl<T> Vec<T> {
         self.buf.shrink_to_fit(cmp::max(self.len, min_capacity));
     }
 
-    /// Converts the vector into [`Box<[T]>`][owned slice].
+    /// ベクターを[`Box<[T]>`][owned slice]に変換します。
     ///
-    /// Note that this will drop any excess capacity.
+    /// <!-- Converts the vector into [`Box<[T]>`][owned slice]. -->
+    ///
+    /// このメソッドが余剰の容量を落とすことに注意してください。
+    ///
+    /// <!-- Note that this will drop any excess capacity. -->
     ///
     /// [owned slice]: ../../std/boxed/struct.Box.html
     ///
@@ -619,7 +890,9 @@ impl<T> Vec<T> {
     /// let slice = v.into_boxed_slice();
     /// ```
     ///
-    /// Any excess capacity is removed:
+    /// 余剰の容量は取り除かれます:
+    ///
+    /// <!-- Any excess capacity is removed: -->
     ///
     /// ```
     /// let mut vec = Vec::with_capacity(10);
@@ -639,21 +912,31 @@ impl<T> Vec<T> {
         }
     }
 
-    /// Shortens the vector, keeping the first `len` elements and dropping
-    /// the rest.
+    /// 初めの`len`個の要素を残し、残りを捨てることでベクターを短くします。
     ///
-    /// If `len` is greater than the vector's current length, this has no
-    /// effect.
+    /// <!-- Shortens the vector, keeping the first `len` elements and dropping
+    /// the rest. -->
     ///
-    /// The [`drain`] method can emulate `truncate`, but causes the excess
-    /// elements to be returned instead of dropped.
+    /// `len`がベクターの現在の長さより大きいときは何の効果もありません。
     ///
-    /// Note that this method has no effect on the allocated capacity
-    /// of the vector.
+    /// <!-- If `len` is greater than the vector's current length, this has no
+    /// effect. -->
+    ///
+    /// [`drain`]メソッドは`truncate`をエミュレートできますが、余剰の要素を捨てる代わりに返すことになります。
+    ///
+    /// <!-- The [`drain`] method can emulate `truncate`, but causes the excess
+    /// elements to be returned instead of dropped. -->
+    ///
+    /// このメソッドはベクターの確保された容量に影響しないことに注意してください。
+    ///
+    /// <!-- Note that this method has no effect on the allocated capacity
+    /// of the vector. -->
     ///
     /// # Examples
     ///
-    /// Truncating a five element vector to two elements:
+    /// 五要素のベクターの二要素への切り詰め:
+    ///
+    /// <!-- Truncating a five element vector to two elements: -->
     ///
     /// ```
     /// let mut vec = vec![1, 2, 3, 4, 5];
@@ -661,8 +944,10 @@ impl<T> Vec<T> {
     /// assert_eq!(vec, [1, 2]);
     /// ```
     ///
-    /// No truncation occurs when `len` is greater than the vector's current
-    /// length:
+    /// `len`がベクターの現在の長さより大きいときは切り詰めが起きません:
+    ///
+    /// <!-- No truncation occurs when `len` is greater than the vector's current
+    /// length: -->
     ///
     /// ```
     /// let mut vec = vec![1, 2, 3];
@@ -670,8 +955,10 @@ impl<T> Vec<T> {
     /// assert_eq!(vec, [1, 2, 3]);
     /// ```
     ///
-    /// Truncating when `len == 0` is equivalent to calling the [`clear`]
-    /// method.
+    /// `len == 0`のときの切り詰めは[`clear`]の呼び出しと同値です。
+    ///
+    /// <!-- Truncating when `len == 0` is equivalent to calling the [`clear`]
+    /// method. -->
     ///
     /// ```
     /// let mut vec = vec![1, 2, 3];
@@ -701,9 +988,13 @@ impl<T> Vec<T> {
         }
     }
 
-    /// Extracts a slice containing the entire vector.
+    /// ベクター全体を含むスライスを抜き出します。
     ///
-    /// Equivalent to `&s[..]`.
+    /// <!-- Extracts a slice containing the entire vector. -->
+    ///
+    /// `&s[..]`と同値です。
+    ///
+    /// <!-- Equivalent to `&s[..]`. -->
     ///
     /// # Examples
     ///
@@ -718,9 +1009,13 @@ impl<T> Vec<T> {
         self
     }
 
-    /// Extracts a mutable slice of the entire vector.
+    /// ベクター全体のミュータブルなスライスを抜き出します。
     ///
-    /// Equivalent to `&mut s[..]`.
+    /// <!-- Extracts a mutable slice of the entire vector. -->
+    ///
+    /// `&mut s[..]`と同値です。
+    ///
+    /// <!-- Equivalent to `&mut s[..]`. -->
     ///
     /// # Examples
     ///
@@ -735,12 +1030,16 @@ impl<T> Vec<T> {
         self
     }
 
-    /// Forces the length of the vector to `new_len`.
+    /// ベクターの長さを`new_len`に強制します。
     ///
-    /// This is a low-level operation that maintains none of the normal
+    /// <!-- Forces the length of the vector to `new_len`. -->
+    ///
+    /// これは型の通常の不変量を全く保存しない低レベル操作です。通常、ベクターの長さの変更はこのメソッドよりも[`truncate`]や[`resize`]や[`extend`]や[`clear`]のような安全な操作を利用することで行われます。
+    ///
+    /// <!-- This is a low-level operation that maintains none of the normal
     /// invariants of the type. Normally changing the length of a vector
     /// is done using one of the safe operations instead, such as
-    /// [`truncate`], [`resize`], [`extend`], or [`clear`].
+    /// [`truncate`], [`resize`], [`extend`], or [`clear`]. -->
     ///
     /// [`truncate`]: #method.truncate
     /// [`resize`]: #method.resize
@@ -749,18 +1048,60 @@ impl<T> Vec<T> {
     ///
     /// # Safety
     ///
-    /// - `new_len` must be less than or equal to [`capacity()`].
-    /// - The elements at `old_len..new_len` must be initialized.
+    /// - `new_len`は[`capacity()`]以下でなければなりません。
+    /// - `old_len..new_len`の要素は初期化されていなければなりません。
+    ///
+    /// <!-- - `new_len` must be less than or equal to [`capacity()`]. -->
+    /// <!-- - The elements at `old_len..new_len` must be initialized. -->
     ///
     /// [`capacity()`]: #method.capacity
     ///
     /// # Examples
     ///
-    /// This method can be useful for situations in which the vector
-    /// is serving as a buffer for other code, particularly over FFI:
+    /// このメソッドはベクターが他のコードでバッファになっているとき、特にFFIで役に立つことがあります:
+    ///
+    /// <!-- This method can be useful for situations in which the vector
+    /// is serving as a buffer for other code, particularly over FFI: -->
     ///
     /// ```no_run
     /// # #![allow(dead_code)]
+    /// # // これは単なるドキュメントの例のための最小の枠組みです。
+    /// # // 実際のライブラリのスタート地点としては利用しないでください。
+    /// # pub struct StreamWrapper { strm: *mut std::ffi::c_void }
+    /// # const Z_OK: i32 = 0;
+    /// # extern "C" {
+    /// #     fn deflateGetDictionary(
+    /// #         strm: *mut std::ffi::c_void,
+    /// #         dictionary: *mut u8,
+    /// #         dictLength: *mut usize,
+    /// #     ) -> i32;
+    /// # }
+    /// # impl StreamWrapper {
+    /// pub fn get_dictionary(&self) -> Option<Vec<u8>> {
+    ///     // FFIメソッドのドキュメント毎に、「32768バイトは常に十分」と書く。
+    ///     let mut dict = Vec::with_capacity(32_768);
+    ///     let mut dict_length = 0;
+    ///     // SAFETY: `deflateGetDictionary`が`Z_OK`を返すとき、次が成り立つ:
+    ///     // 1. `dict_length`個の要素が初期化された。
+    ///     // 2. `dict_length` <= 容量 (32_768)
+    ///     // このことから`set_len`は安全に呼び出すことができる。
+    ///     unsafe {
+    ///         // FFIを呼び出す。
+    ///         let r = deflateGetDictionary(self.strm, dict.as_mut_ptr(), &mut dict_length);
+    ///         if r == Z_OK {
+    ///             // ...そして長さを初期化された長さに設定する。
+    ///             dict.set_len(dict_length);
+    ///             Some(dict)
+    ///         } else {
+    ///             None
+    ///         }
+    ///     }
+    /// }
+    /// # }
+    /// ```
+    ///
+    /// <!-- ```no_run -->
+    /// <!-- # #![allow(dead_code)]
     /// # // This is just a minimal skeleton for the doc example;
     /// # // don't use this as a starting point for a real library.
     /// # pub struct StreamWrapper { strm: *mut std::ffi::c_void }
@@ -793,14 +1134,28 @@ impl<T> Vec<T> {
     ///         }
     ///     }
     /// }
-    /// # }
-    /// ```
+    /// # } -->
+    /// <!-- ``` -->
     ///
-    /// While the following example is sound, there is a memory leak since
-    /// the inner vectors were not freed prior to the `set_len` call:
+    /// 次の例は健全ですが、内側のベクターが`set_len`の呼び出しの前に解放されないのでメモリリークします:
+    ///
+    /// <!-- While the following example is sound, there is a memory leak since
+    /// the inner vectors were not freed prior to the `set_len` call: -->
     ///
     /// ```
     /// let mut vec = vec![vec![1, 0, 0],
+    ///                    vec![0, 1, 0],
+    ///                    vec![0, 0, 1]];
+    /// // SAFETY:
+    /// // 1. `old_len..0`は空なので初期化する必要のある要素はない。
+    /// // 2. `0 <= capacity`はどのような`capacity`に対しても成り立つ。
+    /// unsafe {
+    ///     vec.set_len(0);
+    /// }
+    /// ```
+    ///
+    /// <!-- ``` -->
+    /// <!-- let mut vec = vec![vec![1, 0, 0],
     ///                    vec![0, 1, 0],
     ///                    vec![0, 0, 1]];
     /// // SAFETY:
@@ -808,11 +1163,13 @@ impl<T> Vec<T> {
     /// // 2. `0 <= capacity` always holds whatever `capacity` is.
     /// unsafe {
     ///     vec.set_len(0);
-    /// }
-    /// ```
+    /// } -->
+    /// <!-- ``` -->
     ///
-    /// Normally, here, one would use [`clear`] instead to correctly drop
-    /// the contents and thus not leak memory.
+    /// 通常、このようなときは要素を正しくドロップし、メモリをリークさせないために[`clear`]を代わりに使います。
+    ///
+    /// <!-- Normally, here, one would use [`clear`] instead to correctly drop
+    /// the contents and thus not leak memory. -->
     #[inline]
     #[stable(feature = "rust1", since = "1.0.0")]
     pub unsafe fn set_len(&mut self, new_len: usize) {
@@ -821,15 +1178,23 @@ impl<T> Vec<T> {
         self.len = new_len;
     }
 
-    /// Removes an element from the vector and returns it.
+    /// ベクターから要素を取り除き、その要素を返します。
     ///
-    /// The removed element is replaced by the last element of the vector.
+    /// <!-- Removes an element from the vector and returns it. -->
     ///
-    /// This does not preserve ordering, but is O(1).
+    /// 取り除かれた要素はベクターの最後の要素に置き換えられます。
+    ///
+    /// <!-- The removed element is replaced by the last element of the vector. -->
+    ///
+    /// このメソッドは順序を保ちませんが、O(1)です。
+    ///
+    /// <!-- This does not preserve ordering, but is O(1). -->
     ///
     /// # Panics
     ///
-    /// Panics if `index` is out of bounds.
+    /// `index`が境界の外にあるときパニックします。
+    ///
+    /// <!-- Panics if `index` is out of bounds. -->
     ///
     /// # Examples
     ///
@@ -856,12 +1221,16 @@ impl<T> Vec<T> {
         }
     }
 
-    /// Inserts an element at position `index` within the vector, shifting all
-    /// elements after it to the right.
+    /// 後続する全ての要素を右側に移動して、要素をベクターの`index`の位置に挿入します。
+    ///
+    /// <!-- Inserts an element at position `index` within the vector, shifting all
+    /// elements after it to the right. -->
     ///
     /// # Panics
     ///
-    /// Panics if `index > len`.
+    /// `index > len`のときパニックします。
+    ///
+    /// <!-- Panics if `index > len`. -->
     ///
     /// # Examples
     ///
@@ -898,12 +1267,16 @@ impl<T> Vec<T> {
         }
     }
 
-    /// Removes and returns the element at position `index` within the vector,
-    /// shifting all elements after it to the left.
+    /// ベクターの`index`の位置にある要素を取り除き、返します。後続するすべての要素は左に移動します。
+    ///
+    /// <!-- Removes and returns the element at position `index` within the vector,
+    /// shifting all elements after it to the left. -->
     ///
     /// # Panics
     ///
-    /// Panics if `index` is out of bounds.
+    /// `index`が教会の外にあるときパニックします。
+    ///
+    /// <!-- Panics if `index` is out of bounds. -->
     ///
     /// # Examples
     ///
@@ -934,11 +1307,15 @@ impl<T> Vec<T> {
         }
     }
 
-    /// Retains only the elements specified by the predicate.
+    /// 命題で指定された要素だけを残します。
     ///
-    /// In other words, remove all elements `e` such that `f(&e)` returns `false`.
+    /// <!-- Retains only the elements specified by the predicate. -->
+    ///
+    /// 言い換えると、`f(&e)`が`false`を返すような全ての`e`を取り除きます。このメソッドはin-placeで動作し、残った要素の順序を保ちます。
+    ///
+    /// <!-- In other words, remove all elements `e` such that `f(&e)` returns `false`.
     /// This method operates in place and preserves the order of the retained
-    /// elements.
+    /// elements. -->
     ///
     /// # Examples
     ///
@@ -954,10 +1331,14 @@ impl<T> Vec<T> {
         self.drain_filter(|x| !f(x));
     }
 
-    /// Removes all but the first of consecutive elements in the vector that resolve to the same
-    /// key.
+    /// ベクター内の同じキーが解決される連続した要素から先頭以外全てを取り除きます。
     ///
-    /// If the vector is sorted, this removes all duplicates.
+    /// <!-- Removes all but the first of consecutive elements in the vector that resolve to the same
+    /// key. -->
+    ///
+    /// ベクターがソートされているとき、このメソッドは全ての重複を取り除きます。
+    ///
+    /// <!-- If the vector is sorted, this removes all duplicates. -->
     ///
     /// # Examples
     ///
@@ -974,14 +1355,21 @@ impl<T> Vec<T> {
         self.dedup_by(|a, b| key(a) == key(b))
     }
 
-    /// Removes all but the first of consecutive elements in the vector satisfying a given equality
-    /// relation.
+    /// ベクター内の与えられた等価関係を満たす連続する要素から先頭以外全てを取り除きます。
     ///
-    /// The `same_bucket` function is passed references to two elements from the vector and
+    /// <!-- Removes all but the first of consecutive elements in the vector satisfying a given equality
+    /// relation. -->
+    ///
+    /// `same_bucket`関数はベクターから要素へ二つの参照を渡され、それらの要素同士が等しいかを決定しなければなりません。
+    /// 要素はスライス内での順と逆の順で渡されるので、`same_bucket(a, b)`が`true`を返すとき、`a`が取り除かれます。
+    ///
+    /// <!-- The `same_bucket` function is passed references to two elements from the vector and
     /// must determine if the elements compare equal. The elements are passed in opposite order
-    /// from their order in the slice, so if `same_bucket(a, b)` returns `true`, `a` is removed.
+    /// from their order in the slice, so if `same_bucket(a, b)` returns `true`, `a` is removed. -->
     ///
-    /// If the vector is sorted, this removes all duplicates.
+    /// ベクターがソートされているとき、このメソッドは全ての重複を取り除きます。
+    ///
+    /// <!-- If the vector is sorted, this removes all duplicates. -->
     ///
     /// # Examples
     ///
@@ -1001,11 +1389,15 @@ impl<T> Vec<T> {
         self.truncate(len);
     }
 
-    /// Appends an element to the back of a collection.
+    /// 要素をコレクションの後方に加えます。
+    ///
+    /// <!-- Appends an element to the back of a collection. -->
     ///
     /// # Panics
     ///
-    /// Panics if the number of elements in the vector overflows a `usize`.
+    /// ベクター内の要素の数が`usize`に収まらない場合パニックします。
+    ///
+    /// <!-- Panics if the number of elements in the vector overflows a `usize`. -->
     ///
     /// # Examples
     ///
@@ -1054,11 +1446,15 @@ impl<T> Vec<T> {
         }
     }
 
-    /// Moves all the elements of `other` into `Self`, leaving `other` empty.
+    /// `other`の要素を全て`Self`に移動し、`other`を空にします。
+    ///
+    /// <!-- Moves all the elements of `other` into `Self`, leaving `other` empty. -->
     ///
     /// # Panics
     ///
-    /// Panics if the number of elements in the vector overflows a `usize`.
+    /// ベクターの要素の数が`usize`に収まらない場合パニックします。
+    ///
+    /// <!-- Panics if the number of elements in the vector overflows a `usize`. -->
     ///
     /// # Examples
     ///
@@ -1078,7 +1474,9 @@ impl<T> Vec<T> {
         }
     }
 
-    /// Appends elements to `Self` from other buffer.
+    /// 他のバッファから`Self`に要素を追加します。
+    ///
+    /// <!-- Appends elements to `Self` from other buffer. -->
     #[inline]
     unsafe fn append_elements(&mut self, other: *const [T]) {
         let count = (*other).len();
@@ -1088,19 +1486,27 @@ impl<T> Vec<T> {
         self.len += count;
     }
 
-    /// Creates a draining iterator that removes the specified range in the vector
-    /// and yields the removed items.
+    /// ベクター内の指定された区間を取り除き、取り除かれた要素を与える排出イテレータを作成します。
     ///
-    /// Note 1: The element range is removed even if the iterator is only
-    /// partially consumed or not consumed at all.
+    /// <!-- Creates a draining iterator that removes the specified range in the vector
+    /// and yields the removed items. -->
     ///
-    /// Note 2: It is unspecified how many elements are removed from the vector
-    /// if the `Drain` value is leaked.
+    /// 注1: イテレータが部分的にだけ消費される、またはまったく消費されない場合も区間内の要素は取り除かれます。
+    ///
+    /// <!-- Note 1: The element range is removed even if the iterator is only
+    /// partially consumed or not consumed at all. -->
+    ///
+    /// 注2: `Drain`の値がリークしたとき、ベクターから要素がいくつ取り除かれるかは未規定です。
+    ///
+    /// <!-- Note 2: It is unspecified how many elements are removed from the vector
+    /// if the `Drain` value is leaked. -->
     ///
     /// # Panics
     ///
-    /// Panics if the starting point is greater than the end point or if
-    /// the end point is greater than the length of the vector.
+    /// 始点が終点より大きい、または終了位置がベクターの長さより大きいときパニックします。
+    ///
+    /// <!-- Panics if the starting point is greater than the end point or if
+    /// the end point is greater than the length of the vector. -->
     ///
     /// # Examples
     ///
@@ -1110,10 +1516,21 @@ impl<T> Vec<T> {
     /// assert_eq!(v, &[1]);
     /// assert_eq!(u, &[2, 3]);
     ///
-    /// // A full range clears the vector
+    /// // 全区間でベクターをクリアします
     /// v.drain(..);
     /// assert_eq!(v, &[]);
     /// ```
+    ///
+    /// <!-- ``` -->
+    /// <!-- let mut v = vec![1, 2, 3];
+    /// let u: Vec<_> = v.drain(1..).collect();
+    /// assert_eq!(v, &[1]);
+    /// assert_eq!(u, &[2, 3]);
+    ///
+    /// // A full range clears the vector
+    /// v.drain(..);
+    /// assert_eq!(v, &[]); -->
+    /// <!-- ``` -->
     #[stable(feature = "drain", since = "1.6.0")]
     pub fn drain<R>(&mut self, range: R) -> Drain<'_, T>
         where R: RangeBounds<usize>
@@ -1158,10 +1575,14 @@ impl<T> Vec<T> {
         }
     }
 
-    /// Clears the vector, removing all values.
+    /// 全ての値を取り除き、ベクターを空にします。
     ///
-    /// Note that this method has no effect on the allocated capacity
-    /// of the vector.
+    /// <!-- Clears the vector, removing all values. -->
+    ///
+    /// このメソッドは確保された容量に影響を持たないことに注意してください。
+    ///
+    /// <!-- Note that this method has no effect on the allocated capacity
+    /// of the vector. -->
     ///
     /// # Examples
     ///
@@ -1178,8 +1599,10 @@ impl<T> Vec<T> {
         self.truncate(0)
     }
 
-    /// Returns the number of elements in the vector, also referred to
-    /// as its 'length'.
+    /// ベクター内の要素の数を返します。ベクターの長さとも呼ばれるものです。
+    ///
+    /// <!-- Returns the number of elements in the vector, also referred to
+    /// as its 'length'. -->
     ///
     /// # Examples
     ///
@@ -1193,7 +1616,9 @@ impl<T> Vec<T> {
         self.len
     }
 
-    /// Returns `true` if the vector contains no elements.
+    /// ベクターが要素を持たないとき`true`を返します。
+    ///
+    /// <!-- Returns `true` if the vector contains no elements. -->
     ///
     /// # Examples
     ///
@@ -1209,16 +1634,24 @@ impl<T> Vec<T> {
         self.len() == 0
     }
 
-    /// Splits the collection into two at the given index.
+    /// コレクションを与えられたインデックスで二つに分割します。
     ///
-    /// Returns a newly allocated `Self`. `self` contains elements `[0, at)`,
-    /// and the returned `Self` contains elements `[at, len)`.
+    /// <!-- Splits the collection into two at the given index. -->
     ///
-    /// Note that the capacity of `self` does not change.
+    /// 新たにアロケートされた`Self`を返します。`self`は`[0, at)`の要素を含み、返された`Self`は`[at, len)`の要素を含みます。
+    ///
+    /// <!-- Returns a newly allocated `Self`. `self` contains elements `[0, at)`,
+    /// and the returned `Self` contains elements `[at, len)`. -->
+    ///
+    /// `self`の容量は変わらないことに注意してください。
+    ///
+    /// <!-- Note that the capacity of `self` does not change. -->
     ///
     /// # Panics
     ///
-    /// Panics if `at > len`.
+    /// `at > len`のときパニックします。
+    ///
+    /// <!-- Panics if `at > len`. -->
     ///
     /// # Examples
     ///
@@ -1248,19 +1681,27 @@ impl<T> Vec<T> {
         other
     }
 
-    /// Resizes the `Vec` in-place so that `len` is equal to `new_len`.
+    /// `Vec`を`len`と`new_len`が等しくなるようにin-placeでリサイズします。
     ///
-    /// If `new_len` is greater than `len`, the `Vec` is extended by the
+    /// <!-- Resizes the `Vec` in-place so that `len` is equal to `new_len`. -->
+    ///
+    /// `new_len`が`len`よりも大きいとき`Vec`は差の分だけ拡張され、追加された場所はクロージャ`f`を呼び出した結果で埋められます。`f`の戻り値は生成された順に`Vec`に入ります。
+    ///
+    /// <!-- If `new_len` is greater than `len`, the `Vec` is extended by the
     /// difference, with each additional slot filled with the result of
     /// calling the closure `f`. The return values from `f` will end up
-    /// in the `Vec` in the order they have been generated.
+    /// in the `Vec` in the order they have been generated. -->
     ///
-    /// If `new_len` is less than `len`, the `Vec` is simply truncated.
+    /// `new_len`が`len`より小さいとき`Vec`は単に切り詰められます。
     ///
-    /// This method uses a closure to create new values on every push. If
+    /// <!-- If `new_len` is less than `len`, the `Vec` is simply truncated. -->
+    ///
+    /// このメソッドはプッシュ毎にクロージャを使用して新しい値を作成します。与えられた値を[`Clone`]するほうが望ましい場合は[`resize`]を使用してください。値を生成するのに[`Default`]を使いたい場合は[`Default::default()`]を第二引数として渡すことができます。
+    ///
+    /// <!-- This method uses a closure to create new values on every push. If
     /// you'd rather [`Clone`] a given value, use [`resize`]. If you want
     /// to use the [`Default`] trait to generate values, you can pass
-    /// [`Default::default()`] as the second argument..
+    /// [`Default::default()`] as the second argument.. -->
     ///
     /// # Examples
     ///
@@ -1291,15 +1732,21 @@ impl<T> Vec<T> {
 }
 
 impl<T: Clone> Vec<T> {
-    /// Resizes the `Vec` in-place so that `len` is equal to `new_len`.
+    /// `Vec`を`len`と`new_len`が等しくなるようにin-placeでリサイズします。
     ///
-    /// If `new_len` is greater than `len`, the `Vec` is extended by the
+    /// <!-- Resizes the `Vec` in-place so that `len` is equal to `new_len`. -->
+    ///
+    /// `new_len`が`len`よりも大きいとき`Vec`は差の分だけ拡張され、追加分の位置は`value`で埋められます。`new_len`が`len`より小さいとき`Vec`は単に切り詰められます。
+    ///
+    /// <!-- If `new_len` is greater than `len`, the `Vec` is extended by the
     /// difference, with each additional slot filled with `value`.
-    /// If `new_len` is less than `len`, the `Vec` is simply truncated.
+    /// If `new_len` is less than `len`, the `Vec` is simply truncated. -->
     ///
-    /// This method requires [`Clone`] to be able clone the passed value. If
+    /// このメソッドは与えられた値を複製するために[`Clone`]を要求します。もっと柔軟であることを求めるなら (または[`Clone`]の代わりに[`Default`]に依存したいなら)、[`resize_with`]を使用してください。
+    ///
+    /// <!-- This method requires [`Clone`] to be able clone the passed value. If
     /// you need more flexibility (or want to rely on [`Default`] instead of
-    /// [`Clone`]), use [`resize_with`].
+    /// [`Clone`]), use [`resize_with`]. -->
     ///
     /// # Examples
     ///
@@ -1327,15 +1774,22 @@ impl<T: Clone> Vec<T> {
         }
     }
 
-    /// Clones and appends all elements in a slice to the `Vec`.
+    /// スライスのすべての要素を複製し`Vec`に追加します。
     ///
-    /// Iterates over the slice `other`, clones each element, and then appends
-    /// it to this `Vec`. The `other` vector is traversed in-order.
+    /// <!-- Clones and appends all elements in a slice to the `Vec`. -->
     ///
-    /// Note that this function is same as [`extend`] except that it is
+    /// スライス`other`の各要素を複製し、そしてそれを`Vec`に追加します。`other`は順番に反復されます。
+    ///
+    /// <!-- Iterates over the slice `other`, clones each element, and then appends
+    /// it to this `Vec`. The `other` vector is traversed in-order. -->
+    ///
+    /// この関数はスライスと共に動作することに特殊化していることを除いて[`extend`]と同じであることに注意してください。
+    /// もしRustが特殊化 (訳注: [specialization](https://github.com/rust-lang/rust/issues/31844)) を得た場合、この関数は恐らく非推奨になります (しかしそれでも利用は可能です)。
+    ///
+    /// <!-- Note that this function is same as [`extend`] except that it is
     /// specialized to work with slices instead. If and when Rust gets
     /// specialization this function will likely be deprecated (but still
-    /// available).
+    /// available). -->
     ///
     /// # Examples
     ///
@@ -1353,14 +1807,20 @@ impl<T: Clone> Vec<T> {
 }
 
 impl<T: Default> Vec<T> {
-    /// Resizes the `Vec` in-place so that `len` is equal to `new_len`.
+    /// `Vec`を`len`と`new_len`が等しくなるようにin-placeでリサイズします。
     ///
-    /// If `new_len` is greater than `len`, the `Vec` is extended by the
+    /// <!-- Resizes the `Vec` in-place so that `len` is equal to `new_len`. -->
+    ///
+    /// `new_len`が`len`よりも大きいとき`Vec`は差の分だけ拡張され、追加分の位置は[`Default::default()`]で埋められます。`new_len`が`len`より小さいとき`Vec`は単に切り詰められます。
+    ///
+    /// <!-- If `new_len` is greater than `len`, the `Vec` is extended by the
     /// difference, with each additional slot filled with [`Default::default()`].
-    /// If `new_len` is less than `len`, the `Vec` is simply truncated.
+    /// If `new_len` is less than `len`, the `Vec` is simply truncated. -->
     ///
-    /// This method uses [`Default`] to create new values on every push. If
-    /// you'd rather [`Clone`] a given value, use [`resize`].
+    /// このメソッドはプッシュ毎に[`Default`]を使用して新しい値を作成します。[`Clone`]のほうが好ましい場合は[`resize`]を使用してください。
+    ///
+    /// <!-- This method uses [`Default`] to create new values on every push. If
+    /// you'd rather [`Clone`] a given value, use [`resize`]. -->
     ///
     /// # Examples
     ///
@@ -1382,9 +1842,10 @@ impl<T: Default> Vec<T> {
     /// [`Default`]: ../../std/default/trait.Default.html
     /// [`Clone`]: ../../std/clone/trait.Clone.html
     #[unstable(feature = "vec_resize_default", issue = "41758")]
-    #[rustc_deprecated(reason = "This is moving towards being removed in favor \
-        of `.resize_with(Default::default)`.  If you disagree, please comment \
-        in the tracking issue.", since = "1.33.0")]
+    #[rustc_deprecated(reason = "これは取り除かれていっており、代わりに`.resize_with(Default::default)`が使われています。同意できない場合、追跡イシューにコメントしてください。", since = "1.33.0")]
+    // #[rustc_deprecated(reason = "This is moving towards being removed in favor \
+    //     of `.resize_with(Default::default)`.  If you disagree, please comment \
+    //     in the tracking issue.", since = "1.33.0")]
     pub fn resize_default(&mut self, new_len: usize) {
         let len = self.len();
 
@@ -1421,7 +1882,9 @@ impl<T, F: FnMut() -> T> ExtendWith<T> for ExtendFunc<F> {
 }
 
 impl<T> Vec<T> {
-    /// Extend the vector by `n` values, using the given generator.
+    /// 与えられたジェネレータを使って、ベクターを`n`個の値で拡張します。
+    ///
+    /// <!-- Extend the vector by `n` values, using the given generator. -->
     fn extend_with<E: ExtendWith<T>>(&mut self, n: usize, mut value: E) {
         self.reserve(n);
 
@@ -1486,10 +1949,14 @@ impl Drop for SetLenOnDrop<'_> {
 }
 
 impl<T: PartialEq> Vec<T> {
-    /// Removes consecutive repeated elements in the vector according to the
-    /// [`PartialEq`] trait implementation.
+    /// [`PartialEq`]トレイトの実装によって連続して繰り返される要素を取り除きます。
     ///
-    /// If the vector is sorted, this removes all duplicates.
+    /// <!-- Removes consecutive repeated elements in the vector according to the
+    /// [`PartialEq`] trait implementation. -->
+    ///
+    /// ベクターがソートされているときこのメソッドは全ての重複を取り除きます。
+    ///
+    /// <!-- If the vector is sorted, this removes all duplicates. -->
     ///
     /// # Examples
     ///
@@ -1506,7 +1973,9 @@ impl<T: PartialEq> Vec<T> {
         self.dedup_by(|a, b| a == b)
     }
 
-    /// Removes the first instance of `item` from the vector if the item exists.
+    /// ベクターから最初の`item`のインスタンスをもし存在するなら取り除きます。
+    ///
+    /// <!-- Removes the first instance of `item` from the vector if the item exists. -->
     ///
     /// # Examples
     ///
@@ -1582,7 +2051,9 @@ impl<T: Clone + IsZero> SpecFromElem for T {
 }
 
 unsafe trait IsZero {
-    /// Whether this value is zero
+    /// この値がゼロかどうか
+    ///
+    /// <!-- Whether this value is zero -->
     fn is_zero(&self) -> bool;
 }
 
@@ -1727,19 +2198,29 @@ impl<T> IntoIterator for Vec<T> {
     type Item = T;
     type IntoIter = IntoIter<T>;
 
-    /// Creates a consuming iterator, that is, one that moves each value out of
+    /// `Vec<T>`を消費するイテレータを作成します。すなわちベクターの各値を (最初から最後まで) ムーブします。このメソッドを呼び出した後、ベクターは使用できません。
+    ///
+    /// <!-- Creates a consuming iterator, that is, one that moves each value out of
     /// the vector (from start to end). The vector cannot be used after calling
-    /// this.
+    /// this. -->
     ///
     /// # Examples
     ///
     /// ```
     /// let v = vec!["a".to_string(), "b".to_string()];
     /// for s in v.into_iter() {
-    ///     // s has type String, not &String
+    ///     // sはString型であって、&Stringではない
     ///     println!("{}", s);
     /// }
     /// ```
+    ///
+    /// <!-- ``` -->
+    /// <!-- let v = vec!["a".to_string(), "b".to_string()];
+    /// for s in v.into_iter() {
+    ///     // s has type String, not &String
+    ///     println!("{}", s);
+    /// } -->
+    /// <!-- ``` -->
     #[inline]
     fn into_iter(mut self) -> IntoIter<T> {
         unsafe {
@@ -1940,31 +2421,49 @@ impl<T> Vec<T> {
         }
     }
 
-    /// Creates a splicing iterator that replaces the specified range in the vector
+    /// ベクター内の指定された区間を与えられた`replace_with`イテレータで置き換え、取り除かれた要素を与える置換イテレータを作成します。`replace_with`は`range`と同じ長さでなくてもかまいません。
+    ///
+    /// <!-- Creates a splicing iterator that replaces the specified range in the vector
     /// with the given `replace_with` iterator and yields the removed items.
-    /// `replace_with` does not need to be the same length as `range`.
+    /// `replace_with` does not need to be the same length as `range`. -->
     ///
-    /// Note 1: The element range is removed even if the iterator is not
-    /// consumed until the end.
+    /// 注1: イテレータが最後まで消費されないとしても区間内の要素は取り除かれます。
     ///
-    /// Note 2: It is unspecified how many elements are removed from the vector,
-    /// if the `Splice` value is leaked.
+    /// <!-- Note 1: The element range is removed even if the iterator is not
+    /// consumed until the end. -->
     ///
-    /// Note 3: The input iterator `replace_with` is only consumed
-    /// when the `Splice` value is dropped.
+    /// `Splice`の値がリークした場合、いくつの要素がベクターから取り除かれるかは未規定です。
     ///
-    /// Note 4: This is optimal if:
+    /// <!-- Note 2: It is unspecified how many elements are removed from the vector,
+    /// if the `Splice` value is leaked. -->
+    ///
+    /// 注3: `Splice`がドロップされたとき、入力イテレータ`replace_with`は消費だけされます。
+    ///
+    /// <!-- Note 3: The input iterator `replace_with` is only consumed
+    /// when the `Splice` value is dropped. -->
+    ///
+    /// 注4: このメソッドは次の場合最適です:
+    ///
+    /// * 後部 (ベクター内の`range`の後の要素) が空のとき
+    /// * または`replace_with`が`range`の長さ以下の個数の要素を与えるとき
+    /// * または`size_hint()`の下限が正確であるとき。
+    ///
+    /// <!-- Note 4: This is optimal if:
     ///
     /// * The tail (elements in the vector after `range`) is empty,
     /// * or `replace_with` yields fewer elements than `range`’s length
-    /// * or the lower bound of its `size_hint()` is exact.
+    /// * or the lower bound of its `size_hint()` is exact. -->
     ///
-    /// Otherwise, a temporary vector is allocated and the tail is moved twice.
+    /// さもなくば一時ベクターがアロケートされ、後部は二度移動されます。
+    ///
+    /// <!-- Otherwise, a temporary vector is allocated and the tail is moved twice. -->
     ///
     /// # Panics
     ///
-    /// Panics if the starting point is greater than the end point or if
-    /// the end point is greater than the length of the vector.
+    /// 始点が終点より大きい場合、または終点がベクターの長さより大きい場合パニックします。
+    ///
+    /// <!-- Panics if the starting point is greater than the end point or if
+    /// the end point is greater than the length of the vector. -->
     ///
     /// # Examples
     ///
@@ -1986,16 +2485,39 @@ impl<T> Vec<T> {
         }
     }
 
-    /// Creates an iterator which uses a closure to determine if an element should be removed.
+    /// 要素を取り除くべきかの判定にクロージャを利用するイテレータを作成します。
     ///
-    /// If the closure returns true, then the element is removed and yielded.
+    /// <!-- Creates an iterator which uses a closure to determine if an element should be removed. -->
+    ///
+    /// クロージャがtrueを返すとき、要素は取り除かれ、イテレータによって与えられます。
+    /// クロージャがfalseを返すとき、要素はベクターに残り、イテレータによって与えられません。
+    ///
+    /// <!-- If the closure returns true, then the element is removed and yielded.
     /// If the closure returns false, the element will remain in the vector and will not be yielded
-    /// by the iterator.
+    /// by the iterator. -->
     ///
-    /// Using this method is equivalent to the following code:
+    /// このメソッドを使うことは次のコードと同値です:
+    ///
+    /// <!-- Using this method is equivalent to the following code: -->
     ///
     /// ```
     /// # let some_predicate = |x: &mut i32| { *x == 2 || *x == 3 || *x == 6 };
+    /// # let mut vec = vec![1, 2, 3, 4, 5, 6];
+    /// let mut i = 0;
+    /// while i != vec.len() {
+    ///     if some_predicate(&mut vec[i]) {
+    ///         let val = vec.remove(i);
+    ///         // ここにあなたのコード
+    ///     } else {
+    ///         i += 1;
+    ///     }
+    /// }
+    ///
+    /// # assert_eq!(vec, vec![1, 4, 5]);
+    /// ```
+    ///
+    /// <!-- ``` -->
+    /// <!-- # let some_predicate = |x: &mut i32| { *x == 2 || *x == 3 || *x == 6 };
     /// # let mut vec = vec![1, 2, 3, 4, 5, 6];
     /// let mut i = 0;
     /// while i != vec.len() {
@@ -2007,19 +2529,25 @@ impl<T> Vec<T> {
     ///     }
     /// }
     ///
-    /// # assert_eq!(vec, vec![1, 4, 5]);
-    /// ```
+    /// # assert_eq!(vec, vec![1, 4, 5]); -->
+    /// <!-- ``` -->
     ///
-    /// But `drain_filter` is easier to use. `drain_filter` is also more efficient,
-    /// because it can backshift the elements of the array in bulk.
+    /// しかし`drain_filter`はより簡単に使えます。`drain_filter`は配列の要素をまとめて移動できるので、効率的でもあります。
     ///
-    /// Note that `drain_filter` also lets you mutate every element in the filter closure,
-    /// regardless of whether you choose to keep or remove it.
+    /// <!-- But `drain_filter` is easier to use. `drain_filter` is also more efficient,
+    /// because it can backshift the elements of the array in bulk. -->
+    ///
+    /// `drain_filter`では保持か除外かの選択に関わらず、filterクロージャの中で各要素を変化させることもできるので注意してください。
+    ///
+    /// <!-- Note that `drain_filter` also lets you mutate every element in the filter closure,
+    /// regardless of whether you choose to keep or remove it. -->
     ///
     ///
     /// # Examples
     ///
-    /// Splitting an array into evens and odds, reusing the original allocation:
+    /// 配列を偶数と奇数に分割し、元の確保されたメモリを再利用します:
+    ///
+    /// <!-- Splitting an array into evens and odds, reusing the original allocation: -->
     ///
     /// ```
     /// #![feature(drain_filter)]
@@ -2050,10 +2578,14 @@ impl<T> Vec<T> {
     }
 }
 
-/// Extend implementation that copies elements out of references before pushing them onto the Vec.
+/// Vecに要素をプッシュする前に参照からコピーするExtendの実装です。
 ///
-/// This implementation is specialized for slice iterators, where it uses [`copy_from_slice`] to
-/// append the entire slice at once.
+/// <!-- Extend implementation that copies elements out of references before pushing them onto the Vec. -->
+///
+/// この実装はスライスイテレータに特化していて、一度に要素全体を追加するために[`copy_from_slice`]を使います。
+///
+/// <!-- This implementation is specialized for slice iterators, where it uses [`copy_from_slice`] to
+/// append the entire slice at once. -->
 ///
 /// [`copy_from_slice`]: ../../std/primitive.slice.html#method.copy_from_slice
 #[stable(feature = "extend_ref", since = "1.2.0")]
@@ -2106,7 +2638,9 @@ array_impls! {
     30 31 32
 }
 
-/// Implements comparison of vectors, lexicographically.
+/// 辞書式にベクターの比較を実装します。
+///
+/// <!-- Implements comparison of vectors, lexicographically. -->
 #[stable(feature = "rust1", since = "1.0.0")]
 impl<T: PartialOrd> PartialOrd for Vec<T> {
     #[inline]
@@ -2118,7 +2652,9 @@ impl<T: PartialOrd> PartialOrd for Vec<T> {
 #[stable(feature = "rust1", since = "1.0.0")]
 impl<T: Eq> Eq for Vec<T> {}
 
-/// Implements ordering of vectors, lexicographically.
+/// 辞書式順序でベクターの順序を実装します。
+///
+/// <!-- Implements ordering of vectors, lexicographically. -->
 #[stable(feature = "rust1", since = "1.0.0")]
 impl<T: Ord> Ord for Vec<T> {
     #[inline]
@@ -2140,7 +2676,9 @@ unsafe impl<#[may_dangle] T> Drop for Vec<T> {
 
 #[stable(feature = "rust1", since = "1.0.0")]
 impl<T> Default for Vec<T> {
-    /// Creates an empty `Vec<T>`.
+    /// 空の`Vec<T>`を作成します。
+    ///
+    /// <!-- Creates an empty `Vec<T>`. -->
     fn default() -> Vec<T> {
         Vec::new()
     }
@@ -2273,10 +2811,14 @@ impl<'a, T> FromIterator<T> for Cow<'a, [T]> where T: Clone {
 // Iterators
 ////////////////////////////////////////////////////////////////////////////////
 
-/// An iterator that moves out of a vector.
+/// ベクターから所有権を奪うイテレータ。
 ///
-/// This `struct` is created by the `into_iter` method on [`Vec`][`Vec`] (provided
-/// by the [`IntoIterator`] trait).
+/// <!-- An iterator that moves out of a vector. -->
+///
+/// この構造体は[`Vec`][`Vec`]の`into_iter`メソッドによって作成されます ([`IntoIterator`]トレイトによって提供されます)。
+///
+/// <!-- This `struct` is created by the `into_iter` method on [`Vec`][`Vec`] (provided
+/// by the [`IntoIterator`] trait). -->
 ///
 /// [`Vec`]: struct.Vec.html
 /// [`IntoIterator`]: ../../std/iter/trait.IntoIterator.html
@@ -2299,7 +2841,9 @@ impl<T: fmt::Debug> fmt::Debug for IntoIter<T> {
 }
 
 impl<T> IntoIter<T> {
-    /// Returns the remaining items of this iterator as a slice.
+    /// このイテレータの残りの要素をスライスとして返します。
+    ///
+    /// <!-- Returns the remaining items of this iterator as a slice. -->
     ///
     /// # Examples
     ///
@@ -2317,7 +2861,9 @@ impl<T> IntoIter<T> {
         }
     }
 
-    /// Returns the remaining items of this iterator as a mutable slice.
+    /// このイテレータの残りの要素をミュータブルなスライスとして返します。
+    ///
+    /// <!-- Returns the remaining items of this iterator as a mutable slice. -->
     ///
     /// # Examples
     ///
@@ -2442,9 +2988,13 @@ unsafe impl<#[may_dangle] T> Drop for IntoIter<T> {
     }
 }
 
-/// A draining iterator for `Vec<T>`.
+/// `Vec<T>`の排出イテレータ。
 ///
-/// This `struct` is created by the [`drain`] method on [`Vec`].
+/// <!-- A draining iterator for `Vec<T>`. -->
+///
+/// この構造体は[`Vec`]の[`drain`]メソッドによって作成されます。
+///
+/// <!-- This `struct` is created by the [`drain`] method on [`Vec`]. -->
 ///
 /// [`drain`]: struct.Vec.html#method.drain
 /// [`Vec`]: struct.Vec.html
@@ -2529,10 +3079,14 @@ impl<T> ExactSizeIterator for Drain<'_, T> {
 #[stable(feature = "fused", since = "1.26.0")]
 impl<T> FusedIterator for Drain<'_, T> {}
 
-/// A splicing iterator for `Vec`.
+/// `Vec`の置換イテレータ。
 ///
-/// This struct is created by the [`splice()`] method on [`Vec`]. See its
-/// documentation for more.
+/// <!-- A splicing iterator for `Vec`. -->
+///
+/// この構造体は[`Vec`]の[`splice()`]メソッドによって作成されます。より詳しい情報は[`splice()`]のドキュメンテーションを参照してください。
+///
+/// <!-- This struct is created by the [`splice()`] method on [`Vec`]. See its
+/// documentation for more. -->
 ///
 /// [`splice()`]: struct.Vec.html#method.splice
 /// [`Vec`]: struct.Vec.html
@@ -2647,7 +3201,9 @@ impl<T> Drain<'_, T> {
     }
 }
 
-/// An iterator produced by calling `drain_filter` on Vec.
+/// Vecで`drain_filter`を呼び出すと得られるイテレータ。
+///
+/// <!-- An iterator produced by calling `drain_filter` on Vec. -->
 #[unstable(feature = "drain_filter", reason = "recently added", issue = "43244")]
 #[derive(Debug)]
 pub struct DrainFilter<'a, T, F>
