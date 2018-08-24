@@ -1,22 +1,38 @@
-//! A dynamically-sized view into a contiguous sequence, `[T]`.
+//! 連続する列への動的な大きさを持つビュー`[T]`。
 //!
-//! *[See also the slice primitive type](../../std/primitive.slice.html).*
+//! <!-- A dynamically-sized view into a contiguous sequence, `[T]`. -->
 //!
-//! Slices are a view into a block of memory represented as a pointer and a
-//! length.
+//! * [プリミティブ型sliceも参照してください](../../std/primitive.slice.html)。
+//!
+//! <!-- *[See also the slice primitive type](../../std/primitive.slice.html).* -->
+//!
+//! スライスはメモリの塊へのポインタと長さで表現されるビューです。
+//!
+//! <!-- Slices are a view into a block of memory represented as a pointer and a
+//! length. -->
 //!
 //! ```
-//! // slicing a Vec
+//! // ベクタのスライス
 //! let vec = vec![1, 2, 3];
 //! let int_slice = &vec[..];
-//! // coercing an array to a slice
+//! // 配列のスライスへの矯正
 //! let str_slice: &[&str] = &["one", "two", "three"];
 //! ```
 //!
-//! Slices are either mutable or shared. The shared slice type is `&[T]`,
+//! <!-- ``` -->
+//! <!-- // slicing a Vec
+//! let vec = vec![1, 2, 3];
+//! let int_slice = &vec[..];
+//! // coercing an array to a slice
+//! let str_slice: &[&str] = &["one", "two", "three"]; -->
+//! <!-- ``` -->
+//!
+//! スライスはミュータブルまたは共有状態のいずれかです。共有されるスライス型は`&[T]`ですが、ミュータブルなスライス型は`&mut [T]`です。ここで`T`は要素の型を表します。例えば、ミュータブルなスライスが指すメモリの塊を変化させることができます:
+//!
+//! <!-- Slices are either mutable or shared. The shared slice type is `&[T]`,
 //! while the mutable slice type is `&mut [T]`, where `T` represents the element
 //! type. For example, you can mutate the block of memory that a mutable slice
-//! points to:
+//! points to: -->
 //!
 //! ```
 //! let x = &mut [1, 2, 3];
@@ -24,26 +40,44 @@
 //! assert_eq!(x, &[1, 7, 3]);
 //! ```
 //!
-//! Here are some of the things this module contains:
+//! <!-- 以下はこのモジュールが含むものの一部です: -->
 //!
-//! ## Structs
+//! <!-- Here are some of the things this module contains: -->
 //!
-//! There are several structs that are useful for slices, such as [`Iter`], which
-//! represents iteration over a slice.
+//! ## 構造体
 //!
-//! ## Trait Implementations
+//! <!-- ## Structs -->
 //!
-//! There are several implementations of common traits for slices. Some examples
-//! include:
+//! スライス上の繰り返しを表現する[`Iter`]のように、スライスを扱うのに便利な構造体がいくつかあります。
+//!
+//! <!-- There are several structs that are useful for slices, such as [`Iter`], which
+//! represents iteration over a slice. -->
+//!
+//! ## トレイトの実装
+//!
+//! <!-- ## Trait Implementations -->
+//!
+//! いくつかのスライス共通のトレイト実装があります。例えば:
+//!
+//! <!-- There are several implementations of common traits for slices. Some examples
+//! include: -->
 //!
 //! * [`Clone`]
-//! * [`Eq`], [`Ord`] - for slices whose element type are [`Eq`] or [`Ord`].
-//! * [`Hash`] - for slices whose element type is [`Hash`].
+//! * [`Eq`], [`Ord`] - 要素の型が[`Eq`]や[`Ord`]であるようなスライスに対して。
+//! * [`Hash`] - 要素の型が[`Hash`]であるようなスライスに対して。
 //!
-//! ## Iteration
+//! <!-- * [`Clone`] -->
+//! <!-- * [`Eq`], [`Ord`] - for slices whose element type are [`Eq`] or [`Ord`]. -->
+//! <!-- * [`Hash`] - for slices whose element type is [`Hash`]. -->
 //!
-//! The slices implement `IntoIterator`. The iterator yields references to the
-//! slice elements.
+//! ## 繰り返し
+//!
+//! <!-- ## Iteration -->
+//!
+//! スライスは`IntoIterator`を実装します。このイテレータはスライスの要素への参照を与えます。
+//!
+//! <!-- The slices implement `IntoIterator`. The iterator yields references to the
+//! slice elements. -->
 //!
 //! ```
 //! let numbers = &[0, 1, 2];
@@ -52,7 +86,9 @@
 //! }
 //! ```
 //!
-//! The mutable slice yields mutable references to the elements:
+//! ミュータブルなスライスは要素へのミュータブルな参照を与えます。
+//!
+//! <!-- The mutable slice yields mutable references to the elements: -->
 //!
 //! ```
 //! let mut scores = [7, 8, 9];
@@ -61,14 +97,19 @@
 //! }
 //! ```
 //!
-//! This iterator yields mutable references to the slice's elements, so while
-//! the element type of the slice is `i32`, the element type of the iterator is
-//! `&mut i32`.
+//! このイテレータはスライスの要素へのミュータブルな参照を与えます。それゆえ、スライスの要素の型は`i32`ですが、イテレータの要素の型は`&mut i32`です。
 //!
-//! * [`.iter`] and [`.iter_mut`] are the explicit methods to return the default
-//!   iterators.
-//! * Further methods that return iterators are [`.split`], [`.splitn`],
-//!   [`.chunks`], [`.windows`] and more.
+//! <!-- This iterator yields mutable references to the slice's elements, so while
+//! the element type of the slice is `i32`, the element type of the iterator is
+//! `&mut i32`. -->
+//!
+//! * [`.iter`]と[`.iter_mut`]は明示的にデフォルトのイテレータを返すメソッドです。
+//! * イテレータを返すメソッドは他にも[`.split`], [`.splitn`], [`.chunks`], [`.windows`]等があります。
+//!
+//! <!-- * [`.iter`] and [`.iter_mut`] are the explicit methods to return the default
+//!   iterators. -->
+//! <!-- * Further methods that return iterators are [`.split`], [`.splitn`],
+//!   [`.chunks`], [`.windows`] and more. -->
 //!
 //! [`Clone`]: ../../std/clone/trait.Clone.html
 //! [`Eq`]: ../../std/cmp/trait.Eq.html
@@ -165,23 +206,35 @@ mod hack {
 #[lang = "slice_alloc"]
 #[cfg(not(test))]
 impl<T> [T] {
-    /// Sorts the slice.
+    /// スライスをソートします。
     ///
-    /// This sort is stable (i.e., does not reorder equal elements) and `O(n log n)` worst-case.
+    /// <!-- Sorts the slice. -->
     ///
-    /// When applicable, unstable sorting is preferred because it is generally faster than stable
+    /// このソートは安定で (すなわち等しい要素を並べ替えない)、最悪の場合でも`O(n log n)`です。
+    ///
+    /// <!-- This sort is stable (i.e., does not reorder equal elements) and `O(n log n)` worst-case. -->
+    ///
+    /// 可能ならば不安定なソートが望ましいです。一般に安定なソートより高速で、補助的なメモリを確保しません。[`sort_unstable`](#method.sort_unstable)を参照してください。
+    ///
+    /// <!-- When applicable, unstable sorting is preferred because it is generally faster than stable
     /// sorting and it doesn't allocate auxiliary memory.
-    /// See [`sort_unstable`](#method.sort_unstable).
+    /// See [`sort_unstable`](#method.sort_unstable). -->
     ///
-    /// # Current implementation
+    /// # 現在の実装
     ///
-    /// The current algorithm is an adaptive, iterative merge sort inspired by
+    /// <!-- # Current implementation -->
+    ///
+    /// 現在のアルゴリズムは[timsort](https://en.wikipedia.org/wiki/Timsort)に影響を受けた適応型で逐次のマージソートです。これはスライスがほとんどソートされている、または二つ以上のソートされた列を次々に結合したものである場合、非常に速くなるように設計されています。
+    ///
+    /// <!-- The current algorithm is an adaptive, iterative merge sort inspired by
     /// [timsort](https://en.wikipedia.org/wiki/Timsort).
     /// It is designed to be very fast in cases where the slice is nearly sorted, or consists of
-    /// two or more sorted sequences concatenated one after another.
+    /// two or more sorted sequences concatenated one after another. -->
     ///
-    /// Also, it allocates temporary storage half the size of `self`, but for short slices a
-    /// non-allocating insertion sort is used instead.
+    /// また、このアルゴリズムは`self`の半分の大きさの一時領域を確保しますが、短いスライスに対してはメモリを確保しない挿入ソートを代わりに使用します。
+    ///
+    /// <!-- Also, it allocates temporary storage half the size of `self`, but for short slices a
+    /// non-allocating insertion sort is used instead. -->
     ///
     /// # Examples
     ///
@@ -199,9 +252,13 @@ impl<T> [T] {
         merge_sort(self, |a, b| a.lt(b));
     }
 
-    /// Sorts the slice with a comparator function.
+    /// 比較関数を利用してスライスをソートします。
     ///
-    /// This sort is stable (i.e., does not reorder equal elements) and `O(n log n)` worst-case.
+    /// <!-- Sorts the slice with a comparator function. -->
+    ///
+    /// このソートは安定で (すなわち等しい要素を並べ替えません)、最悪の場合でも`O(n log n)`です。
+    ///
+    /// <!-- This sort is stable (i.e., does not reorder equal elements) and `O(n log n)` worst-case. -->
     ///
     /// The comparator function must define a total ordering for the elements in the slice. If
     /// the ordering is not total, the order of the elements is unspecified. An order is a
@@ -219,19 +276,29 @@ impl<T> [T] {
     /// assert_eq!(floats, [1.0, 2.0, 3.0, 4.0, 5.0]);
     /// ```
     ///
-    /// When applicable, unstable sorting is preferred because it is generally faster than stable
+    /// <!-- This sort is stable (i.e. does not reorder equal elements) and `O(n log n)` worst-case. -->
+    ///
+    /// 可能ならば不安定なソートが望ましいです。一般に安定なソートより高速で、補助的なメモリを確保しません。[`sort_unstable_by`](#method.sort_unstable_by)を参照してください。
+    ///
+    /// <!-- When applicable, unstable sorting is preferred because it is generally faster than stable
     /// sorting and it doesn't allocate auxiliary memory.
-    /// See [`sort_unstable_by`](#method.sort_unstable_by).
+    /// See [`sort_unstable_by`](#method.sort_unstable_by). -->
     ///
-    /// # Current implementation
+    /// # 現在の実装
     ///
-    /// The current algorithm is an adaptive, iterative merge sort inspired by
+    /// <!-- # Current implementation -->
+    ///
+    /// 現在のアルゴリズムは[timsort](https://en.wikipedia.org/wiki/Timsort)に影響を受けた適応型で逐次のマージソートです。これはスライスがほとんどソートされている、または二つ以上のソートされた列を次々に結合したものである場合、非常に速くなるように設計されています。
+    ///
+    /// <!-- The current algorithm is an adaptive, iterative merge sort inspired by
     /// [timsort](https://en.wikipedia.org/wiki/Timsort).
     /// It is designed to be very fast in cases where the slice is nearly sorted, or consists of
-    /// two or more sorted sequences concatenated one after another.
+    /// two or more sorted sequences concatenated one after another. -->
     ///
-    /// Also, it allocates temporary storage half the size of `self`, but for short slices a
-    /// non-allocating insertion sort is used instead.
+    /// また、このアルゴリズムは`self`の半分の大きさの一時領域を確保しますが、短いスライスに対してはメモリを確保しない挿入ソートを代わりに使用します。
+    ///
+    /// <!-- Also, it allocates temporary storage half the size of `self`, but for short slices a
+    /// non-allocating insertion sort is used instead. -->
     ///
     /// # Examples
     ///
@@ -240,10 +307,20 @@ impl<T> [T] {
     /// v.sort_by(|a, b| a.cmp(b));
     /// assert!(v == [1, 2, 3, 4, 5]);
     ///
-    /// // reverse sorting
+    /// // 逆順ソート
     /// v.sort_by(|a, b| b.cmp(a));
     /// assert!(v == [5, 4, 3, 2, 1]);
     /// ```
+    ///
+    /// <!-- ``` -->
+    /// <!-- let mut v = [5, 4, 1, 3, 2];
+    /// v.sort_by(|a, b| a.cmp(b));
+    /// assert!(v == [1, 2, 3, 4, 5]);
+    ///
+    /// // reverse sorting
+    /// v.sort_by(|a, b| b.cmp(a));
+    /// assert!(v == [5, 4, 3, 2, 1]); -->
+    /// <!-- ``` -->
     #[stable(feature = "rust1", since = "1.0.0")]
     #[inline]
     pub fn sort_by<F>(&mut self, mut compare: F)
@@ -252,28 +329,40 @@ impl<T> [T] {
         merge_sort(self, |a, b| compare(a, b) == Less);
     }
 
-    /// Sorts the slice with a key extraction function.
+    /// キーを取り出す関数を利用してスライスをソートします。
     ///
-    /// This sort is stable (i.e., does not reorder equal elements) and `O(m n log(m n))`
-    /// worst-case, where the key function is `O(m)`.
+    /// <!-- Sorts the slice with a key extraction function. -->
+    ///
+    /// このソートは安定で (すなわち等しい要素を並べ替えない)、最悪の場合でも`O(m n log (m n))`です。ここでキー関数は`O(m)`としています。
+    ///
+    /// <!-- This sort is stable (i.e., does not reorder equal elements) and `O(m n log(m n))`
+    /// worst-case, where the key function is `O(m)`. -->
     ///
     /// For expensive key functions (e.g. functions that are not simple property accesses or
     /// basic operations), [`sort_by_cached_key`](#method.sort_by_cached_key) is likely to be
     /// significantly faster, as it does not recompute element keys.
     ///
-    /// When applicable, unstable sorting is preferred because it is generally faster than stable
+    /// 可能ならば不安定なソートが望ましいです。一般に安定なソートより高速で、補助的なメモリを確保しません。[`sort_unstable_by_key`](#method.sort_unstable_by_key)を参照してください。
+    ///
+    /// <!-- When applicable, unstable sorting is preferred because it is generally faster than stable
     /// sorting and it doesn't allocate auxiliary memory.
-    /// See [`sort_unstable_by_key`](#method.sort_unstable_by_key).
+    /// See [`sort_unstable_by_key`](#method.sort_unstable_by_key). -->
     ///
-    /// # Current implementation
+    /// # 現在の実装
     ///
-    /// The current algorithm is an adaptive, iterative merge sort inspired by
+    /// <!-- # Current implementation -->
+    ///
+    /// 現在のアルゴリズムは[timsort](https://en.wikipedia.org/wiki/Timsort)に影響を受けた適応型で逐次のマージソートです。これはスライスがほとんどソートされている、または二つ以上のソートされた列を次々に結合したものである場合、非常に速くなるように設計されています。
+    ///
+    /// <!-- The current algorithm is an adaptive, iterative merge sort inspired by
     /// [timsort](https://en.wikipedia.org/wiki/Timsort).
     /// It is designed to be very fast in cases where the slice is nearly sorted, or consists of
-    /// two or more sorted sequences concatenated one after another.
+    /// two or more sorted sequences concatenated one after another. -->
     ///
-    /// Also, it allocates temporary storage half the size of `self`, but for short slices a
-    /// non-allocating insertion sort is used instead.
+    /// また、このアルゴリズムは`self`の半分の大きさの一時領域を確保しますが、短いスライスに対してはメモリを確保しない挿入ソートを代わりに使用します。
+    ///
+    /// <!-- Also, it allocates temporary storage half the size of `self`, but for short slices a
+    /// non-allocating insertion sort is used instead. -->
     ///
     /// # Examples
     ///
@@ -291,27 +380,43 @@ impl<T> [T] {
         merge_sort(self, |a, b| f(a).lt(&f(b)));
     }
 
-    /// Sorts the slice with a key extraction function.
+    /// キーを取り出す関数を利用してスライスをソートします。
     ///
-    /// During sorting, the key function is called only once per element.
+    /// <!-- Sorts the slice with a key extraction function. -->
     ///
-    /// This sort is stable (i.e., does not reorder equal elements) and `O(m n + n log n)`
-    /// worst-case, where the key function is `O(m)`.
+    /// ソートの際、キー関数は要素毎に一度だけ呼ばれます。
     ///
-    /// For simple key functions (e.g., functions that are property accesses or
+    /// <!-- During sorting, the key function is called only once per element. -->
+    ///
+    /// このソートは安定で (すなわち等しい要素を並べ替えない)、最悪の場合でも`O(m n log (m n))`です。ここでキー関数は`O(m)`としています。
+    ///
+    /// <!-- This sort is stable (i.e., does not reorder equal elements) and `O(m n + n log n)`
+    /// worst-case, where the key function is `O(m)`. -->
+    ///
+    /// 単純なキー関数については (例えばプロパティアクセスや基本的な操作)、[`sort_by_key`](#method.sort_by_key)のほうが恐らく高速です。
+    ///
+    /// <!-- For simple key functions (e.g., functions that are property accesses or
     /// basic operations), [`sort_by_key`](#method.sort_by_key) is likely to be
-    /// faster.
+    /// faster. -->
     ///
-    /// # Current implementation
+    /// # 現在の実装
     ///
-    /// The current algorithm is based on [pattern-defeating quicksort][pdqsort] by Orson Peters,
+    /// <!-- # Current implementation -->
+    ///
+    /// 現在のアルゴリズムはOrson Petersによる[pattern-defeating quicksort][pdqsort]に基づいています。
+    /// [pattern-defeating quicksort][pdqsort]は乱択クイックソートの平均的な速さとヒープソートの最悪の場合の速さを併せ持ち、特定のパターンでは線形時間で完了します。
+    /// 性能が悪くなる場合を避けるために乱数を使用しますが、常に決定的な振る舞いをさせるために固定されたシードを使用します。
+    ///
+    /// <!-- The current algorithm is based on [pattern-defeating quicksort][pdqsort] by Orson Peters,
     /// which combines the fast average case of randomized quicksort with the fast worst case of
     /// heapsort, while achieving linear time on slices with certain patterns. It uses some
     /// randomization to avoid degenerate cases, but with a fixed seed to always provide
-    /// deterministic behavior.
+    /// deterministic behavior. -->
     ///
-    /// In the worst case, the algorithm allocates temporary storage in a `Vec<(K, usize)>` the
-    /// length of the slice.
+    /// 最悪の場合、このアルゴリズムはスライスと同じ長さの`Vec<(K, usize)>`に一時領域を確保します。
+    ///
+    /// <!-- In the worst case, the algorithm allocates temporary storage in a `Vec<(K, usize)>` the
+    /// length of the slice. -->
     ///
     /// # Examples
     ///
@@ -361,15 +466,23 @@ impl<T> [T] {
         sort_by_key!(usize, self, f)
     }
 
-    /// Copies `self` into a new `Vec`.
+    /// `self`をコピーして新しい`Vec`を作成します。
+    ///
+    /// <!-- Copies `self` into a new `Vec`. -->
     ///
     /// # Examples
     ///
     /// ```
     /// let s = [10, 40, 30];
     /// let x = s.to_vec();
-    /// // Here, `s` and `x` can be modified independently.
+    /// // ここで、`s`と`x`は独立して変更することができます。
     /// ```
+    ///
+    /// <!-- ``` -->
+    /// <!-- let s = [10, 40, 30];
+    /// let x = s.to_vec();
+    /// // Here, `s` and `x` can be modified independently. -->
+    /// <!-- ``` -->
     #[rustc_conversion_suggestion]
     #[stable(feature = "rust1", since = "1.0.0")]
     #[inline]
@@ -380,20 +493,32 @@ impl<T> [T] {
         hack::to_vec(self)
     }
 
-    /// Converts `self` into a vector without clones or allocation.
+    /// `self`をクローンもメモリ確保もせずにベクターに変換します。
     ///
-    /// The resulting vector can be converted back into a box via
-    /// `Vec<T>`'s `into_boxed_slice` method.
+    /// <!-- Converts `self` into a vector without clones or allocation. -->
+    ///
+    /// 返されたベクターは`Vec<T>`の`into_boxed_slice`メソッドによってボックスに戻すことができます。
+    ///
+    /// <!-- The resulting vector can be converted back into a box via
+    /// `Vec<T>`'s `into_boxed_slice` method. -->
     ///
     /// # Examples
     ///
     /// ```
     /// let s: Box<[i32]> = Box::new([10, 40, 30]);
     /// let x = s.into_vec();
-    /// // `s` cannot be used anymore because it has been converted into `x`.
+    /// // `x`に変換したので`s`はもう使うことができません。
     ///
     /// assert_eq!(x, vec![10, 40, 30]);
     /// ```
+    ///
+    /// <!-- ``` -->
+    /// <!-- let s: Box<[i32]> = Box::new([10, 40, 30]);
+    /// let x = s.into_vec();
+    /// // `s` cannot be used anymore because it has been converted into `x`.
+    ///
+    /// assert_eq!(x, vec![10, 40, 30]); -->
+    /// <!-- ``` -->
     #[stable(feature = "rust1", since = "1.0.0")]
     #[inline]
     pub fn into_vec(self: Box<Self>) -> Vec<T> {
@@ -401,7 +526,9 @@ impl<T> [T] {
         hack::into_vec(self)
     }
 
-    /// Creates a vector by repeating a slice `n` times.
+    /// スライスを`n`回繰り返すことでベクターを作成します。
+    ///
+    /// <!-- Creates a vector by repeating a slice `n` times. -->
     ///
     /// # Panics
     ///
@@ -409,7 +536,9 @@ impl<T> [T] {
     ///
     /// # Examples
     ///
-    /// Basic usage:
+    /// 基本的な使用法:
+    ///
+    /// <!-- Basic usage: -->
     ///
     /// ```
     /// #![feature(repeat_generic_slice)]
@@ -490,13 +619,19 @@ impl<T> [T] {
 #[lang = "slice_u8_alloc"]
 #[cfg(not(test))]
 impl [u8] {
-    /// Returns a vector containing a copy of this slice where each byte
-    /// is mapped to its ASCII upper case equivalent.
+    /// 各バイトをASCIIの対応する大文字に変換したこのスライスのコピーを含むベクターを返します。
     ///
-    /// ASCII letters 'a' to 'z' are mapped to 'A' to 'Z',
-    /// but non-ASCII letters are unchanged.
+    /// <!-- Returns a vector containing a copy of this slice where each byte
+    /// is mapped to its ASCII upper case equivalent. -->
     ///
-    /// To uppercase the value in-place, use [`make_ascii_uppercase`].
+    /// ASCII文字の'a'から'z'は'A'から'Z'に変換されますが、非ASCII文字は変更されません。
+    ///
+    /// <!-- ASCII letters 'a' to 'z' are mapped to 'A' to 'Z',
+    /// but non-ASCII letters are unchanged. -->
+    ///
+    /// インプレースで大文字にするには、[`make_ascii_uppercase`]を使用してください。
+    ///
+    /// <!-- To uppercase the value in-place, use [`make_ascii_uppercase`]. -->
     ///
     /// [`make_ascii_uppercase`]: #method.make_ascii_uppercase
     #[stable(feature = "ascii_methods_on_intrinsics", since = "1.23.0")]
@@ -507,13 +642,19 @@ impl [u8] {
         me
     }
 
-    /// Returns a vector containing a copy of this slice where each byte
-    /// is mapped to its ASCII lower case equivalent.
+    /// 各バイトをASCIIの対応する小文字に変換したこのスライスのコピーを含むベクターを返します。
     ///
-    /// ASCII letters 'A' to 'Z' are mapped to 'a' to 'z',
-    /// but non-ASCII letters are unchanged.
+    /// <!-- Returns a vector containing a copy of this slice where each byte
+    /// is mapped to its ASCII lower case equivalent. -->
     ///
-    /// To lowercase the value in-place, use [`make_ascii_lowercase`].
+    /// ASCII文字の'a'から'z'は'A'から'Z'に変換されますが、非ASCII文字は変更されません。
+    ///
+    /// <!-- ASCII letters 'A' to 'Z' are mapped to 'a' to 'z',
+    /// but non-ASCII letters are unchanged. -->
+    ///
+    /// インプレースで小文字にするには、[`make_ascii_lowercase`]を使用してください。
+    ///
+    /// <!-- To lowercase the value in-place, use [`make_ascii_lowercase`]. -->
     ///
     /// [`make_ascii_lowercase`]: #method.make_ascii_lowercase
     #[stable(feature = "ascii_methods_on_intrinsics", since = "1.23.0")]
@@ -531,11 +672,15 @@ impl [u8] {
 #[unstable(feature = "slice_concat_ext",
            reason = "trait should not have to exist",
            issue = "27747")]
-/// An extension trait for concatenating slices
+/// スライスを結合するための拡張トレイト
 ///
-/// While this trait is unstable, the methods are stable. `SliceConcatExt` is
+/// <!-- An extension trait for concatenating slices -->
+///
+/// このトレイトは不安定ですが、メソッドは安定しています。`SliceConcatExt`は[standard library prelude]に含まれますので、[`join`]と[`concat()`]を`[T]`自体に存在しているかのように使用することができます。
+///
+/// <!-- While this trait is unstable, the methods are stable. `SliceConcatExt` is
 /// included in the [standard library prelude], so you can use [`join()`] and
-/// [`concat()`] as if they existed on `[T]` itself.
+/// [`concat()`] as if they existed on `[T]` itself. -->
 ///
 /// [standard library prelude]: ../../std/prelude/index.html
 /// [`join()`]: #tymethod.join
@@ -544,9 +689,13 @@ pub trait SliceConcatExt<T: ?Sized> {
     #[unstable(feature = "slice_concat_ext",
                reason = "trait should not have to exist",
                issue = "27747")]
-    /// The resulting type after concatenation
+    /// 結合後に得られる型
+    ///
+    /// <!-- The resulting type after concatenation -->
     type Output;
 
+    /// `T`のスライスをフラットにして単独の値`Self::Output`を得ます。
+    ///
     /// Flattens a slice of `T` into a single value `Self::Output`.
     ///
     /// # Examples
@@ -558,8 +707,10 @@ pub trait SliceConcatExt<T: ?Sized> {
     #[stable(feature = "rust1", since = "1.0.0")]
     fn concat(&self) -> Self::Output;
 
-    /// Flattens a slice of `T` into a single value `Self::Output`, placing a
-    /// given separator between each.
+    /// 各要素の間に与えられたセパレータを置きながら、`T`のスライスをフラットにして単独の値`Self::Output`を得まｍす。
+    ///
+    /// <!-- Flattens a slice of `T` into a single value `Self::Output`, placing a
+    /// given separator between each. -->
     ///
     /// # Examples
     ///
@@ -661,9 +812,13 @@ impl<T: Clone> ToOwned for [T] {
 // Sorting
 ////////////////////////////////////////////////////////////////////////////////
 
-/// Inserts `v[0]` into pre-sorted sequence `v[1..]` so that whole `v[..]` becomes sorted.
+/// `v[..]`がソートされた状態になるように、`v[0]`を事前ソートされた列`v[1..]`に挿入します。
 ///
-/// This is the integral subroutine of insertion sort.
+/// <!-- Inserts `v[0]` into pre-sorted sequence `v[1..]` so that whole `v[..]` becomes sorted. -->
+///
+/// これは挿入ソートに不可欠なサブルーチンです。
+///
+/// <!-- This is the integral subroutine of insertion sort. -->
 fn insert_head<T, F>(v: &mut [T], is_less: &mut F)
     where F: FnMut(&T, &T) -> bool
 {
@@ -728,13 +883,17 @@ fn insert_head<T, F>(v: &mut [T], is_less: &mut F)
     }
 }
 
-/// Merges non-decreasing runs `v[..mid]` and `v[mid..]` using `buf` as temporary storage, and
-/// stores the result into `v[..]`.
+/// `buf`を一時領域として使って非減少列`v[..mind]`と`v[mid..]`を結合し、結果を`v[..]`に格納します。
+///
+/// <!-- Merges non-decreasing runs `v[..mid]` and `v[mid..]` using `buf` as temporary storage, and
+/// stores the result into `v[..]`. -->
 ///
 /// # Safety
 ///
-/// The two slices must be non-empty and `mid` must be in bounds. Buffer `buf` must be long enough
-/// to hold a copy of the shorter slice. Also, `T` must not be a zero-sized type.
+/// 二つのスライスは非空かつ`mid`は境界内でなければなりません。バッファ`buf`は短い方のスライスのコピーを保持するのに十分な長さでなければなりません。また、`T`はゼロサイズ型であってはなりません。
+///
+/// <!-- The two slices must be non-empty and `mid` must be in bounds. Buffer `buf` must be long enough
+/// to hold a copy of the shorter slice. Also, `T` must not be a zero-sized type. -->
 unsafe fn merge<T, F>(v: &mut [T], mid: usize, buf: *mut T, is_less: &mut F)
     where F: FnMut(&T, &T) -> bool
 {
@@ -841,18 +1000,28 @@ unsafe fn merge<T, F>(v: &mut [T], mid: usize, buf: *mut T, is_less: &mut F)
     }
 }
 
-/// This merge sort borrows some (but not all) ideas from TimSort, which is described in detail
-/// [here](http://svn.python.org/projects/python/trunk/Objects/listsort.txt).
+/// このマージソートは (全てではないですが) いくつかのアイデアをTimSortから借用しています。TimSortは[ここ](http://svn.python.org/projects/python/trunk/Objects/listsort.txt)に詳しい記述があります。
 ///
-/// The algorithm identifies strictly descending and non-descending subsequences, which are called
+/// <!-- This merge sort borrows some (but not all) ideas from TimSort, which is described in detail
+/// [here](http://svn.python.org/projects/python/trunk/Objects/listsort.txt). -->
+///
+/// このアルゴリズムは厳密に下降部分列と自然列と呼ばれる非下降部分列を区別します。
+/// まだ結合を保留中の列のスタックがあります。それぞれの新しく見つかった列はスタックにプッシュされ、そして隣接するペアはこれら二つの不変条件が満たされるまで結合されます:
+///
+/// <!-- The algorithm identifies strictly descending and non-descending subsequences, which are called
 /// natural runs. There is a stack of pending runs yet to be merged. Each newly found run is pushed
 /// onto the stack, and then some pairs of adjacent runs are merged until these two invariants are
-/// satisfied:
+/// satisfied: -->
 ///
-/// 1. for every `i` in `1..runs.len()`: `runs[i - 1].len > runs[i].len`
-/// 2. for every `i` in `2..runs.len()`: `runs[i - 2].len > runs[i - 1].len + runs[i].len`
+/// 1. `1..runs.len()`内のすべての`i`に対して: `runs[i - 1].len > runs[i].len`
+/// 2. `1..runs.len()`内のすべての`i`に対して: `runs[i - 2].len > runs[i - 1].len + runs[i].len`
 ///
-/// The invariants ensure that the total running time is `O(n log n)` worst-case.
+/// <!-- 1. for every `i` in `1..runs.len()`: `runs[i - 1].len > runs[i].len` -->
+/// <!-- 2. for every `i` in `2..runs.len()`: `runs[i - 2].len > runs[i - 1].len + runs[i].len` -->
+///
+/// 不変条件は全体の動作時間が最悪の場合でも`O(n log n)`であることを保証します。
+///
+/// <!-- The invariants ensure that the total running time is `O(n log n)` worst-case. -->
 fn merge_sort<T, F>(v: &mut [T], mut is_less: F)
     where F: FnMut(&T, &T) -> bool
 {
