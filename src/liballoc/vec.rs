@@ -457,7 +457,7 @@ impl<T> Vec<T> {
     /// <!-- The vector will be able to hold exactly `capacity` elements without
     /// reallocating. If `capacity` is 0, the vector will not allocate. -->
     ///
-    /// 返されたベクタは指定された*容量*を持ちますが、長さが0であることに注意することが大切です。長さと容量の違いの説明については*[容量とメモリの再確保]*を見てください。
+    /// 返されたベクターは指定された*容量*を持ちますが、長さが0であることに注意することが大切です。長さと容量の違いの説明については*[容量とメモリの再確保]*を見てください。
     ///
     /// <!-- It is important to note that although the returned vector has the
     /// *capacity* specified, the vector will have a zero *length*. For an
