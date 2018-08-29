@@ -1,0 +1,332 @@
+<!DOCTYPE HTML>
+<html lang="en" class="sidebar-visible no-js">
+    <head>
+        <!-- Book generated using mdBook -->
+        <meta charset="UTF-8">
+        <title>Codegen options - The rustc book</title>
+        <meta content="text/html; charset=utf-8" http-equiv="Content-Type">
+        <meta name="description" content="">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="theme-color" content="#ffffff" />
+
+        <base href="../">
+
+        <link rel="stylesheet" href="book.css">
+        <link href="https://fonts.googleapis.com/css?family=Open+Sans:300italic,400italic,600italic,700italic,800italic,400,300,600,700,800" rel="stylesheet" type="text/css">
+        <link href="https://fonts.googleapis.com/css?family=Source+Code+Pro:500" rel="stylesheet" type="text/css">
+
+        <link rel="shortcut icon" href="favicon.png">
+
+        <!-- Font Awesome -->
+        <link rel="stylesheet" href="_FontAwesome/css/font-awesome.css">
+
+        <link rel="stylesheet" href="highlight.css">
+        <link rel="stylesheet" href="tomorrow-night.css">
+        <link rel="stylesheet" href="ayu-highlight.css">
+
+        <!-- Custom theme stylesheets -->
+        
+
+        
+
+    </head>
+    <body class="light">
+        <!-- Work around some values being stored in localStorage wrapped in quotes -->
+        <script type="text/javascript">
+            try {
+                var theme = localStorage.getItem('mdbook-theme');
+                var sidebar = localStorage.getItem('mdbook-sidebar');
+
+                if (theme.startsWith('"') && theme.endsWith('"')) {
+                    localStorage.setItem('mdbook-theme', theme.slice(1, theme.length - 1));
+                }
+
+                if (sidebar.startsWith('"') && sidebar.endsWith('"')) {
+                    localStorage.setItem('mdbook-sidebar', sidebar.slice(1, sidebar.length - 1));
+                }
+            } catch (e) { }
+        </script>
+
+        <!-- Set the theme before any content is loaded, prevents flash -->
+        <script type="text/javascript">
+            var theme;
+            try { theme = localStorage.getItem('mdbook-theme'); } catch(e) { } 
+            if (theme === null || theme === undefined) { theme = 'light'; }
+            document.body.className = theme;
+            document.querySelector('html').className = theme + ' js';
+        </script>
+
+        <!-- Hide / unhide sidebar before it is displayed -->
+        <script type="text/javascript">
+            var html = document.querySelector('html');
+            var sidebar = 'hidden';
+            if (document.body.clientWidth >= 1080) {
+                try { sidebar = localStorage.getItem('mdbook-sidebar'); } catch(e) { }
+                sidebar = sidebar || 'visible';
+            }
+            html.classList.remove('sidebar-visible');
+            html.classList.add("sidebar-" + sidebar);
+        </script>
+
+        <nav id="sidebar" class="sidebar" aria-label="Table of contents">
+            <ol class="chapter"><li><a href="what-is-rustc.html"><strong aria-hidden="true">1.</strong> What is rustc?</a></li><li><a href="command-line-arguments.html"><strong aria-hidden="true">2.</strong> Command-line arguments</a></li><li><a href="lints/index.html"><strong aria-hidden="true">3.</strong> Lints</a></li><li><ol class="section"><li><a href="lints/levels.html"><strong aria-hidden="true">3.1.</strong> Lint levels</a></li><li><a href="lints/groups.html"><strong aria-hidden="true">3.2.</strong> Lint Groups</a></li><li><a href="lints/listing/index.html"><strong aria-hidden="true">3.3.</strong> Lint listing</a></li><li><ol class="section"><li><a href="lints/listing/allowed-by-default.html"><strong aria-hidden="true">3.3.1.</strong> Allowed-by-default lints</a></li><li><a href="lints/listing/warn-by-default.html"><strong aria-hidden="true">3.3.2.</strong> Warn-by-default lints</a></li><li><a href="lints/listing/deny-by-default.html"><strong aria-hidden="true">3.3.3.</strong> Deny-by-default lints</a></li></ol></li></ol></li><li><a href="codegen-options/index.html" class="active"><strong aria-hidden="true">4.</strong> Codegen options</a></li><li><a href="targets/index.html"><strong aria-hidden="true">5.</strong> Targets</a></li><li><ol class="section"><li><a href="targets/built-in.html"><strong aria-hidden="true">5.1.</strong> Built-in Targets</a></li><li><a href="targets/custom.html"><strong aria-hidden="true">5.2.</strong> Custom Targets</a></li></ol></li><li><a href="contributing.html"><strong aria-hidden="true">6.</strong> Contributing to rustc</a></li></ol>
+        </nav>
+
+        <div id="page-wrapper" class="page-wrapper">
+
+            <div class="page">
+                
+                <div id="menu-bar" class="menu-bar">
+                    <div id="menu-bar-sticky-container">
+                        <div class="left-buttons">
+                            <button id="sidebar-toggle" class="icon-button" type="button" title="Toggle Table of Contents" aria-label="Toggle Table of Contents" aria-controls="sidebar">
+                                <i class="fa fa-bars"></i>
+                            </button>
+                            <button id="theme-toggle" class="icon-button" type="button" title="Change theme" aria-label="Change theme" aria-haspopup="true" aria-expanded="false" aria-controls="theme-list">
+                                <i class="fa fa-paint-brush"></i>
+                            </button>
+                            <ul id="theme-list" class="theme-popup" aria-label="Themes" role="menu">
+                                <li role="none"><button role="menuitem" class="theme" id="light">Light <span class="default">(default)</span></button></li>
+                                <li role="none"><button role="menuitem" class="theme" id="rust">Rust</button></li>
+                                <li role="none"><button role="menuitem" class="theme" id="coal">Coal</button></li>
+                                <li role="none"><button role="menuitem" class="theme" id="navy">Navy</button></li>
+                                <li role="none"><button role="menuitem" class="theme" id="ayu">Ayu</button></li>
+                            </ul>
+                            
+                            <button id="search-toggle" class="icon-button" type="button" title="Search. (Shortkey: s)" aria-label="Toggle Searchbar" aria-expanded="false" aria-keyshortcuts="S" aria-controls="searchbar">
+                                <i class="fa fa-search"></i>
+                            </button>
+                            
+                        </div>
+
+                        <h1 class="menu-title">The rustc book</h1> 
+
+                        <div class="right-buttons">
+                            <a href="print.html" title="Print this book" aria-label="Print this book">
+                                <i id="print-button" class="fa fa-print"></i>
+                            </a>
+                        </div>
+                    </div>
+                </div>
+
+                
+                <div id="search-wrapper" class="hidden">
+                    <form id="searchbar-outer" class="searchbar-outer">
+                        <input type="search" name="search" id="searchbar" name="searchbar" placeholder="Search this book ..." aria-controls="searchresults-outer" aria-describedby="searchresults-header">
+                    </form>
+                    <div id="searchresults-outer" class="searchresults-outer hidden">
+                        <div id="searchresults-header" class="searchresults-header"></div>
+                        <ul id="searchresults">
+                        </ul>
+                    </div>
+                </div>
+                
+
+                <!-- Apply ARIA attributes after the sidebar and the sidebar toggle button are added to the DOM -->
+                <script type="text/javascript">
+                    document.getElementById('sidebar-toggle').setAttribute('aria-expanded', sidebar === 'visible');
+                    document.getElementById('sidebar').setAttribute('aria-hidden', sidebar !== 'visible');
+                    Array.from(document.querySelectorAll('#sidebar a')).forEach(function(link) {
+                        link.setAttribute('tabIndex', sidebar === 'visible' ? 0 : -1);
+                    });
+                </script>
+
+                <div id="content" class="content">
+                    <main>
+                        <a class="header" href="codegen-options/index.html#codegen-options" id="codegen-options"><h1>Codegen options</h1></a>
+<p>All of these options are passed to <code>rustc</code> via the <code>-C</code> flag, short for &quot;codegen.&quot; You can see
+a version of this list for your exact compiler by running <code>rustc -C help</code>.</p>
+<a class="header" href="codegen-options/index.html#ar" id="ar"><h2>ar</h2></a>
+<p>This option is deprecated and does nothing.</p>
+<a class="header" href="codegen-options/index.html#linker" id="linker"><h2>linker</h2></a>
+<p>This flag lets you control which linker <code>rustc</code> invokes to link your code.</p>
+<a class="header" href="codegen-options/index.html#link-argval" id="link-argval"><h2>link-arg=val</h2></a>
+<p>This flag lets you append a single extra argument to the linker invocation.</p>
+<p>&quot;Append&quot; is significant; you can pass this flag multiple times to add multiple arguments.</p>
+<a class="header" href="codegen-options/index.html#link-args" id="link-args"><h2>link-args</h2></a>
+<p>This flag lets you append multiple extra arguments to the linker invocation. The
+options should be separated by spaces.</p>
+<a class="header" href="codegen-options/index.html#link-dead-code" id="link-dead-code"><h2>link-dead-code</h2></a>
+<p>Normally, the linker will remove dead code. This flag disables this behavior.</p>
+<p>An example of when this flag might be useful is when trying to construct code coverage
+metrics.</p>
+<a class="header" href="codegen-options/index.html#lto" id="lto"><h2>lto</h2></a>
+<p>This flag instructs LLVM to use <a href="https://llvm.org/docs/LinkTimeOptimization.html">link time
+optimizations</a>.</p>
+<p>It takes one of two values, <code>thin</code> and <code>fat</code>. 'thin' LTO <a href="http://blog.llvm.org/2016/06/thinlto-scalable-and-incremental-lto.html">is a new feature of
+LLVM</a>,
+'fat' referring to the classic version of LTO.</p>
+<a class="header" href="codegen-options/index.html#target-cpu" id="target-cpu"><h2>target-cpu</h2></a>
+<p>This instructs <code>rustc</code> to generate code specifically for a particular processor.</p>
+<p>You can run <code>rustc --print target-cpus</code> to see the valid options to pass
+here. Additionally, <code>native</code> can be passed to use the processor of the host
+machine.</p>
+<a class="header" href="codegen-options/index.html#target-feature" id="target-feature"><h2>target-feature</h2></a>
+<p>Individual targets will support different features; this flag lets you control
+enabling or disabling a feature.</p>
+<p>To see the valid options and an example of use, run <code>rustc --print target-features</code>.</p>
+<a class="header" href="codegen-options/index.html#passes" id="passes"><h2>passes</h2></a>
+<p>This flag can be used to add extra LLVM passes to the compilation.</p>
+<p>The list must be separated by spaces.</p>
+<a class="header" href="codegen-options/index.html#llvm-args" id="llvm-args"><h2>llvm-args</h2></a>
+<p>This flag can be used to pass a list of arguments directly to LLVM.</p>
+<p>The list must be separated by spaces.</p>
+<a class="header" href="codegen-options/index.html#save-temps" id="save-temps"><h2>save-temps</h2></a>
+<p><code>rustc</code> will generate temporary files during compilation; normally it will
+delete them after it's done with its work. This option will cause them to be
+preserved instead of removed.</p>
+<a class="header" href="codegen-options/index.html#rpath" id="rpath"><h2>rpath</h2></a>
+<p>This option allows you to set the value of
+<a href="https://en.wikipedia.org/wiki/Rpath"><code>rpath</code></a>.</p>
+<a class="header" href="codegen-options/index.html#overflow-checks" id="overflow-checks"><h2>overflow-checks</h2></a>
+<p>This flag allows you to control the behavior of integer overflow. This flag
+can be passed many options:</p>
+<ul>
+<li>To turn overflow checks on: <code>y</code>, <code>yes</code>, or <code>on</code>.</li>
+<li>To turn overflow checks off: <code>n</code>, <code>no</code>, or <code>off</code>.</li>
+</ul>
+<a class="header" href="codegen-options/index.html#no-prepopulate-passes" id="no-prepopulate-passes"><h2>no-prepopulate-passes</h2></a>
+<p>The pass manager comes pre-populated with a list of passes; this flag
+ensures that list is empty.</p>
+<a class="header" href="codegen-options/index.html#no-vectorize-loops" id="no-vectorize-loops"><h2>no-vectorize-loops</h2></a>
+<p>By default, <code>rustc</code> will attempt to <a href="https://llvm.org/docs/Vectorizers.html#the-loop-vectorizer">vectorize
+loops</a>. This
+flag will turn that behavior off.</p>
+<a class="header" href="codegen-options/index.html#no-vectorize-slp" id="no-vectorize-slp"><h2>no-vectorize-slp</h2></a>
+<p>By default, <code>rustc</code> will attempt to vectorize loops using <a href="https://llvm.org/docs/Vectorizers.html#the-slp-vectorizer">superword-level
+parallelism</a>. This
+flag will turn that behavior off.</p>
+<a class="header" href="codegen-options/index.html#soft-float" id="soft-float"><h2>soft-float</h2></a>
+<p>This option will make <code>rustc</code> generate code using &quot;soft floats.&quot; By default,
+a lot of hardware supports floating point instructions, and so the code generated
+will take advantage of this. &quot;soft floats&quot; emulate floating point instructions
+in software.</p>
+<a class="header" href="codegen-options/index.html#prefer-dynamic" id="prefer-dynamic"><h2>prefer-dynamic</h2></a>
+<p>By default, <code>rustc</code> prefers to statically link dependencies. This option will
+make it use dynamic linking instead.</p>
+<a class="header" href="codegen-options/index.html#no-integrated-as" id="no-integrated-as"><h2>no-integrated-as</h2></a>
+<p>LLVM comes with an internal assembler; this option will let you use an
+external assembler instead.</p>
+<a class="header" href="codegen-options/index.html#no-redzone" id="no-redzone"><h2>no-redzone</h2></a>
+<p>This flag allows you to disable <a href="https://en.wikipedia.org/wiki/Red_zone_(computing)">the
+red zone</a>. This flag can
+be passed many options:</p>
+<ul>
+<li>To enable the red zone: <code>y</code>, <code>yes</code>, or <code>on</code>.</li>
+<li>To disable it: <code>n</code>, <code>no</code>, or <code>off</code>.</li>
+</ul>
+<a class="header" href="codegen-options/index.html#relocation-model" id="relocation-model"><h2>relocation-model</h2></a>
+<p>This option lets you choose which relocation model to use.</p>
+<p>To find the valid options for this flag, run <code>rustc --print relocation-models</code>.</p>
+<a class="header" href="codegen-options/index.html#code-modelval" id="code-modelval"><h2>code-model=val</h2></a>
+<p>This option lets you choose which code model to use.</p>
+<p>To find the valid options for this flag, run <code>rustc --print code-models</code>.</p>
+<a class="header" href="codegen-options/index.html#metadata" id="metadata"><h2>metadata</h2></a>
+<p>This option allows you to control the metadata used for symbol mangling.</p>
+<a class="header" href="codegen-options/index.html#extra-filename" id="extra-filename"><h2>extra-filename</h2></a>
+<p>This option allows you to put extra data in each output filename.</p>
+<a class="header" href="codegen-options/index.html#codegen-units" id="codegen-units"><h2>codegen-units</h2></a>
+<p>This flag lets you control how many threads are used when doing
+code generation.</p>
+<p>Increasing paralellism may speed up compile times, but may also
+produce slower code.</p>
+<a class="header" href="codegen-options/index.html#remark" id="remark"><h2>remark</h2></a>
+<p>This flag lets you print remarks for these optimization passes.</p>
+<p>The list of passes should be separated by spaces.</p>
+<p><code>all</code> will remark on every pass.</p>
+<a class="header" href="codegen-options/index.html#no-stack-check" id="no-stack-check"><h2>no-stack-check</h2></a>
+<p>This option is deprecated and does nothing.</p>
+<a class="header" href="codegen-options/index.html#debuginfo" id="debuginfo"><h2>debuginfo</h2></a>
+<p>This flag lets you control debug information:</p>
+<ul>
+<li><code>0</code>: no debug info at all</li>
+<li><code>1</code>: line tables only</li>
+<li><code>2</code>: full debug info</li>
+</ul>
+<a class="header" href="codegen-options/index.html#opt-level" id="opt-level"><h2>opt-level</h2></a>
+<p>This flag lets you control the optimization level.</p>
+<ul>
+<li><code>0</code>: no optimizations</li>
+<li><code>1</code>: basic optimizations</li>
+<li><code>2</code>: some optimizations</li>
+<li><code>3</code>: all optimizations</li>
+<li><code>s</code>: optimize for binary size</li>
+<li><code>z</code>: optimize for binary size, but also turn off loop vectorization.</li>
+</ul>
+<a class="header" href="codegen-options/index.html#debug-assertions" id="debug-assertions"><h2>debug-assertions</h2></a>
+<p>This flag lets you turn <code>cfg(debug_assertions)</code> on or off.</p>
+<a class="header" href="codegen-options/index.html#inline-threshold" id="inline-threshold"><h2>inline-threshold</h2></a>
+<p>This option lets you set the threshold for inlining a function.</p>
+<p>The default is 225.</p>
+<a class="header" href="codegen-options/index.html#panic" id="panic"><h2>panic</h2></a>
+<p>This option lets you control what happens when the code panics.</p>
+<ul>
+<li><code>abort</code>: terminate the process upon panic</li>
+<li><code>unwind</code>: unwind the stack upon panic</li>
+</ul>
+<a class="header" href="codegen-options/index.html#incremental" id="incremental"><h2>incremental</h2></a>
+<p>This flag allows you to enable incremental compilation.</p>
+
+                    </main>
+
+                    <nav class="nav-wrapper" aria-label="Page navigation">
+                        <!-- Mobile navigation buttons -->
+                        
+                            <a rel="prev" href="lints/listing/deny-by-default.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                                <i class="fa fa-angle-left"></i>
+                            </a>
+                        
+
+                        
+                            <a rel="next" href="targets/index.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                                <i class="fa fa-angle-right"></i>
+                            </a>
+                        
+
+                        <div style="clear: both"></div>
+                    </nav>
+                </div>
+            </div>
+
+            <nav class="nav-wide-wrapper" aria-label="Page navigation">
+                
+                    <a href="lints/listing/deny-by-default.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                        <i class="fa fa-angle-left"></i>
+                    </a>
+                
+
+                
+                    <a href="targets/index.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                        <i class="fa fa-angle-right"></i>
+                    </a>
+                
+            </nav>
+
+        </div>
+
+        
+
+        
+
+        
+
+        
+
+        
+        <script src="searchindex.js" type="text/javascript" charset="utf-8"></script>
+        
+        
+        <script src="elasticlunr.min.js" type="text/javascript" charset="utf-8"></script>
+        <script src="mark.min.js" type="text/javascript" charset="utf-8"></script>
+        <script src="searcher.js" type="text/javascript" charset="utf-8"></script>
+        
+
+        <script src="clipboard.min.js" type="text/javascript" charset="utf-8"></script>
+        <script src="highlight.js" type="text/javascript" charset="utf-8"></script>
+        <script src="book.js" type="text/javascript" charset="utf-8"></script>
+
+        <!-- Custom JS scripts -->
+        
+
+    </body>
+</html>

@@ -1,0 +1,399 @@
+<!DOCTYPE HTML>
+<html lang="en" class="sidebar-visible no-js">
+    <head>
+        <!-- Book generated using mdBook -->
+        <meta charset="UTF-8">
+        <title>Lint levels - The rustc book</title>
+        <meta content="text/html; charset=utf-8" http-equiv="Content-Type">
+        <meta name="description" content="">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="theme-color" content="#ffffff" />
+
+        <base href="../">
+
+        <link rel="stylesheet" href="book.css">
+        <link href="https://fonts.googleapis.com/css?family=Open+Sans:300italic,400italic,600italic,700italic,800italic,400,300,600,700,800" rel="stylesheet" type="text/css">
+        <link href="https://fonts.googleapis.com/css?family=Source+Code+Pro:500" rel="stylesheet" type="text/css">
+
+        <link rel="shortcut icon" href="favicon.png">
+
+        <!-- Font Awesome -->
+        <link rel="stylesheet" href="_FontAwesome/css/font-awesome.css">
+
+        <link rel="stylesheet" href="highlight.css">
+        <link rel="stylesheet" href="tomorrow-night.css">
+        <link rel="stylesheet" href="ayu-highlight.css">
+
+        <!-- Custom theme stylesheets -->
+        
+
+        
+
+    </head>
+    <body class="light">
+        <!-- Work around some values being stored in localStorage wrapped in quotes -->
+        <script type="text/javascript">
+            try {
+                var theme = localStorage.getItem('mdbook-theme');
+                var sidebar = localStorage.getItem('mdbook-sidebar');
+
+                if (theme.startsWith('"') && theme.endsWith('"')) {
+                    localStorage.setItem('mdbook-theme', theme.slice(1, theme.length - 1));
+                }
+
+                if (sidebar.startsWith('"') && sidebar.endsWith('"')) {
+                    localStorage.setItem('mdbook-sidebar', sidebar.slice(1, sidebar.length - 1));
+                }
+            } catch (e) { }
+        </script>
+
+        <!-- Set the theme before any content is loaded, prevents flash -->
+        <script type="text/javascript">
+            var theme;
+            try { theme = localStorage.getItem('mdbook-theme'); } catch(e) { } 
+            if (theme === null || theme === undefined) { theme = 'light'; }
+            document.body.className = theme;
+            document.querySelector('html').className = theme + ' js';
+        </script>
+
+        <!-- Hide / unhide sidebar before it is displayed -->
+        <script type="text/javascript">
+            var html = document.querySelector('html');
+            var sidebar = 'hidden';
+            if (document.body.clientWidth >= 1080) {
+                try { sidebar = localStorage.getItem('mdbook-sidebar'); } catch(e) { }
+                sidebar = sidebar || 'visible';
+            }
+            html.classList.remove('sidebar-visible');
+            html.classList.add("sidebar-" + sidebar);
+        </script>
+
+        <nav id="sidebar" class="sidebar" aria-label="Table of contents">
+            <ol class="chapter"><li><a href="what-is-rustc.html"><strong aria-hidden="true">1.</strong> What is rustc?</a></li><li><a href="command-line-arguments.html"><strong aria-hidden="true">2.</strong> Command-line arguments</a></li><li><a href="lints/index.html"><strong aria-hidden="true">3.</strong> Lints</a></li><li><ol class="section"><li><a href="lints/levels.html" class="active"><strong aria-hidden="true">3.1.</strong> Lint levels</a></li><li><a href="lints/groups.html"><strong aria-hidden="true">3.2.</strong> Lint Groups</a></li><li><a href="lints/listing/index.html"><strong aria-hidden="true">3.3.</strong> Lint listing</a></li><li><ol class="section"><li><a href="lints/listing/allowed-by-default.html"><strong aria-hidden="true">3.3.1.</strong> Allowed-by-default lints</a></li><li><a href="lints/listing/warn-by-default.html"><strong aria-hidden="true">3.3.2.</strong> Warn-by-default lints</a></li><li><a href="lints/listing/deny-by-default.html"><strong aria-hidden="true">3.3.3.</strong> Deny-by-default lints</a></li></ol></li></ol></li><li><a href="codegen-options/index.html"><strong aria-hidden="true">4.</strong> Codegen options</a></li><li><a href="targets/index.html"><strong aria-hidden="true">5.</strong> Targets</a></li><li><ol class="section"><li><a href="targets/built-in.html"><strong aria-hidden="true">5.1.</strong> Built-in Targets</a></li><li><a href="targets/custom.html"><strong aria-hidden="true">5.2.</strong> Custom Targets</a></li></ol></li><li><a href="contributing.html"><strong aria-hidden="true">6.</strong> Contributing to rustc</a></li></ol>
+        </nav>
+
+        <div id="page-wrapper" class="page-wrapper">
+
+            <div class="page">
+                
+                <div id="menu-bar" class="menu-bar">
+                    <div id="menu-bar-sticky-container">
+                        <div class="left-buttons">
+                            <button id="sidebar-toggle" class="icon-button" type="button" title="Toggle Table of Contents" aria-label="Toggle Table of Contents" aria-controls="sidebar">
+                                <i class="fa fa-bars"></i>
+                            </button>
+                            <button id="theme-toggle" class="icon-button" type="button" title="Change theme" aria-label="Change theme" aria-haspopup="true" aria-expanded="false" aria-controls="theme-list">
+                                <i class="fa fa-paint-brush"></i>
+                            </button>
+                            <ul id="theme-list" class="theme-popup" aria-label="Themes" role="menu">
+                                <li role="none"><button role="menuitem" class="theme" id="light">Light <span class="default">(default)</span></button></li>
+                                <li role="none"><button role="menuitem" class="theme" id="rust">Rust</button></li>
+                                <li role="none"><button role="menuitem" class="theme" id="coal">Coal</button></li>
+                                <li role="none"><button role="menuitem" class="theme" id="navy">Navy</button></li>
+                                <li role="none"><button role="menuitem" class="theme" id="ayu">Ayu</button></li>
+                            </ul>
+                            
+                            <button id="search-toggle" class="icon-button" type="button" title="Search. (Shortkey: s)" aria-label="Toggle Searchbar" aria-expanded="false" aria-keyshortcuts="S" aria-controls="searchbar">
+                                <i class="fa fa-search"></i>
+                            </button>
+                            
+                        </div>
+
+                        <h1 class="menu-title">The rustc book</h1> 
+
+                        <div class="right-buttons">
+                            <a href="print.html" title="Print this book" aria-label="Print this book">
+                                <i id="print-button" class="fa fa-print"></i>
+                            </a>
+                        </div>
+                    </div>
+                </div>
+
+                
+                <div id="search-wrapper" class="hidden">
+                    <form id="searchbar-outer" class="searchbar-outer">
+                        <input type="search" name="search" id="searchbar" name="searchbar" placeholder="Search this book ..." aria-controls="searchresults-outer" aria-describedby="searchresults-header">
+                    </form>
+                    <div id="searchresults-outer" class="searchresults-outer hidden">
+                        <div id="searchresults-header" class="searchresults-header"></div>
+                        <ul id="searchresults">
+                        </ul>
+                    </div>
+                </div>
+                
+
+                <!-- Apply ARIA attributes after the sidebar and the sidebar toggle button are added to the DOM -->
+                <script type="text/javascript">
+                    document.getElementById('sidebar-toggle').setAttribute('aria-expanded', sidebar === 'visible');
+                    document.getElementById('sidebar').setAttribute('aria-hidden', sidebar !== 'visible');
+                    Array.from(document.querySelectorAll('#sidebar a')).forEach(function(link) {
+                        link.setAttribute('tabIndex', sidebar === 'visible' ? 0 : -1);
+                    });
+                </script>
+
+                <div id="content" class="content">
+                    <main>
+                        <a class="header" href="lints/levels.html#lint-levels" id="lint-levels"><h1>Lint levels</h1></a>
+<p>In <code>rustc</code>, lints are divided into four <em>levels</em>:</p>
+<ol>
+<li>allow</li>
+<li>warn</li>
+<li>deny</li>
+<li>forbid</li>
+</ol>
+<p>Each lint has a default level (explained in the lint listing later in this
+chapter), and the compiler has a default warning level. First, let's explain
+what these levels mean, and then we'll talk about configuration.</p>
+<a class="header" href="lints/levels.html#allow" id="allow"><h2>allow</h2></a>
+<p>These lints exist, but by default, do nothing. For example, consider this
+source:</p>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+pub fn foo() {}
+#}</code></pre></pre>
+<p>Compiling this file produces no warnings:</p>
+<pre><code class="language-bash">$ rustc lib.rs --crate-type=lib
+$
+</code></pre>
+<p>But this code violates the <code>missing_docs</code> lint.</p>
+<p>These lints exist mostly to be manually turned on via configuration, as we'll
+talk about later in this section.</p>
+<a class="header" href="lints/levels.html#warn" id="warn"><h2>warn</h2></a>
+<p>The 'warn' lint level will produce a warning if you violate the lint. For example,
+this code runs afoul of the <code>unused_variable</code> lint:</p>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+pub fn foo() {
+    let x = 5;
+}
+#}</code></pre></pre>
+<p>This will produce this warning:</p>
+<pre><code class="language-console">$ rustc lib.rs --crate-type=lib
+warning: unused variable: `x`
+ --&gt; lib.rs:2:9
+  |
+2 |     let x = 5;
+  |         ^
+  |
+  = note: #[warn(unused_variables)] on by default
+  = note: to avoid this warning, consider using `_x` instead
+</code></pre>
+<a class="header" href="lints/levels.html#deny" id="deny"><h2>deny</h2></a>
+<p>A 'deny' lint produces an error if you violate it. For example, this code
+runs into the <code>exceeding_bitshifts</code> lint.</p>
+<pre><code class="language-rust ignore">fn main() {
+    100u8 &lt;&lt; 10;
+}
+</code></pre>
+<pre><code class="language-bash">&gt; rustc main.rs
+error: bitshift exceeds the type's number of bits
+ --&gt; main.rs:2:13
+  |
+2 |     100u8 &lt;&lt; 10;
+  |     ^^^^^^^^^^^
+  |
+  = note: #[deny(exceeding_bitshifts)] on by default
+</code></pre>
+<p>What's the difference between an error from a lint and a regular old error?
+Lints are configurable via levels, so in a similar way to 'allow' lints,
+warnings that are 'deny' by default let you allow them. Similarly, you may
+wish to set up a lint that is <code>warn</code> by default to produce an error instead.
+This lint level gives you that.</p>
+<a class="header" href="lints/levels.html#forbid" id="forbid"><h2>forbid</h2></a>
+<p>'forbid' is a special lint level that's stronger than 'deny'. It's the same
+as 'deny' in that a lint at this level will produce an error, but unlike the
+'deny' level, the 'forbid' level can not be overridden to be anything lower
+than an error.</p>
+<a class="header" href="lints/levels.html#configuring-warning-levels" id="configuring-warning-levels"><h2>Configuring warning levels</h2></a>
+<p>Remember our <code>missing_docs</code> example from the 'allow' lint level?</p>
+<pre><code class="language-bash">$ cat lib.rs
+pub fn foo() {}
+$ rustc lib.rs --crate-type=lib
+$
+</code></pre>
+<p>We can configure this lint to operate at a higher level, both with
+compiler flags, as well as with an attribute in the source code.</p>
+<p>You can also &quot;cap&quot; lints so that the compiler can choose to ignore
+certain lint levels. We'll talk about that last.</p>
+<a class="header" href="lints/levels.html#via-compiler-flag" id="via-compiler-flag"><h3>Via compiler flag</h3></a>
+<p>The <code>-A</code>, <code>-W</code>, <code>-D</code>, and <code>-F</code> flags let you turn one or more lints
+into allowed, warning, deny, or forbid levels, like this:</p>
+<pre><code class="language-bash">$ rustc lib.rs --crate-type=lib -W missing-docs
+warning: missing documentation for crate
+ --&gt; lib.rs:1:1
+  |
+1 | pub fn foo() {}
+  | ^^^^^^^^^^^^
+  |
+  = note: requested on the command line with `-W missing-docs`
+
+warning: missing documentation for a function
+ --&gt; lib.rs:1:1
+  |
+1 | pub fn foo() {}
+  | ^^^^^^^^^^^^
+&gt; rustc lib.rs --crate-type=lib -D missing-docs
+error: missing documentation for crate
+ --&gt; lib.rs:1:1
+  |
+1 | pub fn foo() {}
+  | ^^^^^^^^^^^^
+  |
+  = note: requested on the command line with `-D missing-docs`
+
+error: missing documentation for a function
+ --&gt; lib.rs:1:1
+  |
+1 | pub fn foo() {}
+  | ^^^^^^^^^^^^
+
+error: aborting due to 2 previous errors
+</code></pre>
+<p>You can also pass each flag more than once for changing multiple lints:</p>
+<pre><code class="language-bash">rustc lib.rs --crate-type=lib -D missing-docs -D unused-variables
+</code></pre>
+<p>And of course, you can mix these four flags together:</p>
+<pre><code class="language-bash">rustc lib.rs --crate-type=lib -D missing-docs -A unused-variables
+</code></pre>
+<a class="header" href="lints/levels.html#via-an-attribute" id="via-an-attribute"><h3>Via an attribute</h3></a>
+<p>You can also modify the lint level with a crate-wide attribute:</p>
+<pre><code class="language-bash">&gt; cat lib.rs
+#![warn(missing_docs)]
+
+pub fn foo() {}
+$ rustc lib.rs --crate-type=lib
+warning: missing documentation for crate
+ --&gt; lib.rs:1:1
+  |
+1 | / #![warn(missing_docs)]
+2 | |
+3 | | pub fn foo() {}
+  | |_______________^
+  |
+note: lint level defined here
+ --&gt; lib.rs:1:9
+  |
+1 | #![warn(missing_docs)]
+  |         ^^^^^^^^^^^^
+
+warning: missing documentation for a function
+ --&gt; lib.rs:3:1
+  |
+3 | pub fn foo() {}
+  | ^^^^^^^^^^^^
+</code></pre>
+<p>All four, <code>warn</code>, <code>allow</code>, <code>deny</code>, and <code>forbid</code> all work this way.</p>
+<p>You can also pass in multiple lints per attribute:</p>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#![warn(missing_docs, unused_variables)]
+
+#fn main() {
+pub fn foo() {}
+#}</code></pre></pre>
+<p>And use multiple attributes together:</p>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#![warn(missing_docs)]
+#![deny(unused_variables)]
+
+#fn main() {
+pub fn foo() {}
+#}</code></pre></pre>
+<a class="header" href="lints/levels.html#capping-lints" id="capping-lints"><h3>Capping lints</h3></a>
+<p><code>rustc</code> supports a flag, <code>--cap-lints LEVEL</code> that sets the &quot;lint cap level.&quot;
+This is the maximum level for all lints. So for example, if we take our
+code sample from the &quot;deny&quot; lint level above:</p>
+<pre><code class="language-rust ignore">fn main() {
+    100u8 &lt;&lt; 10;
+}
+</code></pre>
+<p>And we compile it, capping lints to warn:</p>
+<pre><code class="language-bash">$ rustc lib.rs --cap-lints warn
+warning: bitshift exceeds the type's number of bits
+ --&gt; lib.rs:2:5
+  |
+2 |     100u8 &lt;&lt; 10;
+  |     ^^^^^^^^^^^
+  |
+  = note: #[warn(exceeding_bitshifts)] on by default
+
+warning: this expression will panic at run-time
+ --&gt; lib.rs:2:5
+  |
+2 |     100u8 &lt;&lt; 10;
+  |     ^^^^^^^^^^^ attempt to shift left with overflow
+</code></pre>
+<p>It now only warns, rather than errors. We can go further and allow all lints:</p>
+<pre><code class="language-bash">$ rustc lib.rs --cap-lints allow
+$
+</code></pre>
+<p>This feature is used heavily by Cargo; it will pass <code>--cap-lints allow</code> when
+compiling your dependencies, so that if they have any warnings, they do not
+pollute the output of your build.</p>
+
+                    </main>
+
+                    <nav class="nav-wrapper" aria-label="Page navigation">
+                        <!-- Mobile navigation buttons -->
+                        
+                            <a rel="prev" href="lints/index.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                                <i class="fa fa-angle-left"></i>
+                            </a>
+                        
+
+                        
+                            <a rel="next" href="lints/groups.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                                <i class="fa fa-angle-right"></i>
+                            </a>
+                        
+
+                        <div style="clear: both"></div>
+                    </nav>
+                </div>
+            </div>
+
+            <nav class="nav-wide-wrapper" aria-label="Page navigation">
+                
+                    <a href="lints/index.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                        <i class="fa fa-angle-left"></i>
+                    </a>
+                
+
+                
+                    <a href="lints/groups.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                        <i class="fa fa-angle-right"></i>
+                    </a>
+                
+            </nav>
+
+        </div>
+
+        
+
+        
+
+        
+
+        
+
+        
+        <script src="searchindex.js" type="text/javascript" charset="utf-8"></script>
+        
+        
+        <script src="elasticlunr.min.js" type="text/javascript" charset="utf-8"></script>
+        <script src="mark.min.js" type="text/javascript" charset="utf-8"></script>
+        <script src="searcher.js" type="text/javascript" charset="utf-8"></script>
+        
+
+        <script src="clipboard.min.js" type="text/javascript" charset="utf-8"></script>
+        <script src="highlight.js" type="text/javascript" charset="utf-8"></script>
+        <script src="book.js" type="text/javascript" charset="utf-8"></script>
+
+        <!-- Custom JS scripts -->
+        
+
+    </body>
+</html>

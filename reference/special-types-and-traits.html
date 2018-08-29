@@ -1,0 +1,305 @@
+<!DOCTYPE HTML>
+<html lang="en" class="sidebar-visible no-js">
+    <head>
+        <!-- Book generated using mdBook -->
+        <meta charset="UTF-8">
+        <title>Special types and traits - The Rust Reference</title>
+        <meta content="text/html; charset=utf-8" http-equiv="Content-Type">
+        <meta name="description" content="">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="theme-color" content="#ffffff" />
+
+        <base href="">
+
+        <link rel="stylesheet" href="book.css">
+        <link href="https://fonts.googleapis.com/css?family=Open+Sans:300italic,400italic,600italic,700italic,800italic,400,300,600,700,800" rel="stylesheet" type="text/css">
+        <link href="https://fonts.googleapis.com/css?family=Source+Code+Pro:500" rel="stylesheet" type="text/css">
+
+        <link rel="shortcut icon" href="favicon.png">
+
+        <!-- Font Awesome -->
+        <link rel="stylesheet" href="_FontAwesome/css/font-awesome.css">
+
+        <link rel="stylesheet" href="highlight.css">
+        <link rel="stylesheet" href="tomorrow-night.css">
+        <link rel="stylesheet" href="ayu-highlight.css">
+
+        <!-- Custom theme stylesheets -->
+        
+        <link rel="stylesheet" href="src/theme/reference.css">
+        
+
+        
+
+    </head>
+    <body class="light">
+        <!-- Work around some values being stored in localStorage wrapped in quotes -->
+        <script type="text/javascript">
+            try {
+                var theme = localStorage.getItem('mdbook-theme');
+                var sidebar = localStorage.getItem('mdbook-sidebar');
+
+                if (theme.startsWith('"') && theme.endsWith('"')) {
+                    localStorage.setItem('mdbook-theme', theme.slice(1, theme.length - 1));
+                }
+
+                if (sidebar.startsWith('"') && sidebar.endsWith('"')) {
+                    localStorage.setItem('mdbook-sidebar', sidebar.slice(1, sidebar.length - 1));
+                }
+            } catch (e) { }
+        </script>
+
+        <!-- Set the theme before any content is loaded, prevents flash -->
+        <script type="text/javascript">
+            var theme;
+            try { theme = localStorage.getItem('mdbook-theme'); } catch(e) { } 
+            if (theme === null || theme === undefined) { theme = 'light'; }
+            document.body.className = theme;
+            document.querySelector('html').className = theme + ' js';
+        </script>
+
+        <!-- Hide / unhide sidebar before it is displayed -->
+        <script type="text/javascript">
+            var html = document.querySelector('html');
+            var sidebar = 'hidden';
+            if (document.body.clientWidth >= 1080) {
+                try { sidebar = localStorage.getItem('mdbook-sidebar'); } catch(e) { }
+                sidebar = sidebar || 'visible';
+            }
+            html.classList.remove('sidebar-visible');
+            html.classList.add("sidebar-" + sidebar);
+        </script>
+
+        <nav id="sidebar" class="sidebar" aria-label="Table of contents">
+            <ol class="chapter"><li class="affix"><a href="introduction.html">Introduction</a></li><li><a href="notation.html"><strong aria-hidden="true">1.</strong> Notation</a></li><li><a href="lexical-structure.html"><strong aria-hidden="true">2.</strong> Lexical structure</a></li><li><ol class="section"><li><a href="input-format.html"><strong aria-hidden="true">2.1.</strong> Input format</a></li><li><a href="keywords.html"><strong aria-hidden="true">2.2.</strong> Keywords</a></li><li><a href="identifiers.html"><strong aria-hidden="true">2.3.</strong> Identifiers</a></li><li><a href="comments.html"><strong aria-hidden="true">2.4.</strong> Comments</a></li><li><a href="whitespace.html"><strong aria-hidden="true">2.5.</strong> Whitespace</a></li><li><a href="tokens.html"><strong aria-hidden="true">2.6.</strong> Tokens</a></li><li><a href="paths.html"><strong aria-hidden="true">2.7.</strong> Paths</a></li></ol></li><li><a href="macros.html"><strong aria-hidden="true">3.</strong> Macros</a></li><li><ol class="section"><li><a href="macros-by-example.html"><strong aria-hidden="true">3.1.</strong> Macros By Example</a></li><li><a href="procedural-macros.html"><strong aria-hidden="true">3.2.</strong> Procedural Macros</a></li></ol></li><li><a href="crates-and-source-files.html"><strong aria-hidden="true">4.</strong> Crates and source files</a></li><li><a href="items-and-attributes.html"><strong aria-hidden="true">5.</strong> Items and attributes</a></li><li><ol class="section"><li><a href="items.html"><strong aria-hidden="true">5.1.</strong> Items</a></li><li><ol class="section"><li><a href="items/modules.html"><strong aria-hidden="true">5.1.1.</strong> Modules</a></li><li><a href="items/extern-crates.html"><strong aria-hidden="true">5.1.2.</strong> Extern crates</a></li><li><a href="items/use-declarations.html"><strong aria-hidden="true">5.1.3.</strong> Use declarations</a></li><li><a href="items/functions.html"><strong aria-hidden="true">5.1.4.</strong> Functions</a></li><li><a href="items/type-aliases.html"><strong aria-hidden="true">5.1.5.</strong> Type aliases</a></li><li><a href="items/structs.html"><strong aria-hidden="true">5.1.6.</strong> Structs</a></li><li><a href="items/enumerations.html"><strong aria-hidden="true">5.1.7.</strong> Enumerations</a></li><li><a href="items/unions.html"><strong aria-hidden="true">5.1.8.</strong> Unions</a></li><li><a href="items/constant-items.html"><strong aria-hidden="true">5.1.9.</strong> Constant items</a></li><li><a href="items/static-items.html"><strong aria-hidden="true">5.1.10.</strong> Static items</a></li><li><a href="items/traits.html"><strong aria-hidden="true">5.1.11.</strong> Traits</a></li><li><a href="items/implementations.html"><strong aria-hidden="true">5.1.12.</strong> Implementations</a></li><li><a href="items/external-blocks.html"><strong aria-hidden="true">5.1.13.</strong> External blocks</a></li></ol></li><li><a href="items/generics.html"><strong aria-hidden="true">5.2.</strong> Type and lifetime parameters</a></li><li><a href="items/associated-items.html"><strong aria-hidden="true">5.3.</strong> Associated Items</a></li><li><a href="visibility-and-privacy.html"><strong aria-hidden="true">5.4.</strong> Visibility and Privacy</a></li><li><a href="attributes.html"><strong aria-hidden="true">5.5.</strong> Attributes</a></li></ol></li><li><a href="statements-and-expressions.html"><strong aria-hidden="true">6.</strong> Statements and expressions</a></li><li><ol class="section"><li><a href="statements.html"><strong aria-hidden="true">6.1.</strong> Statements</a></li><li><a href="expressions.html"><strong aria-hidden="true">6.2.</strong> Expressions</a></li><li><ol class="section"><li><a href="expressions/literal-expr.html"><strong aria-hidden="true">6.2.1.</strong> Literal expressions</a></li><li><a href="expressions/path-expr.html"><strong aria-hidden="true">6.2.2.</strong> Path expressions</a></li><li><a href="expressions/block-expr.html"><strong aria-hidden="true">6.2.3.</strong> Block expressions</a></li><li><a href="expressions/operator-expr.html"><strong aria-hidden="true">6.2.4.</strong> Operator expressions</a></li><li><a href="expressions/grouped-expr.html"><strong aria-hidden="true">6.2.5.</strong> Grouped expressions</a></li><li><a href="expressions/array-expr.html"><strong aria-hidden="true">6.2.6.</strong> Array and index expressions</a></li><li><a href="expressions/tuple-expr.html"><strong aria-hidden="true">6.2.7.</strong> Tuple and index expressions</a></li><li><a href="expressions/struct-expr.html"><strong aria-hidden="true">6.2.8.</strong> Struct expressions</a></li><li><a href="expressions/enum-variant-expr.html"><strong aria-hidden="true">6.2.9.</strong> Enum variant expressions</a></li><li><a href="expressions/call-expr.html"><strong aria-hidden="true">6.2.10.</strong> Call expressions</a></li><li><a href="expressions/method-call-expr.html"><strong aria-hidden="true">6.2.11.</strong> Method call expressions</a></li><li><a href="expressions/field-expr.html"><strong aria-hidden="true">6.2.12.</strong> Field access expressions</a></li><li><a href="expressions/closure-expr.html"><strong aria-hidden="true">6.2.13.</strong> Closure expressions</a></li><li><a href="expressions/loop-expr.html"><strong aria-hidden="true">6.2.14.</strong> Loop expressions</a></li><li><a href="expressions/range-expr.html"><strong aria-hidden="true">6.2.15.</strong> Range expressions</a></li><li><a href="expressions/if-expr.html"><strong aria-hidden="true">6.2.16.</strong> If and if let expressions</a></li><li><a href="expressions/match-expr.html"><strong aria-hidden="true">6.2.17.</strong> Match expressions</a></li><li><a href="expressions/return-expr.html"><strong aria-hidden="true">6.2.18.</strong> Return expressions</a></li></ol></li></ol></li><li><a href="type-system.html"><strong aria-hidden="true">7.</strong> Type system</a></li><li><ol class="section"><li><a href="types.html"><strong aria-hidden="true">7.1.</strong> Types</a></li><li><a href="dynamically-sized-types.html"><strong aria-hidden="true">7.2.</strong> Dynamically Sized Types</a></li><li><a href="type-layout.html"><strong aria-hidden="true">7.3.</strong> Type layout</a></li><li><a href="interior-mutability.html"><strong aria-hidden="true">7.4.</strong> Interior mutability</a></li><li><a href="subtyping.html"><strong aria-hidden="true">7.5.</strong> Subtyping and Variance</a></li><li><a href="trait-bounds.html"><strong aria-hidden="true">7.6.</strong> Trait and lifetime bounds</a></li><li><a href="type-coercions.html"><strong aria-hidden="true">7.7.</strong> Type coercions</a></li><li><a href="destructors.html"><strong aria-hidden="true">7.8.</strong> Destructors</a></li><li><a href="lifetime-elision.html"><strong aria-hidden="true">7.9.</strong> Lifetime elision</a></li></ol></li><li><a href="special-types-and-traits.html" class="active"><strong aria-hidden="true">8.</strong> Special types and traits</a></li><li><a href="memory-model.html"><strong aria-hidden="true">9.</strong> Memory model</a></li><li><ol class="section"><li><a href="memory-allocation-and-lifetime.html"><strong aria-hidden="true">9.1.</strong> Memory allocation and lifetime</a></li><li><a href="memory-ownership.html"><strong aria-hidden="true">9.2.</strong> Memory ownership</a></li><li><a href="variables.html"><strong aria-hidden="true">9.3.</strong> Variables</a></li></ol></li><li><a href="linkage.html"><strong aria-hidden="true">10.</strong> Linkage</a></li><li><a href="unsafety.html"><strong aria-hidden="true">11.</strong> Unsafety</a></li><li><ol class="section"><li><a href="unsafe-functions.html"><strong aria-hidden="true">11.1.</strong> Unsafe functions</a></li><li><a href="unsafe-blocks.html"><strong aria-hidden="true">11.2.</strong> Unsafe blocks</a></li><li><a href="behavior-considered-undefined.html"><strong aria-hidden="true">11.3.</strong> Behavior considered undefined</a></li><li><a href="behavior-not-considered-unsafe.html"><strong aria-hidden="true">11.4.</strong> Behavior not considered unsafe</a></li></ol></li><li><a href="influences.html">Appendix: Influences</a></li><li class="affix"><a href="undocumented.html">Appendix: As-yet-undocumented Features</a></li><li class="affix"><a href="glossary.html">Appendix: Glossary</a></li></ol>
+        </nav>
+
+        <div id="page-wrapper" class="page-wrapper">
+
+            <div class="page">
+                <header><p class="warning">
+    For now, this reference is a best-effort document. We strive for validity
+    and completeness, but are not yet there. In the future, the docs and lang
+    teams will work together to figure out how best to do this. Until then, this
+    is a best-effort attempt. If you find something wrong or missing, file an
+    <a href="https://github.com/rust-lang-nursery/reference/issues">issue</a> or
+    send in a pull request.
+</p></header>
+                <div id="menu-bar" class="menu-bar">
+                    <div id="menu-bar-sticky-container">
+                        <div class="left-buttons">
+                            <button id="sidebar-toggle" class="icon-button" type="button" title="Toggle Table of Contents" aria-label="Toggle Table of Contents" aria-controls="sidebar">
+                                <i class="fa fa-bars"></i>
+                            </button>
+                            <button id="theme-toggle" class="icon-button" type="button" title="Change theme" aria-label="Change theme" aria-haspopup="true" aria-expanded="false" aria-controls="theme-list">
+                                <i class="fa fa-paint-brush"></i>
+                            </button>
+                            <ul id="theme-list" class="theme-popup" aria-label="Themes" role="menu">
+                                <li role="none"><button role="menuitem" class="theme" id="light">Light <span class="default">(default)</span></button></li>
+                                <li role="none"><button role="menuitem" class="theme" id="rust">Rust</button></li>
+                                <li role="none"><button role="menuitem" class="theme" id="coal">Coal</button></li>
+                                <li role="none"><button role="menuitem" class="theme" id="navy">Navy</button></li>
+                                <li role="none"><button role="menuitem" class="theme" id="ayu">Ayu</button></li>
+                            </ul>
+                            
+                            <button id="search-toggle" class="icon-button" type="button" title="Search. (Shortkey: s)" aria-label="Toggle Searchbar" aria-expanded="false" aria-keyshortcuts="S" aria-controls="searchbar">
+                                <i class="fa fa-search"></i>
+                            </button>
+                            
+                        </div>
+
+                        <h1 class="menu-title">The Rust Reference</h1> 
+
+                        <div class="right-buttons">
+                            <a href="print.html" title="Print this book" aria-label="Print this book">
+                                <i id="print-button" class="fa fa-print"></i>
+                            </a>
+                        </div>
+                    </div>
+                </div>
+
+                
+                <div id="search-wrapper" class="hidden">
+                    <form id="searchbar-outer" class="searchbar-outer">
+                        <input type="search" name="search" id="searchbar" name="searchbar" placeholder="Search this book ..." aria-controls="searchresults-outer" aria-describedby="searchresults-header">
+                    </form>
+                    <div id="searchresults-outer" class="searchresults-outer hidden">
+                        <div id="searchresults-header" class="searchresults-header"></div>
+                        <ul id="searchresults">
+                        </ul>
+                    </div>
+                </div>
+                
+
+                <!-- Apply ARIA attributes after the sidebar and the sidebar toggle button are added to the DOM -->
+                <script type="text/javascript">
+                    document.getElementById('sidebar-toggle').setAttribute('aria-expanded', sidebar === 'visible');
+                    document.getElementById('sidebar').setAttribute('aria-hidden', sidebar !== 'visible');
+                    Array.from(document.querySelectorAll('#sidebar a')).forEach(function(link) {
+                        link.setAttribute('tabIndex', sidebar === 'visible' ? 0 : -1);
+                    });
+                </script>
+
+                <div id="content" class="content">
+                    <main>
+                        <a class="header" href="special-types-and-traits.html#special-types-and-traits" id="special-types-and-traits"><h1>Special types and traits</h1></a>
+<p>Certain types and traits that exist in <a href="../std/index.html">the standard library</a> are known to the
+Rust compiler. This chapter documents the special features of these types and
+traits.</p>
+<a class="header" href="special-types-and-traits.html#boxt" id="boxt"><h2><code>Box&lt;T&gt;</code></h2></a>
+<p><a href="../std/boxed/struct.Box.html"><code>Box&lt;T&gt;</code></a> has a few special features that Rust doesn't currently allow for user
+defined types.</p>
+<ul>
+<li>The <a href="expressions/operator-expr.html#the-dereference-operator">dereference operator</a> for <code>Box&lt;T&gt;</code> produces a place which can be moved
+from. This means that the <code>*</code> operator and the destructor of <code>Box&lt;T&gt;</code> are
+built-in to the language.</li>
+<li><a href="items/associated-items.html#associated-functions-and-methods">Methods</a> can take <code>Box&lt;Self&gt;</code> as a receiver.</li>
+<li>A trait may be implemented for <code>Box&lt;T&gt;</code> in the same crate as <code>T</code>, which the
+<a href="items/implementations.html#trait-implementation-coherence">orphan rules</a> prevent for other generic types.</li>
+</ul>
+<a class="header" href="special-types-and-traits.html#unsafecellt" id="unsafecellt"><h2><code>UnsafeCell&lt;T&gt;</code></h2></a>
+<p><a href="../std/cell/struct.UnsafeCell.html"><code>std::cell::UnsafeCell&lt;T&gt;</code></a> is used for <a href="interior-mutability.html">interior mutability</a>. It ensures that
+the compiler doesn't perform optimisations that are incorrect for such types.
+It also ensures that <a href="items/static-items.html"><code>static</code> items</a> which have a type with interior
+mutability aren't placed in memory marked as read only.</p>
+<a class="header" href="special-types-and-traits.html#phantomdatat" id="phantomdatat"><h2><code>PhantomData&lt;T&gt;</code></h2></a>
+<p><a href="../std/marker/struct.PhantomData.html"><code>std::marker::PhantomData&lt;T&gt;</code></a> is a zero-sized, minimum alignment, type that
+is considered to own a <code>T</code> for the purposes of <a href="subtyping.html#variance">variance</a>, <a href="../nomicon/dropck.html">drop check</a> and
+<a href="special-types-and-traits.html#auto-traits">auto traits</a>.</p>
+<a class="header" href="special-types-and-traits.html#operator-traits" id="operator-traits"><h2>Operator Traits</h2></a>
+<p>The traits in <a href="../std/ops/index.html"><code>std::ops</code></a> and <a href="../std/cmp/index.html"><code>std::cmp</code></a> are used to overload <a href="expressions/operator-expr.html">operators</a>,
+<a href="expressions/array-expr.html#array-and-slice-indexing-expressions">indexing expressions</a> and <a href="expressions/call-expr.html">call expressions</a>.</p>
+<a class="header" href="special-types-and-traits.html#deref-and-derefmut" id="deref-and-derefmut"><h2><code>Deref</code> and <code>DerefMut</code></h2></a>
+<p>As well as overloading the unary <code>*</code> operator, <a href="../std/ops/trait.Deref.html"><code>Deref</code></a> and <a href="../std/ops/trait.DerefMut.html"><code>DerefMut</code></a> are
+also used in <a href="expressions/method-call-expr.html">method resolution</a> and <a href="type-coercions.html#coercion-types">deref coercions</a>.</p>
+<a class="header" href="special-types-and-traits.html#drop" id="drop"><h2><code>Drop</code></h2></a>
+<p>The <a href="../std/ops/trait.Drop.html"><code>Drop</code></a> trait provides a <a href="destructors.html">destructor</a>, to be run whenever a value of this
+type is to be destroyed.</p>
+<a class="header" href="special-types-and-traits.html#copy" id="copy"><h2><code>Copy</code></h2></a>
+<p>The <a href="../std/marker/trait.Copy.html"><code>Copy</code></a> trait changes the semantics of a type implementing it. Values
+whose type implements <code>Copy</code> are copied rather than moved upon assignment.
+<code>Copy</code> cannot be implemented for types which implement <code>Drop</code>, or which have
+fields that are not <code>Copy</code>. <code>Copy</code> is implemented by the compiler for</p>
+<ul>
+<li><a href="types.html#numeric-types">Numeric types</a></li>
+<li><code>char</code>, <code>bool</code> and <a href="types.html#never-type"><code>!</code></a></li>
+<li><a href="types.html#tuple-types">Tuples</a> of <code>Copy</code> types</li>
+<li><a href="types.html#array-and-slice-types">Arrays</a> of <code>Copy</code> types</li>
+<li><a href="types.html#shared-references-">Shared references</a></li>
+<li><a href="types.html#raw-pointers-const-and-mut">Raw pointers</a></li>
+<li><a href="types.html#function-pointer-types">Function pointers</a> and <a href="types.html#function-item-types">function item types</a></li>
+</ul>
+<a class="header" href="special-types-and-traits.html#clone" id="clone"><h2><code>Clone</code></h2></a>
+<p>The <a href="../std/clone/trait.Clone.html"><code>Clone</code></a> trait is a supertrait of <code>Copy</code>, so it also needs compiler
+generated implementations. It is implemented by the compiler for the following
+types:</p>
+<ul>
+<li>Types with a built-in <code>Copy</code> implementation (see above)</li>
+<li><a href="types.html#tuple-types">Tuples</a> of <code>Clone</code> types</li>
+<li><a href="types.html#array-and-slice-types">Arrays</a> of <code>Clone</code> types</li>
+</ul>
+<a class="header" href="special-types-and-traits.html#send" id="send"><h2><code>Send</code></h2></a>
+<p>The <a href="../std/marker/trait.Send.html"><code>Send</code></a> trait indicates that a value of this type is safe to send from one
+thread to another.</p>
+<a class="header" href="special-types-and-traits.html#sync" id="sync"><h2><code>Sync</code></h2></a>
+<p>The <a href="../std/marker/trait.Sync.html"><code>Sync</code></a> trait indicates that a value of this type is safe to share between
+multiple threads. This trait must be implemented for all types used in
+immutable <a href="items/static-items.html"><code>static</code> items</a>.</p>
+<a class="header" href="special-types-and-traits.html#auto-traits" id="auto-traits"><h2>Auto traits</h2></a>
+<p>The <a href="../std/marker/trait.Send.html"><code>Send</code></a>, <a href="../std/marker/trait.Sync.html"><code>Sync</code></a>, <a href="../std/panic/trait.UnwindSafe.html"><code>UnwindSafe</code></a> and <a href="../std/panic/trait.RefUnwindSafe.html"><code>RefUnwindSafe</code></a> traits are <em>auto
+traits</em>. Auto traits have special properties.</p>
+<p>If no explicit implementation or negative implementation is written out for an
+auto trait for a given type, then the compiler implements it automatically
+according to the following rules:</p>
+<ul>
+<li><code>&amp;T</code>, <code>&amp;mut T</code>, <code>*const T</code>, <code>*mut T</code>, <code>[T; n]</code> and <code>[T]</code> implement the trait
+if <code>T</code> does.</li>
+<li>Function item types and function pointers automatically implement the trait.</li>
+<li>Structs, enums, unions and tuples implement the trait if all of their fields
+do.</li>
+<li>Closures implement the trait if the types of all of their captures do. A
+closure that captures a <code>T</code> by shared reference and a <code>U</code> by value implements
+any auto traits that both <code>&amp;T</code> and <code>U</code> do.</li>
+</ul>
+<p>For generic types (counting the built-in types above as generic over <code>T</code>), if an
+generic implementation is available, then the compiler does not automatically
+implement it for types that could use the implementation except that they do not
+meet the requisite trait bounds. For instance, the standard library implements
+<code>Send</code> for all <code>&amp;T</code> where <code>T</code> is <code>Sync</code>; this means that the compiler will not
+implement <code>Send</code> for <code>&amp;T</code> if <code>T</code> is <code>Send</code> but not <code>Sync</code>.</p>
+<p>Auto traits can also have negative implementations, shown as <code>impl !AutoTrait for T</code> in the standard library documentation, that override the automatic
+implementations. For example <code>*mut T</code> has a negative implementation of <code>Send</code>,
+and so <code>*mut T</code> is not <code>Send</code>, even if <code>T</code> is. There is currently no stable way
+to specify additional negative implementations; they exist only in the standard
+library.</p>
+<p>Auto traits may be added as an additional bound to any <a href="types.html#trait-objects">trait object</a>, even
+though normally only one trait is allowed. For instance, <code>Box&lt;dyn Debug + Send + UnwindSafe&gt;</code> is a valid type.</p>
+<a class="header" href="special-types-and-traits.html#sized" id="sized"><h2><code>Sized</code></h2></a>
+<p>The <a href="../std/marker/trait.Sized.html"><code>Sized</code></a> trait indicates that the size of this type is known at
+compile-time; that is, it's not a <a href="dynamically-sized-types.html">dynamically sized type</a>. <a href="types.html#type-parameters">Type parameters</a>
+are <code>Sized</code> by default. <code>Sized</code> is always implemented automatically by the
+compiler, not by <a href="items/implementations.html">implementation items</a>.</p>
+
+                    </main>
+
+                    <nav class="nav-wrapper" aria-label="Page navigation">
+                        <!-- Mobile navigation buttons -->
+                        
+                            <a rel="prev" href="lifetime-elision.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                                <i class="fa fa-angle-left"></i>
+                            </a>
+                        
+
+                        
+                            <a rel="next" href="memory-model.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                                <i class="fa fa-angle-right"></i>
+                            </a>
+                        
+
+                        <div style="clear: both"></div>
+                    </nav>
+                </div>
+            </div>
+
+            <nav class="nav-wide-wrapper" aria-label="Page navigation">
+                
+                    <a href="lifetime-elision.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                        <i class="fa fa-angle-left"></i>
+                    </a>
+                
+
+                
+                    <a href="memory-model.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                        <i class="fa fa-angle-right"></i>
+                    </a>
+                
+            </nav>
+
+        </div>
+
+        
+
+        
+
+        
+
+        
+
+        
+        <script src="searchindex.js" type="text/javascript" charset="utf-8"></script>
+        
+        
+        <script src="elasticlunr.min.js" type="text/javascript" charset="utf-8"></script>
+        <script src="mark.min.js" type="text/javascript" charset="utf-8"></script>
+        <script src="searcher.js" type="text/javascript" charset="utf-8"></script>
+        
+
+        <script src="clipboard.min.js" type="text/javascript" charset="utf-8"></script>
+        <script src="highlight.js" type="text/javascript" charset="utf-8"></script>
+        <script src="book.js" type="text/javascript" charset="utf-8"></script>
+
+        <!-- Custom JS scripts -->
+        
+
+    </body>
+</html>

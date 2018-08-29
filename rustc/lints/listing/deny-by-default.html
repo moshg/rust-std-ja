@@ -1,0 +1,374 @@
+<!DOCTYPE HTML>
+<html lang="en" class="sidebar-visible no-js">
+    <head>
+        <!-- Book generated using mdBook -->
+        <meta charset="UTF-8">
+        <title>Deny-by-default lints - The rustc book</title>
+        <meta content="text/html; charset=utf-8" http-equiv="Content-Type">
+        <meta name="description" content="">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="theme-color" content="#ffffff" />
+
+        <base href="../../">
+
+        <link rel="stylesheet" href="book.css">
+        <link href="https://fonts.googleapis.com/css?family=Open+Sans:300italic,400italic,600italic,700italic,800italic,400,300,600,700,800" rel="stylesheet" type="text/css">
+        <link href="https://fonts.googleapis.com/css?family=Source+Code+Pro:500" rel="stylesheet" type="text/css">
+
+        <link rel="shortcut icon" href="favicon.png">
+
+        <!-- Font Awesome -->
+        <link rel="stylesheet" href="_FontAwesome/css/font-awesome.css">
+
+        <link rel="stylesheet" href="highlight.css">
+        <link rel="stylesheet" href="tomorrow-night.css">
+        <link rel="stylesheet" href="ayu-highlight.css">
+
+        <!-- Custom theme stylesheets -->
+        
+
+        
+
+    </head>
+    <body class="light">
+        <!-- Work around some values being stored in localStorage wrapped in quotes -->
+        <script type="text/javascript">
+            try {
+                var theme = localStorage.getItem('mdbook-theme');
+                var sidebar = localStorage.getItem('mdbook-sidebar');
+
+                if (theme.startsWith('"') && theme.endsWith('"')) {
+                    localStorage.setItem('mdbook-theme', theme.slice(1, theme.length - 1));
+                }
+
+                if (sidebar.startsWith('"') && sidebar.endsWith('"')) {
+                    localStorage.setItem('mdbook-sidebar', sidebar.slice(1, sidebar.length - 1));
+                }
+            } catch (e) { }
+        </script>
+
+        <!-- Set the theme before any content is loaded, prevents flash -->
+        <script type="text/javascript">
+            var theme;
+            try { theme = localStorage.getItem('mdbook-theme'); } catch(e) { } 
+            if (theme === null || theme === undefined) { theme = 'light'; }
+            document.body.className = theme;
+            document.querySelector('html').className = theme + ' js';
+        </script>
+
+        <!-- Hide / unhide sidebar before it is displayed -->
+        <script type="text/javascript">
+            var html = document.querySelector('html');
+            var sidebar = 'hidden';
+            if (document.body.clientWidth >= 1080) {
+                try { sidebar = localStorage.getItem('mdbook-sidebar'); } catch(e) { }
+                sidebar = sidebar || 'visible';
+            }
+            html.classList.remove('sidebar-visible');
+            html.classList.add("sidebar-" + sidebar);
+        </script>
+
+        <nav id="sidebar" class="sidebar" aria-label="Table of contents">
+            <ol class="chapter"><li><a href="what-is-rustc.html"><strong aria-hidden="true">1.</strong> What is rustc?</a></li><li><a href="command-line-arguments.html"><strong aria-hidden="true">2.</strong> Command-line arguments</a></li><li><a href="lints/index.html"><strong aria-hidden="true">3.</strong> Lints</a></li><li><ol class="section"><li><a href="lints/levels.html"><strong aria-hidden="true">3.1.</strong> Lint levels</a></li><li><a href="lints/groups.html"><strong aria-hidden="true">3.2.</strong> Lint Groups</a></li><li><a href="lints/listing/index.html"><strong aria-hidden="true">3.3.</strong> Lint listing</a></li><li><ol class="section"><li><a href="lints/listing/allowed-by-default.html"><strong aria-hidden="true">3.3.1.</strong> Allowed-by-default lints</a></li><li><a href="lints/listing/warn-by-default.html"><strong aria-hidden="true">3.3.2.</strong> Warn-by-default lints</a></li><li><a href="lints/listing/deny-by-default.html" class="active"><strong aria-hidden="true">3.3.3.</strong> Deny-by-default lints</a></li></ol></li></ol></li><li><a href="codegen-options/index.html"><strong aria-hidden="true">4.</strong> Codegen options</a></li><li><a href="targets/index.html"><strong aria-hidden="true">5.</strong> Targets</a></li><li><ol class="section"><li><a href="targets/built-in.html"><strong aria-hidden="true">5.1.</strong> Built-in Targets</a></li><li><a href="targets/custom.html"><strong aria-hidden="true">5.2.</strong> Custom Targets</a></li></ol></li><li><a href="contributing.html"><strong aria-hidden="true">6.</strong> Contributing to rustc</a></li></ol>
+        </nav>
+
+        <div id="page-wrapper" class="page-wrapper">
+
+            <div class="page">
+                
+                <div id="menu-bar" class="menu-bar">
+                    <div id="menu-bar-sticky-container">
+                        <div class="left-buttons">
+                            <button id="sidebar-toggle" class="icon-button" type="button" title="Toggle Table of Contents" aria-label="Toggle Table of Contents" aria-controls="sidebar">
+                                <i class="fa fa-bars"></i>
+                            </button>
+                            <button id="theme-toggle" class="icon-button" type="button" title="Change theme" aria-label="Change theme" aria-haspopup="true" aria-expanded="false" aria-controls="theme-list">
+                                <i class="fa fa-paint-brush"></i>
+                            </button>
+                            <ul id="theme-list" class="theme-popup" aria-label="Themes" role="menu">
+                                <li role="none"><button role="menuitem" class="theme" id="light">Light <span class="default">(default)</span></button></li>
+                                <li role="none"><button role="menuitem" class="theme" id="rust">Rust</button></li>
+                                <li role="none"><button role="menuitem" class="theme" id="coal">Coal</button></li>
+                                <li role="none"><button role="menuitem" class="theme" id="navy">Navy</button></li>
+                                <li role="none"><button role="menuitem" class="theme" id="ayu">Ayu</button></li>
+                            </ul>
+                            
+                            <button id="search-toggle" class="icon-button" type="button" title="Search. (Shortkey: s)" aria-label="Toggle Searchbar" aria-expanded="false" aria-keyshortcuts="S" aria-controls="searchbar">
+                                <i class="fa fa-search"></i>
+                            </button>
+                            
+                        </div>
+
+                        <h1 class="menu-title">The rustc book</h1> 
+
+                        <div class="right-buttons">
+                            <a href="print.html" title="Print this book" aria-label="Print this book">
+                                <i id="print-button" class="fa fa-print"></i>
+                            </a>
+                        </div>
+                    </div>
+                </div>
+
+                
+                <div id="search-wrapper" class="hidden">
+                    <form id="searchbar-outer" class="searchbar-outer">
+                        <input type="search" name="search" id="searchbar" name="searchbar" placeholder="Search this book ..." aria-controls="searchresults-outer" aria-describedby="searchresults-header">
+                    </form>
+                    <div id="searchresults-outer" class="searchresults-outer hidden">
+                        <div id="searchresults-header" class="searchresults-header"></div>
+                        <ul id="searchresults">
+                        </ul>
+                    </div>
+                </div>
+                
+
+                <!-- Apply ARIA attributes after the sidebar and the sidebar toggle button are added to the DOM -->
+                <script type="text/javascript">
+                    document.getElementById('sidebar-toggle').setAttribute('aria-expanded', sidebar === 'visible');
+                    document.getElementById('sidebar').setAttribute('aria-hidden', sidebar !== 'visible');
+                    Array.from(document.querySelectorAll('#sidebar a')).forEach(function(link) {
+                        link.setAttribute('tabIndex', sidebar === 'visible' ? 0 : -1);
+                    });
+                </script>
+
+                <div id="content" class="content">
+                    <main>
+                        <a class="header" href="lints/listing/deny-by-default.html#deny-by-default-lints" id="deny-by-default-lints"><h1>Deny-by-default lints</h1></a>
+<p>These lints are all set to the 'deny' level by default.</p>
+<a class="header" href="lints/listing/deny-by-default.html#exceeding-bitshifts" id="exceeding-bitshifts"><h2>exceeding-bitshifts</h2></a>
+<p>This lint detects that a shift exceeds the type's number of bits. Some
+example code that triggers this lint:</p>
+<pre><code class="language-rust ignore">1_i32 &lt;&lt; 32;
+</code></pre>
+<p>This will produce:</p>
+<pre><code class="language-text">error: bitshift exceeds the type's number of bits
+ --&gt; src/main.rs:2:5
+  |
+2 |     1_i32 &lt;&lt; 32;
+  |     ^^^^^^^^^^^
+  |
+</code></pre>
+<a class="header" href="lints/listing/deny-by-default.html#invalid-type-param-default" id="invalid-type-param-default"><h2>invalid-type-param-default</h2></a>
+<p>This lint detects type parameter default erroneously allowed in invalid location. Some
+example code that triggers this lint:</p>
+<pre><code class="language-rust ignore">fn foo&lt;T=i32&gt;(t: T) {}
+</code></pre>
+<p>This will produce:</p>
+<pre><code class="language-text">error: defaults for type parameters are only allowed in `struct`, `enum`, `type`, or `trait` definitions.
+ --&gt; src/main.rs:4:8
+  |
+4 | fn foo&lt;T=i32&gt;(t: T) {}
+  |        ^
+  |
+  = note: #[deny(invalid_type_param_default)] on by default
+  = warning: this was previously accepted by the compiler but is being phased out; it will become a hard error in a future release!
+  = note: for more information, see issue #36887 &lt;https://github.com/rust-lang/rust/issues/36887&gt;
+</code></pre>
+<a class="header" href="lints/listing/deny-by-default.html#legacy-constructor-visibility" id="legacy-constructor-visibility"><h2>legacy-constructor-visibility</h2></a>
+<p><a href="https://github.com/rust-lang/rfcs/blob/master/text/1506-adt-kinds.md">RFC 1506</a> modified some
+visibility rules, and changed the visibility of struct constructors. Some
+example code that triggers this lint:</p>
+<pre><code class="language-rust ignore">mod m {
+    pub struct S(u8);
+    
+    fn f() {
+        // this is trying to use S from the 'use' line, but becuase the `u8` is
+        // not pub, it is private
+        ::S;
+    }
+}
+
+use m::S;
+</code></pre>
+<p>This will produce:</p>
+<pre><code class="language-text">error: private struct constructors are not usable through re-exports in outer modules
+ --&gt; src/main.rs:5:9
+  |
+5 |         ::S;
+  |         ^^^
+  |
+  = note: #[deny(legacy_constructor_visibility)] on by default
+  = warning: this was previously accepted by the compiler but is being phased out; it will become a hard error in a future release!
+  = note: for more information, see issue #39207 &lt;https://github.com/rust-lang/rust/issues/39207&gt;
+</code></pre>
+<a class="header" href="lints/listing/deny-by-default.html#legacy-directory-ownership" id="legacy-directory-ownership"><h2>legacy-directory-ownership</h2></a>
+<p>The legacy_directory_ownership warning is issued when</p>
+<ul>
+<li>There is a non-inline module with a #[path] attribute (e.g. #[path = &quot;foo.rs&quot;] mod bar;),</li>
+<li>The module's file (&quot;foo.rs&quot; in the above example) is not named &quot;mod.rs&quot;, and</li>
+<li>The module's file contains a non-inline child module without a #[path] attribute.</li>
+</ul>
+<p>The warning can be fixed by renaming the parent module to &quot;mod.rs&quot; and moving
+it into its own directory if appropriate.</p>
+<a class="header" href="lints/listing/deny-by-default.html#missing-fragment-specifier" id="missing-fragment-specifier"><h2>missing-fragment-specifier</h2></a>
+<p>The missing_fragment_specifier warning is issued when an unused pattern in a
+<code>macro_rules!</code> macro definition has a meta-variable (e.g. <code>$e</code>) that is not
+followed by a fragment specifier (e.g. <code>:expr</code>).</p>
+<p>This warning can always be fixed by removing the unused pattern in the
+<code>macro_rules!</code> macro definition.</p>
+<a class="header" href="lints/listing/deny-by-default.html#mutable-transmutes" id="mutable-transmutes"><h2>mutable-transmutes</h2></a>
+<p>This lint catches transmuting from <code>&amp;T</code> to <code>&amp;mut T</code> becuase it is undefined
+behavior. Some example code that triggers this lint:</p>
+<pre><code class="language-rust ignore">unsafe {
+    let y = std::mem::transmute::&lt;&amp;i32, &amp;mut i32&gt;(&amp;5);
+}
+</code></pre>
+<p>This will produce:</p>
+<pre><code class="language-text">error: mutating transmuted &amp;mut T from &amp;T may cause undefined behavior, consider instead using an UnsafeCell
+ --&gt; src/main.rs:3:17
+  |
+3 |         let y = std::mem::transmute::&lt;&amp;i32, &amp;mut i32&gt;(&amp;5);
+  |                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  |
+</code></pre>
+<a class="header" href="lints/listing/deny-by-default.html#no-mangle-const-items" id="no-mangle-const-items"><h2>no-mangle-const-items</h2></a>
+<p>This lint detects any <code>const</code> items with the <code>#[no_mangle]</code> attribute.
+Constants do not have their symbols exported, and therefore, this probably
+means you meant to use a <code>static</code>, not a <code>const</code>. Some example code that
+triggers this lint:</p>
+<pre><code class="language-rust ignore">#[no_mangle]
+const FOO: i32 = 5;
+</code></pre>
+<p>This will produce:</p>
+<pre><code class="language-text">error: const items should never be #[no_mangle]
+ --&gt; src/main.rs:3:1
+  |
+3 | const FOO: i32 = 5;
+  | -----^^^^^^^^^^^^^^
+  | |
+  | help: try a static value: `pub static`
+  |
+</code></pre>
+<a class="header" href="lints/listing/deny-by-default.html#parenthesized-params-in-types-and-modules" id="parenthesized-params-in-types-and-modules"><h2>parenthesized-params-in-types-and-modules</h2></a>
+<p>This lint detects incorrect parentheses. Some example code that triggers this
+lint:</p>
+<pre><code class="language-rust ignore">let x = 5 as usize();
+</code></pre>
+<p>This will produce:</p>
+<pre><code class="language-text">error: parenthesized parameters may only be used with a trait
+ --&gt; src/main.rs:2:21
+  |
+2 |   let x = 5 as usize();
+  |                     ^^
+  |
+  = note: #[deny(parenthesized_params_in_types_and_modules)] on by default
+  = warning: this was previously accepted by the compiler but is being phased out; it will become a hard error in a future release!
+  = note: for more information, see issue #42238 &lt;https://github.com/rust-lang/rust/issues/42238&gt;
+</code></pre>
+<p>To fix it, remove the <code>()</code>s.</p>
+<a class="header" href="lints/listing/deny-by-default.html#pub-use-of-private-extern-crate" id="pub-use-of-private-extern-crate"><h2>pub-use-of-private-extern-crate</h2></a>
+<p>This lint detects a specific situation of re-exporting a private <code>extern crate</code>;</p>
+<a class="header" href="lints/listing/deny-by-default.html#safe-extern-statics" id="safe-extern-statics"><h2>safe-extern-statics</h2></a>
+<p>In older versions of Rust, there was a soundness issue where <code>extern static</code>s were allowed
+to be accessed in safe code. This lint now catches and denies this kind of code.</p>
+<a class="header" href="lints/listing/deny-by-default.html#unknown-crate-types" id="unknown-crate-types"><h2>unknown-crate-types</h2></a>
+<p>This lint detects an unknown crate type found in a <code>#[crate_type]</code> directive. Some
+example code that triggers this lint:</p>
+<pre><code class="language-rust ignore">#![crate_type=&quot;lol&quot;]
+</code></pre>
+<p>This will produce:</p>
+<pre><code class="language-text">error: invalid `crate_type` value
+ --&gt; src/lib.rs:1:1
+  |
+1 | #![crate_type=&quot;lol&quot;]
+  | ^^^^^^^^^^^^^^^^^^^^
+  |
+</code></pre>
+<a class="header" href="lints/listing/deny-by-default.html#incoherent-fundamental-impls" id="incoherent-fundamental-impls"><h2>incoherent-fundamental-impls</h2></a>
+<p>This lint detects potentially-conflicting impls that were erroneously allowed. Some
+example code that triggers this lint:</p>
+<pre><code class="language-rust ignore">pub trait Trait1&lt;X&gt; {
+    type Output;
+}
+
+pub trait Trait2&lt;X&gt; {}
+
+pub struct A;
+
+impl&lt;X, T&gt; Trait1&lt;X&gt; for T where T: Trait2&lt;X&gt; {
+    type Output = ();
+}
+
+impl&lt;X&gt; Trait1&lt;Box&lt;X&gt;&gt; for A {
+    type Output = i32;
+}
+</code></pre>
+<p>This will produce:</p>
+<pre><code class="language-text">error: conflicting implementations of trait `Trait1&lt;std::boxed::Box&lt;_&gt;&gt;` for type `A`: (E0119)
+  --&gt; src/main.rs:13:1
+   |
+9  | impl&lt;X, T&gt; Trait1&lt;X&gt; for T where T: Trait2&lt;X&gt; {
+   | --------------------------------------------- first implementation here
+...
+13 | impl&lt;X&gt; Trait1&lt;Box&lt;X&gt;&gt; for A {
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^ conflicting implementation for `A`
+   |
+   = note: #[deny(incoherent_fundamental_impls)] on by default
+   = warning: this was previously accepted by the compiler but is being phased out; it will become a hard error in a future release!
+   = note: for more information, see issue #46205 &lt;https://github.com/rust-lang/rust/issues/46205&gt;
+   = note: downstream crates may implement trait `Trait2&lt;std::boxed::Box&lt;_&gt;&gt;` for type `A`
+</code></pre>
+
+                    </main>
+
+                    <nav class="nav-wrapper" aria-label="Page navigation">
+                        <!-- Mobile navigation buttons -->
+                        
+                            <a rel="prev" href="lints/listing/warn-by-default.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                                <i class="fa fa-angle-left"></i>
+                            </a>
+                        
+
+                        
+                            <a rel="next" href="codegen-options/index.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                                <i class="fa fa-angle-right"></i>
+                            </a>
+                        
+
+                        <div style="clear: both"></div>
+                    </nav>
+                </div>
+            </div>
+
+            <nav class="nav-wide-wrapper" aria-label="Page navigation">
+                
+                    <a href="lints/listing/warn-by-default.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                        <i class="fa fa-angle-left"></i>
+                    </a>
+                
+
+                
+                    <a href="codegen-options/index.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                        <i class="fa fa-angle-right"></i>
+                    </a>
+                
+            </nav>
+
+        </div>
+
+        
+
+        
+
+        
+
+        
+
+        
+        <script src="searchindex.js" type="text/javascript" charset="utf-8"></script>
+        
+        
+        <script src="elasticlunr.min.js" type="text/javascript" charset="utf-8"></script>
+        <script src="mark.min.js" type="text/javascript" charset="utf-8"></script>
+        <script src="searcher.js" type="text/javascript" charset="utf-8"></script>
+        
+
+        <script src="clipboard.min.js" type="text/javascript" charset="utf-8"></script>
+        <script src="highlight.js" type="text/javascript" charset="utf-8"></script>
+        <script src="book.js" type="text/javascript" charset="utf-8"></script>
+
+        <!-- Custom JS scripts -->
+        
+
+    </body>
+</html>

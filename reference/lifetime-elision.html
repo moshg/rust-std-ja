@@ -1,0 +1,361 @@
+<!DOCTYPE HTML>
+<html lang="en" class="sidebar-visible no-js">
+    <head>
+        <!-- Book generated using mdBook -->
+        <meta charset="UTF-8">
+        <title>Lifetime elision - The Rust Reference</title>
+        <meta content="text/html; charset=utf-8" http-equiv="Content-Type">
+        <meta name="description" content="">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="theme-color" content="#ffffff" />
+
+        <base href="">
+
+        <link rel="stylesheet" href="book.css">
+        <link href="https://fonts.googleapis.com/css?family=Open+Sans:300italic,400italic,600italic,700italic,800italic,400,300,600,700,800" rel="stylesheet" type="text/css">
+        <link href="https://fonts.googleapis.com/css?family=Source+Code+Pro:500" rel="stylesheet" type="text/css">
+
+        <link rel="shortcut icon" href="favicon.png">
+
+        <!-- Font Awesome -->
+        <link rel="stylesheet" href="_FontAwesome/css/font-awesome.css">
+
+        <link rel="stylesheet" href="highlight.css">
+        <link rel="stylesheet" href="tomorrow-night.css">
+        <link rel="stylesheet" href="ayu-highlight.css">
+
+        <!-- Custom theme stylesheets -->
+        
+        <link rel="stylesheet" href="src/theme/reference.css">
+        
+
+        
+
+    </head>
+    <body class="light">
+        <!-- Work around some values being stored in localStorage wrapped in quotes -->
+        <script type="text/javascript">
+            try {
+                var theme = localStorage.getItem('mdbook-theme');
+                var sidebar = localStorage.getItem('mdbook-sidebar');
+
+                if (theme.startsWith('"') && theme.endsWith('"')) {
+                    localStorage.setItem('mdbook-theme', theme.slice(1, theme.length - 1));
+                }
+
+                if (sidebar.startsWith('"') && sidebar.endsWith('"')) {
+                    localStorage.setItem('mdbook-sidebar', sidebar.slice(1, sidebar.length - 1));
+                }
+            } catch (e) { }
+        </script>
+
+        <!-- Set the theme before any content is loaded, prevents flash -->
+        <script type="text/javascript">
+            var theme;
+            try { theme = localStorage.getItem('mdbook-theme'); } catch(e) { } 
+            if (theme === null || theme === undefined) { theme = 'light'; }
+            document.body.className = theme;
+            document.querySelector('html').className = theme + ' js';
+        </script>
+
+        <!-- Hide / unhide sidebar before it is displayed -->
+        <script type="text/javascript">
+            var html = document.querySelector('html');
+            var sidebar = 'hidden';
+            if (document.body.clientWidth >= 1080) {
+                try { sidebar = localStorage.getItem('mdbook-sidebar'); } catch(e) { }
+                sidebar = sidebar || 'visible';
+            }
+            html.classList.remove('sidebar-visible');
+            html.classList.add("sidebar-" + sidebar);
+        </script>
+
+        <nav id="sidebar" class="sidebar" aria-label="Table of contents">
+            <ol class="chapter"><li class="affix"><a href="introduction.html">Introduction</a></li><li><a href="notation.html"><strong aria-hidden="true">1.</strong> Notation</a></li><li><a href="lexical-structure.html"><strong aria-hidden="true">2.</strong> Lexical structure</a></li><li><ol class="section"><li><a href="input-format.html"><strong aria-hidden="true">2.1.</strong> Input format</a></li><li><a href="keywords.html"><strong aria-hidden="true">2.2.</strong> Keywords</a></li><li><a href="identifiers.html"><strong aria-hidden="true">2.3.</strong> Identifiers</a></li><li><a href="comments.html"><strong aria-hidden="true">2.4.</strong> Comments</a></li><li><a href="whitespace.html"><strong aria-hidden="true">2.5.</strong> Whitespace</a></li><li><a href="tokens.html"><strong aria-hidden="true">2.6.</strong> Tokens</a></li><li><a href="paths.html"><strong aria-hidden="true">2.7.</strong> Paths</a></li></ol></li><li><a href="macros.html"><strong aria-hidden="true">3.</strong> Macros</a></li><li><ol class="section"><li><a href="macros-by-example.html"><strong aria-hidden="true">3.1.</strong> Macros By Example</a></li><li><a href="procedural-macros.html"><strong aria-hidden="true">3.2.</strong> Procedural Macros</a></li></ol></li><li><a href="crates-and-source-files.html"><strong aria-hidden="true">4.</strong> Crates and source files</a></li><li><a href="items-and-attributes.html"><strong aria-hidden="true">5.</strong> Items and attributes</a></li><li><ol class="section"><li><a href="items.html"><strong aria-hidden="true">5.1.</strong> Items</a></li><li><ol class="section"><li><a href="items/modules.html"><strong aria-hidden="true">5.1.1.</strong> Modules</a></li><li><a href="items/extern-crates.html"><strong aria-hidden="true">5.1.2.</strong> Extern crates</a></li><li><a href="items/use-declarations.html"><strong aria-hidden="true">5.1.3.</strong> Use declarations</a></li><li><a href="items/functions.html"><strong aria-hidden="true">5.1.4.</strong> Functions</a></li><li><a href="items/type-aliases.html"><strong aria-hidden="true">5.1.5.</strong> Type aliases</a></li><li><a href="items/structs.html"><strong aria-hidden="true">5.1.6.</strong> Structs</a></li><li><a href="items/enumerations.html"><strong aria-hidden="true">5.1.7.</strong> Enumerations</a></li><li><a href="items/unions.html"><strong aria-hidden="true">5.1.8.</strong> Unions</a></li><li><a href="items/constant-items.html"><strong aria-hidden="true">5.1.9.</strong> Constant items</a></li><li><a href="items/static-items.html"><strong aria-hidden="true">5.1.10.</strong> Static items</a></li><li><a href="items/traits.html"><strong aria-hidden="true">5.1.11.</strong> Traits</a></li><li><a href="items/implementations.html"><strong aria-hidden="true">5.1.12.</strong> Implementations</a></li><li><a href="items/external-blocks.html"><strong aria-hidden="true">5.1.13.</strong> External blocks</a></li></ol></li><li><a href="items/generics.html"><strong aria-hidden="true">5.2.</strong> Type and lifetime parameters</a></li><li><a href="items/associated-items.html"><strong aria-hidden="true">5.3.</strong> Associated Items</a></li><li><a href="visibility-and-privacy.html"><strong aria-hidden="true">5.4.</strong> Visibility and Privacy</a></li><li><a href="attributes.html"><strong aria-hidden="true">5.5.</strong> Attributes</a></li></ol></li><li><a href="statements-and-expressions.html"><strong aria-hidden="true">6.</strong> Statements and expressions</a></li><li><ol class="section"><li><a href="statements.html"><strong aria-hidden="true">6.1.</strong> Statements</a></li><li><a href="expressions.html"><strong aria-hidden="true">6.2.</strong> Expressions</a></li><li><ol class="section"><li><a href="expressions/literal-expr.html"><strong aria-hidden="true">6.2.1.</strong> Literal expressions</a></li><li><a href="expressions/path-expr.html"><strong aria-hidden="true">6.2.2.</strong> Path expressions</a></li><li><a href="expressions/block-expr.html"><strong aria-hidden="true">6.2.3.</strong> Block expressions</a></li><li><a href="expressions/operator-expr.html"><strong aria-hidden="true">6.2.4.</strong> Operator expressions</a></li><li><a href="expressions/grouped-expr.html"><strong aria-hidden="true">6.2.5.</strong> Grouped expressions</a></li><li><a href="expressions/array-expr.html"><strong aria-hidden="true">6.2.6.</strong> Array and index expressions</a></li><li><a href="expressions/tuple-expr.html"><strong aria-hidden="true">6.2.7.</strong> Tuple and index expressions</a></li><li><a href="expressions/struct-expr.html"><strong aria-hidden="true">6.2.8.</strong> Struct expressions</a></li><li><a href="expressions/enum-variant-expr.html"><strong aria-hidden="true">6.2.9.</strong> Enum variant expressions</a></li><li><a href="expressions/call-expr.html"><strong aria-hidden="true">6.2.10.</strong> Call expressions</a></li><li><a href="expressions/method-call-expr.html"><strong aria-hidden="true">6.2.11.</strong> Method call expressions</a></li><li><a href="expressions/field-expr.html"><strong aria-hidden="true">6.2.12.</strong> Field access expressions</a></li><li><a href="expressions/closure-expr.html"><strong aria-hidden="true">6.2.13.</strong> Closure expressions</a></li><li><a href="expressions/loop-expr.html"><strong aria-hidden="true">6.2.14.</strong> Loop expressions</a></li><li><a href="expressions/range-expr.html"><strong aria-hidden="true">6.2.15.</strong> Range expressions</a></li><li><a href="expressions/if-expr.html"><strong aria-hidden="true">6.2.16.</strong> If and if let expressions</a></li><li><a href="expressions/match-expr.html"><strong aria-hidden="true">6.2.17.</strong> Match expressions</a></li><li><a href="expressions/return-expr.html"><strong aria-hidden="true">6.2.18.</strong> Return expressions</a></li></ol></li></ol></li><li><a href="type-system.html"><strong aria-hidden="true">7.</strong> Type system</a></li><li><ol class="section"><li><a href="types.html"><strong aria-hidden="true">7.1.</strong> Types</a></li><li><a href="dynamically-sized-types.html"><strong aria-hidden="true">7.2.</strong> Dynamically Sized Types</a></li><li><a href="type-layout.html"><strong aria-hidden="true">7.3.</strong> Type layout</a></li><li><a href="interior-mutability.html"><strong aria-hidden="true">7.4.</strong> Interior mutability</a></li><li><a href="subtyping.html"><strong aria-hidden="true">7.5.</strong> Subtyping and Variance</a></li><li><a href="trait-bounds.html"><strong aria-hidden="true">7.6.</strong> Trait and lifetime bounds</a></li><li><a href="type-coercions.html"><strong aria-hidden="true">7.7.</strong> Type coercions</a></li><li><a href="destructors.html"><strong aria-hidden="true">7.8.</strong> Destructors</a></li><li><a href="lifetime-elision.html" class="active"><strong aria-hidden="true">7.9.</strong> Lifetime elision</a></li></ol></li><li><a href="special-types-and-traits.html"><strong aria-hidden="true">8.</strong> Special types and traits</a></li><li><a href="memory-model.html"><strong aria-hidden="true">9.</strong> Memory model</a></li><li><ol class="section"><li><a href="memory-allocation-and-lifetime.html"><strong aria-hidden="true">9.1.</strong> Memory allocation and lifetime</a></li><li><a href="memory-ownership.html"><strong aria-hidden="true">9.2.</strong> Memory ownership</a></li><li><a href="variables.html"><strong aria-hidden="true">9.3.</strong> Variables</a></li></ol></li><li><a href="linkage.html"><strong aria-hidden="true">10.</strong> Linkage</a></li><li><a href="unsafety.html"><strong aria-hidden="true">11.</strong> Unsafety</a></li><li><ol class="section"><li><a href="unsafe-functions.html"><strong aria-hidden="true">11.1.</strong> Unsafe functions</a></li><li><a href="unsafe-blocks.html"><strong aria-hidden="true">11.2.</strong> Unsafe blocks</a></li><li><a href="behavior-considered-undefined.html"><strong aria-hidden="true">11.3.</strong> Behavior considered undefined</a></li><li><a href="behavior-not-considered-unsafe.html"><strong aria-hidden="true">11.4.</strong> Behavior not considered unsafe</a></li></ol></li><li><a href="influences.html">Appendix: Influences</a></li><li class="affix"><a href="undocumented.html">Appendix: As-yet-undocumented Features</a></li><li class="affix"><a href="glossary.html">Appendix: Glossary</a></li></ol>
+        </nav>
+
+        <div id="page-wrapper" class="page-wrapper">
+
+            <div class="page">
+                <header><p class="warning">
+    For now, this reference is a best-effort document. We strive for validity
+    and completeness, but are not yet there. In the future, the docs and lang
+    teams will work together to figure out how best to do this. Until then, this
+    is a best-effort attempt. If you find something wrong or missing, file an
+    <a href="https://github.com/rust-lang-nursery/reference/issues">issue</a> or
+    send in a pull request.
+</p></header>
+                <div id="menu-bar" class="menu-bar">
+                    <div id="menu-bar-sticky-container">
+                        <div class="left-buttons">
+                            <button id="sidebar-toggle" class="icon-button" type="button" title="Toggle Table of Contents" aria-label="Toggle Table of Contents" aria-controls="sidebar">
+                                <i class="fa fa-bars"></i>
+                            </button>
+                            <button id="theme-toggle" class="icon-button" type="button" title="Change theme" aria-label="Change theme" aria-haspopup="true" aria-expanded="false" aria-controls="theme-list">
+                                <i class="fa fa-paint-brush"></i>
+                            </button>
+                            <ul id="theme-list" class="theme-popup" aria-label="Themes" role="menu">
+                                <li role="none"><button role="menuitem" class="theme" id="light">Light <span class="default">(default)</span></button></li>
+                                <li role="none"><button role="menuitem" class="theme" id="rust">Rust</button></li>
+                                <li role="none"><button role="menuitem" class="theme" id="coal">Coal</button></li>
+                                <li role="none"><button role="menuitem" class="theme" id="navy">Navy</button></li>
+                                <li role="none"><button role="menuitem" class="theme" id="ayu">Ayu</button></li>
+                            </ul>
+                            
+                            <button id="search-toggle" class="icon-button" type="button" title="Search. (Shortkey: s)" aria-label="Toggle Searchbar" aria-expanded="false" aria-keyshortcuts="S" aria-controls="searchbar">
+                                <i class="fa fa-search"></i>
+                            </button>
+                            
+                        </div>
+
+                        <h1 class="menu-title">The Rust Reference</h1> 
+
+                        <div class="right-buttons">
+                            <a href="print.html" title="Print this book" aria-label="Print this book">
+                                <i id="print-button" class="fa fa-print"></i>
+                            </a>
+                        </div>
+                    </div>
+                </div>
+
+                
+                <div id="search-wrapper" class="hidden">
+                    <form id="searchbar-outer" class="searchbar-outer">
+                        <input type="search" name="search" id="searchbar" name="searchbar" placeholder="Search this book ..." aria-controls="searchresults-outer" aria-describedby="searchresults-header">
+                    </form>
+                    <div id="searchresults-outer" class="searchresults-outer hidden">
+                        <div id="searchresults-header" class="searchresults-header"></div>
+                        <ul id="searchresults">
+                        </ul>
+                    </div>
+                </div>
+                
+
+                <!-- Apply ARIA attributes after the sidebar and the sidebar toggle button are added to the DOM -->
+                <script type="text/javascript">
+                    document.getElementById('sidebar-toggle').setAttribute('aria-expanded', sidebar === 'visible');
+                    document.getElementById('sidebar').setAttribute('aria-hidden', sidebar !== 'visible');
+                    Array.from(document.querySelectorAll('#sidebar a')).forEach(function(link) {
+                        link.setAttribute('tabIndex', sidebar === 'visible' ? 0 : -1);
+                    });
+                </script>
+
+                <div id="content" class="content">
+                    <main>
+                        <a class="header" href="lifetime-elision.html#lifetime-elision" id="lifetime-elision"><h1>Lifetime elision</h1></a>
+<p>Rust has rules that allow lifetimes to be elided in various places where the
+compiler can infer a sensible default choice.</p>
+<a class="header" href="lifetime-elision.html#lifetime-elision-in-functions" id="lifetime-elision-in-functions"><h2>Lifetime elision in functions</h2></a>
+<p>In order to make common patterns more ergonomic, lifetime arguments can be
+<em>elided</em> in <a href="types.html#function-item-types">function item</a>, <a href="types.html#function-pointer-types">function pointer</a> and <a href="types.html#closure-types">closure trait</a> signatures.
+The following rules are used to infer lifetime parameters for elided lifetimes.
+It is an error to elide lifetime parameters that cannot be inferred. The
+placeholder lifetime, <code>'_</code>, can also be used to have a lifetime inferred in the
+same way. For lifetimes in paths, using <code>'_</code> is preferred. Trait object
+lifetimes follow different rules discussed
+<a href="lifetime-elision.html#default-trait-object-lifetimes">below</a>.</p>
+<ul>
+<li>Each elided lifetime in the parameters becomes a distinct lifetime parameter.</li>
+<li>If there is exactly one lifetime used in the parameters (elided or not), that
+lifetime is assigned to <em>all</em> elided output lifetimes.</li>
+</ul>
+<p>In method signatures there is another rule</p>
+<ul>
+<li>If the receiver has type <code>&amp;Self</code>  or <code>&amp;mut Self</code>, then the lifetime of that
+reference to <code>Self</code> is assigned to all elided output lifetime parameters.</li>
+</ul>
+<p>Examples:</p>
+<pre><code class="language-rust ignore">fn print(s: &amp;str);                                      // elided
+fn print(s: &amp;'_ str);                                   // also elided
+fn print&lt;'a&gt;(s: &amp;'a str);                               // expanded
+
+fn debug(lvl: usize, s: &amp;str);                          // elided
+fn debug&lt;'a&gt;(lvl: usize, s: &amp;'a str);                   // expanded
+
+fn substr(s: &amp;str, until: usize) -&gt; &amp;str;               // elided
+fn substr&lt;'a&gt;(s: &amp;'a str, until: usize) -&gt; &amp;'a str;     // expanded
+
+fn get_str() -&gt; &amp;str;                                   // ILLEGAL
+
+fn frob(s: &amp;str, t: &amp;str) -&gt; &amp;str;                      // ILLEGAL
+
+fn get_mut(&amp;mut self) -&gt; &amp;mut T;                        // elided
+fn get_mut&lt;'a&gt;(&amp;'a mut self) -&gt; &amp;'a mut T;              // expanded
+
+fn args&lt;T: ToCStr&gt;(&amp;mut self, args: &amp;[T]) -&gt; &amp;mut Command;                  // elided
+fn args&lt;'a, 'b, T: ToCStr&gt;(&amp;'a mut self, args: &amp;'b [T]) -&gt; &amp;'a mut Command; // expanded
+
+fn new(buf: &amp;mut [u8]) -&gt; BufWriter&lt;'_&gt;;                // elided - preferred
+fn new(buf: &amp;mut [u8]) -&gt; BufWriter;                    // elided
+fn new&lt;'a&gt;(buf: &amp;'a mut [u8]) -&gt; BufWriter&lt;'a&gt;;         // expanded
+
+type FunPtr = fn(&amp;str) -&gt; &amp;str;                         // elided
+type FunPtr = for&lt;'a&gt; fn(&amp;'a str) -&gt; &amp;'a str;           // expanded
+
+type FunTrait = dyn Fn(&amp;str) -&gt; &amp;str;                   // elided
+type FunTrait = dyn for&lt;'a&gt; Fn(&amp;'a str) -&gt; &amp;'a str;     // expanded
+</code></pre>
+<a class="header" href="lifetime-elision.html#default-trait-object-lifetimes" id="default-trait-object-lifetimes"><h2>Default trait object lifetimes</h2></a>
+<p>The assumed lifetime of references held by a <a href="types.html#trait-objects">trait object</a> is called its
+<em>default object lifetime bound</em>. These were defined in <a href="https://github.com/rust-lang/rfcs/blob/master/text/0599-default-object-bound.md">RFC 599</a> and amended in
+<a href="https://github.com/rust-lang/rfcs/blob/master/text/1156-adjust-default-object-bounds.md">RFC 1156</a>.</p>
+<p>These default object lifetime bounds are used instead of the lifetime parameter
+elision rules defined above when the lifetime bound is omitted entirely. If
+<code>'_</code> is used as the lifetime bound then the bound follows the usual elision
+rules.</p>
+<p>If the trait object is used as a type argument of a generic type then the
+containing type is first used to try to infer a bound.</p>
+<ul>
+<li>If there is a unique bound from the containing type then that is the default</li>
+<li>If there is more than one bound from the containing type then an explicit
+bound must be specified</li>
+</ul>
+<p>If neither of those rules apply, then the bounds on the trait are used:</p>
+<ul>
+<li>If the trait is defined with a single lifetime <em>bound</em> then that bound is
+used.</li>
+<li>If <code>'static</code> is used for any lifetime bound then <code>'static</code> is used.</li>
+<li>If the trait has no lifetime bounds, then the lifetime is inferred in
+expressions and is <code>'static</code> outside of expressions.</li>
+</ul>
+<pre><code class="language-rust ignore">// For the following trait...
+trait Foo { }
+
+// These two are the same as Box&lt;T&gt; has no lifetime bound on T
+Box&lt;dyn Foo&gt;
+Box&lt;dyn Foo + 'static&gt;
+
+// ...and so are these:
+impl dyn Foo {}
+impl dyn Foo + 'static {}
+
+// ...so are these, because &amp;'a T requires T: 'a
+&amp;'a dyn Foo
+&amp;'a (dyn Foo + 'a)
+
+// std::cell::Ref&lt;'a, T&gt; also requires T: 'a, so these are the same
+std::cell::Ref&lt;'a, dyn Foo&gt;
+std::cell::Ref&lt;'a, dyn Foo + 'a&gt;
+
+// This is an error:
+struct TwoBounds&lt;'a, 'b, T: ?Sized + 'a + 'b&gt;
+TwoBounds&lt;'a, 'b, dyn Foo&gt; // Error: the lifetime bound for this object type
+                           // cannot be deduced from context
+</code></pre>
+<p>Note that the innermost object sets the bound, so <code>&amp;'a Box&lt;dyn Foo&gt;</code> is still
+<code>&amp;'a Box&lt;dyn Foo + 'static&gt;</code>.</p>
+<pre><code class="language-rust ignore">// For the following trait...
+trait Bar&lt;'a&gt;: 'a { }
+
+// ...these two are the same:
+Box&lt;dyn Bar&lt;'a&gt;&gt;
+Box&lt;dyn Bar&lt;'a&gt; + 'a&gt;
+
+// ...and so are these:
+impl&lt;'a&gt; dyn Foo&lt;'a&gt; {}
+impl&lt;'a&gt; dyn Foo&lt;'a&gt; + 'a {}
+
+// This is still an error:
+struct TwoBounds&lt;'a, 'b, T: ?Sized + 'a + 'b&gt;
+TwoBounds&lt;'a, 'b, dyn Foo&lt;'c&gt;&gt;
+</code></pre>
+<a class="header" href="lifetime-elision.html#static-lifetime-elision" id="static-lifetime-elision"><h2><code>'static</code> lifetime elision</h2></a>
+<p>Both <a href="items/constant-items.html">constant</a> and <a href="items/static-items.html">static</a> declarations of reference types have <em>implicit</em>
+<code>'static</code> lifetimes unless an explicit lifetime is specified. As such, the
+constant declarations involving <code>'static</code> above may be written without the
+lifetimes.</p>
+<pre><pre class="playpen"><code class="language-rust">
+# #![allow(unused_variables)]
+#fn main() {
+// STRING: &amp;'static str
+const STRING: &amp;str = &quot;bitstring&quot;;
+
+struct BitsNStrings&lt;'a&gt; {
+    mybits: [u32; 2],
+    mystring: &amp;'a str,
+}
+
+// BITS_N_STRINGS: BitsNStrings&lt;'static&gt;
+const BITS_N_STRINGS: BitsNStrings&lt;'_&gt; = BitsNStrings {
+    mybits: [1, 2],
+    mystring: STRING,
+};
+#}</code></pre></pre>
+<p>Note that if the <code>static</code> or <code>const</code> items include function or closure
+references, which themselves include references, the compiler will first try
+the standard elision rules. If it is unable to resolve the lifetimes by its
+usual rules, then it will error. By way of example:</p>
+<pre><code class="language-rust ignore">// Resolved as `fn&lt;'a&gt;(&amp;'a str) -&gt; &amp;'a str`.
+const RESOLVED_SINGLE: fn(&amp;str) -&gt; &amp;str = ..
+
+// Resolved as `Fn&lt;'a, 'b, 'c&gt;(&amp;'a Foo, &amp;'b Bar, &amp;'c Baz) -&gt; usize`.
+const RESOLVED_MULTIPLE: &amp;dyn Fn(&amp;Foo, &amp;Bar, &amp;Baz) -&gt; usize = ..
+
+// There is insufficient information to bound the return reference lifetime
+// relative to the argument lifetimes, so this is an error.
+const RESOLVED_STATIC: &amp;dyn Fn(&amp;Foo, &amp;Bar) -&gt; &amp;Baz = ..
+</code></pre>
+
+                    </main>
+
+                    <nav class="nav-wrapper" aria-label="Page navigation">
+                        <!-- Mobile navigation buttons -->
+                        
+                            <a rel="prev" href="destructors.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                                <i class="fa fa-angle-left"></i>
+                            </a>
+                        
+
+                        
+                            <a rel="next" href="special-types-and-traits.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                                <i class="fa fa-angle-right"></i>
+                            </a>
+                        
+
+                        <div style="clear: both"></div>
+                    </nav>
+                </div>
+            </div>
+
+            <nav class="nav-wide-wrapper" aria-label="Page navigation">
+                
+                    <a href="destructors.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                        <i class="fa fa-angle-left"></i>
+                    </a>
+                
+
+                
+                    <a href="special-types-and-traits.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                        <i class="fa fa-angle-right"></i>
+                    </a>
+                
+            </nav>
+
+        </div>
+
+        
+
+        
+
+        
+
+        
+
+        
+        <script src="searchindex.js" type="text/javascript" charset="utf-8"></script>
+        
+        
+        <script src="elasticlunr.min.js" type="text/javascript" charset="utf-8"></script>
+        <script src="mark.min.js" type="text/javascript" charset="utf-8"></script>
+        <script src="searcher.js" type="text/javascript" charset="utf-8"></script>
+        
+
+        <script src="clipboard.min.js" type="text/javascript" charset="utf-8"></script>
+        <script src="highlight.js" type="text/javascript" charset="utf-8"></script>
+        <script src="book.js" type="text/javascript" charset="utf-8"></script>
+
+        <!-- Custom JS scripts -->
+        
+
+    </body>
+</html>

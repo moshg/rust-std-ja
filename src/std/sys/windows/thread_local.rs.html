@@ -1,0 +1,505 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source to the Rust file `libstd\sys\windows\thread_local.rs`."><meta name="keywords" content="rust, rustlang, rust-lang"><title>thread_local.rs.html -- source</title><link rel="stylesheet" type="text/css" href="../../../../normalize.css"><link rel="stylesheet" type="text/css" href="../../../../rustdoc.css" id="mainThemeStyle"><link rel="stylesheet" type="text/css" href="../../../../dark.css"><link rel="stylesheet" type="text/css" href="../../../../light.css" id="themeStyle"><script src="../../../../storage.js"></script><link rel="shortcut icon" href="https://doc.rust-lang.org/favicon.ico"></head><body class="rustdoc source"><!--[if lte IE 8]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="sidebar-menu">&#9776;</div><a href='../../../../std/index.html'><img src='https://www.rust-lang.org/logos/rust-logo-128x128-blk-v2.png' alt='logo' width='100'></a></nav><div class="theme-picker"><button id="theme-picker" aria-label="Pick another theme!"><img src="../../../../brush.svg" width="18" alt="Pick another theme!"></button><div id="theme-choices"></div></div><script src="../../../../theme.js"></script><nav class="sub"><form class="search-form js-only"><div class="search-container"><input class="search-input" name="search" autocomplete="off" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"><a id="settings-menu" href="../../../../settings.html"><img src="../../../../wheel.svg" width="18" alt="Change settings"></a></div></form></nav><section id="main" class="content"><pre class="line-numbers"><span id="1">  1</span>
+<span id="2">  2</span>
+<span id="3">  3</span>
+<span id="4">  4</span>
+<span id="5">  5</span>
+<span id="6">  6</span>
+<span id="7">  7</span>
+<span id="8">  8</span>
+<span id="9">  9</span>
+<span id="10"> 10</span>
+<span id="11"> 11</span>
+<span id="12"> 12</span>
+<span id="13"> 13</span>
+<span id="14"> 14</span>
+<span id="15"> 15</span>
+<span id="16"> 16</span>
+<span id="17"> 17</span>
+<span id="18"> 18</span>
+<span id="19"> 19</span>
+<span id="20"> 20</span>
+<span id="21"> 21</span>
+<span id="22"> 22</span>
+<span id="23"> 23</span>
+<span id="24"> 24</span>
+<span id="25"> 25</span>
+<span id="26"> 26</span>
+<span id="27"> 27</span>
+<span id="28"> 28</span>
+<span id="29"> 29</span>
+<span id="30"> 30</span>
+<span id="31"> 31</span>
+<span id="32"> 32</span>
+<span id="33"> 33</span>
+<span id="34"> 34</span>
+<span id="35"> 35</span>
+<span id="36"> 36</span>
+<span id="37"> 37</span>
+<span id="38"> 38</span>
+<span id="39"> 39</span>
+<span id="40"> 40</span>
+<span id="41"> 41</span>
+<span id="42"> 42</span>
+<span id="43"> 43</span>
+<span id="44"> 44</span>
+<span id="45"> 45</span>
+<span id="46"> 46</span>
+<span id="47"> 47</span>
+<span id="48"> 48</span>
+<span id="49"> 49</span>
+<span id="50"> 50</span>
+<span id="51"> 51</span>
+<span id="52"> 52</span>
+<span id="53"> 53</span>
+<span id="54"> 54</span>
+<span id="55"> 55</span>
+<span id="56"> 56</span>
+<span id="57"> 57</span>
+<span id="58"> 58</span>
+<span id="59"> 59</span>
+<span id="60"> 60</span>
+<span id="61"> 61</span>
+<span id="62"> 62</span>
+<span id="63"> 63</span>
+<span id="64"> 64</span>
+<span id="65"> 65</span>
+<span id="66"> 66</span>
+<span id="67"> 67</span>
+<span id="68"> 68</span>
+<span id="69"> 69</span>
+<span id="70"> 70</span>
+<span id="71"> 71</span>
+<span id="72"> 72</span>
+<span id="73"> 73</span>
+<span id="74"> 74</span>
+<span id="75"> 75</span>
+<span id="76"> 76</span>
+<span id="77"> 77</span>
+<span id="78"> 78</span>
+<span id="79"> 79</span>
+<span id="80"> 80</span>
+<span id="81"> 81</span>
+<span id="82"> 82</span>
+<span id="83"> 83</span>
+<span id="84"> 84</span>
+<span id="85"> 85</span>
+<span id="86"> 86</span>
+<span id="87"> 87</span>
+<span id="88"> 88</span>
+<span id="89"> 89</span>
+<span id="90"> 90</span>
+<span id="91"> 91</span>
+<span id="92"> 92</span>
+<span id="93"> 93</span>
+<span id="94"> 94</span>
+<span id="95"> 95</span>
+<span id="96"> 96</span>
+<span id="97"> 97</span>
+<span id="98"> 98</span>
+<span id="99"> 99</span>
+<span id="100">100</span>
+<span id="101">101</span>
+<span id="102">102</span>
+<span id="103">103</span>
+<span id="104">104</span>
+<span id="105">105</span>
+<span id="106">106</span>
+<span id="107">107</span>
+<span id="108">108</span>
+<span id="109">109</span>
+<span id="110">110</span>
+<span id="111">111</span>
+<span id="112">112</span>
+<span id="113">113</span>
+<span id="114">114</span>
+<span id="115">115</span>
+<span id="116">116</span>
+<span id="117">117</span>
+<span id="118">118</span>
+<span id="119">119</span>
+<span id="120">120</span>
+<span id="121">121</span>
+<span id="122">122</span>
+<span id="123">123</span>
+<span id="124">124</span>
+<span id="125">125</span>
+<span id="126">126</span>
+<span id="127">127</span>
+<span id="128">128</span>
+<span id="129">129</span>
+<span id="130">130</span>
+<span id="131">131</span>
+<span id="132">132</span>
+<span id="133">133</span>
+<span id="134">134</span>
+<span id="135">135</span>
+<span id="136">136</span>
+<span id="137">137</span>
+<span id="138">138</span>
+<span id="139">139</span>
+<span id="140">140</span>
+<span id="141">141</span>
+<span id="142">142</span>
+<span id="143">143</span>
+<span id="144">144</span>
+<span id="145">145</span>
+<span id="146">146</span>
+<span id="147">147</span>
+<span id="148">148</span>
+<span id="149">149</span>
+<span id="150">150</span>
+<span id="151">151</span>
+<span id="152">152</span>
+<span id="153">153</span>
+<span id="154">154</span>
+<span id="155">155</span>
+<span id="156">156</span>
+<span id="157">157</span>
+<span id="158">158</span>
+<span id="159">159</span>
+<span id="160">160</span>
+<span id="161">161</span>
+<span id="162">162</span>
+<span id="163">163</span>
+<span id="164">164</span>
+<span id="165">165</span>
+<span id="166">166</span>
+<span id="167">167</span>
+<span id="168">168</span>
+<span id="169">169</span>
+<span id="170">170</span>
+<span id="171">171</span>
+<span id="172">172</span>
+<span id="173">173</span>
+<span id="174">174</span>
+<span id="175">175</span>
+<span id="176">176</span>
+<span id="177">177</span>
+<span id="178">178</span>
+<span id="179">179</span>
+<span id="180">180</span>
+<span id="181">181</span>
+<span id="182">182</span>
+<span id="183">183</span>
+<span id="184">184</span>
+<span id="185">185</span>
+<span id="186">186</span>
+<span id="187">187</span>
+<span id="188">188</span>
+<span id="189">189</span>
+<span id="190">190</span>
+<span id="191">191</span>
+<span id="192">192</span>
+<span id="193">193</span>
+<span id="194">194</span>
+<span id="195">195</span>
+<span id="196">196</span>
+<span id="197">197</span>
+<span id="198">198</span>
+<span id="199">199</span>
+<span id="200">200</span>
+<span id="201">201</span>
+<span id="202">202</span>
+<span id="203">203</span>
+<span id="204">204</span>
+<span id="205">205</span>
+<span id="206">206</span>
+<span id="207">207</span>
+<span id="208">208</span>
+<span id="209">209</span>
+<span id="210">210</span>
+<span id="211">211</span>
+<span id="212">212</span>
+<span id="213">213</span>
+<span id="214">214</span>
+<span id="215">215</span>
+<span id="216">216</span>
+<span id="217">217</span>
+<span id="218">218</span>
+<span id="219">219</span>
+<span id="220">220</span>
+<span id="221">221</span>
+<span id="222">222</span>
+<span id="223">223</span>
+<span id="224">224</span>
+<span id="225">225</span>
+<span id="226">226</span>
+<span id="227">227</span>
+<span id="228">228</span>
+<span id="229">229</span>
+<span id="230">230</span>
+<span id="231">231</span>
+<span id="232">232</span>
+<span id="233">233</span>
+<span id="234">234</span>
+<span id="235">235</span>
+<span id="236">236</span>
+<span id="237">237</span>
+<span id="238">238</span>
+<span id="239">239</span>
+<span id="240">240</span>
+<span id="241">241</span>
+<span id="242">242</span>
+<span id="243">243</span>
+<span id="244">244</span>
+<span id="245">245</span>
+<span id="246">246</span>
+<span id="247">247</span>
+<span id="248">248</span>
+<span id="249">249</span>
+<span id="250">250</span>
+<span id="251">251</span>
+</pre><pre class="rust ">
+<span class="comment">// Copyright 2014 The Rust Project Developers. See the COPYRIGHT</span>
+<span class="comment">// file at the top-level directory of this distribution and at</span>
+<span class="comment">// http://rust-lang.org/COPYRIGHT.</span>
+<span class="comment">//</span>
+<span class="comment">// Licensed under the Apache License, Version 2.0 &lt;LICENSE-APACHE or</span>
+<span class="comment">// http://www.apache.org/licenses/LICENSE-2.0&gt; or the MIT license</span>
+<span class="comment">// &lt;LICENSE-MIT or http://opensource.org/licenses/MIT&gt;, at your</span>
+<span class="comment">// option. This file may not be copied, modified, or distributed</span>
+<span class="comment">// except according to those terms.</span>
+
+<span class="kw">use</span> <span class="ident">mem</span>;
+<span class="kw">use</span> <span class="ident">ptr</span>;
+<span class="kw">use</span> <span class="ident">sync</span>::<span class="ident">atomic</span>::<span class="ident">AtomicPtr</span>;
+<span class="kw">use</span> <span class="ident">sync</span>::<span class="ident">atomic</span>::<span class="ident">Ordering</span>::<span class="ident">SeqCst</span>;
+<span class="kw">use</span> <span class="ident">sys</span>::<span class="ident">c</span>;
+
+<span class="kw">pub</span> <span class="kw">type</span> <span class="ident">Key</span> <span class="op">=</span> <span class="ident">c</span>::<span class="ident">DWORD</span>;
+<span class="kw">pub</span> <span class="kw">type</span> <span class="ident">Dtor</span> <span class="op">=</span> <span class="kw">unsafe</span> <span class="kw">extern</span> <span class="kw">fn</span>(<span class="kw-2">*</span><span class="kw-2">mut</span> <span class="ident">u8</span>);
+
+<span class="comment">// Turns out, like pretty much everything, Windows is pretty close the</span>
+<span class="comment">// functionality that Unix provides, but slightly different! In the case of</span>
+<span class="comment">// TLS, Windows does not provide an API to provide a destructor for a TLS</span>
+<span class="comment">// variable. This ends up being pretty crucial to this implementation, so we</span>
+<span class="comment">// need a way around this.</span>
+<span class="comment">//</span>
+<span class="comment">// The solution here ended up being a little obscure, but fear not, the</span>
+<span class="comment">// internet has informed me [1][2] that this solution is not unique (no way</span>
+<span class="comment">// I could have thought of it as well!). The key idea is to insert some hook</span>
+<span class="comment">// somewhere to run arbitrary code on thread termination. With this in place</span>
+<span class="comment">// we&#39;ll be able to run anything we like, including all TLS destructors!</span>
+<span class="comment">//</span>
+<span class="comment">// To accomplish this feat, we perform a number of threads, all contained</span>
+<span class="comment">// within this module:</span>
+<span class="comment">//</span>
+<span class="comment">// * All TLS destructors are tracked by *us*, not the windows runtime. This</span>
+<span class="comment">//   means that we have a global list of destructors for each TLS key that</span>
+<span class="comment">//   we know about.</span>
+<span class="comment">// * When a thread exits, we run over the entire list and run dtors for all</span>
+<span class="comment">//   non-null keys. This attempts to match Unix semantics in this regard.</span>
+<span class="comment">//</span>
+<span class="comment">// This ends up having the overhead of using a global list, having some</span>
+<span class="comment">// locks here and there, and in general just adding some more code bloat. We</span>
+<span class="comment">// attempt to optimize runtime by forgetting keys that don&#39;t have</span>
+<span class="comment">// destructors, but this only gets us so far.</span>
+<span class="comment">//</span>
+<span class="comment">// For more details and nitty-gritty, see the code sections below!</span>
+<span class="comment">//</span>
+<span class="comment">// [1]: http://www.codeproject.com/Articles/8113/Thread-Local-Storage-The-C-Way</span>
+<span class="comment">// [2]: https://github.com/ChromiumWebApps/chromium/blob/master/base</span>
+<span class="comment">//                        /threading/thread_local_storage_win.cc#L42</span>
+
+<span class="comment">// -------------------------------------------------------------------------</span>
+<span class="comment">// Native bindings</span>
+<span class="comment">//</span>
+<span class="comment">// This section is just raw bindings to the native functions that Windows</span>
+<span class="comment">// provides, There&#39;s a few extra calls to deal with destructors.</span>
+
+<span class="attribute">#[<span class="ident">inline</span>]</span>
+<span class="kw">pub</span> <span class="kw">unsafe</span> <span class="kw">fn</span> <span class="ident">create</span>(<span class="ident">dtor</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">Dtor</span><span class="op">&gt;</span>) <span class="op">-&gt;</span> <span class="ident">Key</span> {
+    <span class="kw">let</span> <span class="ident">key</span> <span class="op">=</span> <span class="ident">c</span>::<span class="ident">TlsAlloc</span>();
+    <span class="macro">assert</span><span class="macro">!</span>(<span class="ident">key</span> <span class="op">!=</span> <span class="ident">c</span>::<span class="ident">TLS_OUT_OF_INDEXES</span>);
+    <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">f</span>) <span class="op">=</span> <span class="ident">dtor</span> {
+        <span class="ident">register_dtor</span>(<span class="ident">key</span>, <span class="ident">f</span>);
+    }
+    <span class="kw">return</span> <span class="ident">key</span>;
+}
+
+<span class="attribute">#[<span class="ident">inline</span>]</span>
+<span class="kw">pub</span> <span class="kw">unsafe</span> <span class="kw">fn</span> <span class="ident">set</span>(<span class="ident">key</span>: <span class="ident">Key</span>, <span class="ident">value</span>: <span class="kw-2">*</span><span class="kw-2">mut</span> <span class="ident">u8</span>) {
+    <span class="kw">let</span> <span class="ident">r</span> <span class="op">=</span> <span class="ident">c</span>::<span class="ident">TlsSetValue</span>(<span class="ident">key</span>, <span class="ident">value</span> <span class="kw">as</span> <span class="ident">c</span>::<span class="ident">LPVOID</span>);
+    <span class="macro">debug_assert</span><span class="macro">!</span>(<span class="ident">r</span> <span class="op">!=</span> <span class="number">0</span>);
+}
+
+<span class="attribute">#[<span class="ident">inline</span>]</span>
+<span class="kw">pub</span> <span class="kw">unsafe</span> <span class="kw">fn</span> <span class="ident">get</span>(<span class="ident">key</span>: <span class="ident">Key</span>) <span class="op">-&gt;</span> <span class="kw-2">*</span><span class="kw-2">mut</span> <span class="ident">u8</span> {
+    <span class="ident">c</span>::<span class="ident">TlsGetValue</span>(<span class="ident">key</span>) <span class="kw">as</span> <span class="kw-2">*</span><span class="kw-2">mut</span> <span class="ident">u8</span>
+}
+
+<span class="attribute">#[<span class="ident">inline</span>]</span>
+<span class="kw">pub</span> <span class="kw">unsafe</span> <span class="kw">fn</span> <span class="ident">destroy</span>(<span class="ident">_key</span>: <span class="ident">Key</span>) {
+    <span class="macro">rtabort</span><span class="macro">!</span>(<span class="string">&quot;can&#39;t destroy tls keys on windows&quot;</span>)
+}
+
+<span class="attribute">#[<span class="ident">inline</span>]</span>
+<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">requires_synchronized_create</span>() <span class="op">-&gt;</span> <span class="ident">bool</span> {
+    <span class="bool-val">true</span>
+}
+
+<span class="comment">// -------------------------------------------------------------------------</span>
+<span class="comment">// Dtor registration</span>
+<span class="comment">//</span>
+<span class="comment">// Windows has no native support for running destructors so we manage our own</span>
+<span class="comment">// list of destructors to keep track of how to destroy keys. We then install a</span>
+<span class="comment">// callback later to get invoked whenever a thread exits, running all</span>
+<span class="comment">// appropriate destructors.</span>
+<span class="comment">//</span>
+<span class="comment">// Currently unregistration from this list is not supported. A destructor can be</span>
+<span class="comment">// registered but cannot be unregistered. There&#39;s various simplifying reasons</span>
+<span class="comment">// for doing this, the big ones being:</span>
+<span class="comment">//</span>
+<span class="comment">// 1. Currently we don&#39;t even support deallocating TLS keys, so normal operation</span>
+<span class="comment">//    doesn&#39;t need to deallocate a destructor.</span>
+<span class="comment">// 2. There is no point in time where we know we can unregister a destructor</span>
+<span class="comment">//    because it could always be getting run by some remote thread.</span>
+<span class="comment">//</span>
+<span class="comment">// Typically processes have a statically known set of TLS keys which is pretty</span>
+<span class="comment">// small, and we&#39;d want to keep this memory alive for the whole process anyway</span>
+<span class="comment">// really.</span>
+<span class="comment">//</span>
+<span class="comment">// Perhaps one day we can fold the `Box` here into a static allocation,</span>
+<span class="comment">// expanding the `StaticKey` structure to contain not only a slot for the TLS</span>
+<span class="comment">// key but also a slot for the destructor queue on windows. An optimization for</span>
+<span class="comment">// another day!</span>
+
+<span class="kw">static</span> <span class="ident">DTORS</span>: <span class="ident">AtomicPtr</span><span class="op">&lt;</span><span class="ident">Node</span><span class="op">&gt;</span> <span class="op">=</span> <span class="ident">AtomicPtr</span>::<span class="ident">new</span>(<span class="ident">ptr</span>::<span class="ident">null_mut</span>());
+
+<span class="kw">struct</span> <span class="ident">Node</span> {
+    <span class="ident">dtor</span>: <span class="ident">Dtor</span>,
+    <span class="ident">key</span>: <span class="ident">Key</span>,
+    <span class="ident">next</span>: <span class="kw-2">*</span><span class="kw-2">mut</span> <span class="ident">Node</span>,
+}
+
+<span class="kw">unsafe</span> <span class="kw">fn</span> <span class="ident">register_dtor</span>(<span class="ident">key</span>: <span class="ident">Key</span>, <span class="ident">dtor</span>: <span class="ident">Dtor</span>) {
+    <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">node</span> <span class="op">=</span> <span class="ident">Box</span>::<span class="ident">new</span>(<span class="ident">Node</span> {
+        <span class="ident">key</span>,
+        <span class="ident">dtor</span>,
+        <span class="ident">next</span>: <span class="ident">ptr</span>::<span class="ident">null_mut</span>(),
+    });
+
+    <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">head</span> <span class="op">=</span> <span class="ident">DTORS</span>.<span class="ident">load</span>(<span class="ident">SeqCst</span>);
+    <span class="kw">loop</span> {
+        <span class="ident">node</span>.<span class="ident">next</span> <span class="op">=</span> <span class="ident">head</span>;
+        <span class="kw">match</span> <span class="ident">DTORS</span>.<span class="ident">compare_exchange</span>(<span class="ident">head</span>, <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="kw-2">*</span><span class="ident">node</span>, <span class="ident">SeqCst</span>, <span class="ident">SeqCst</span>) {
+            <span class="prelude-val">Ok</span>(<span class="kw">_</span>) <span class="op">=&gt;</span> <span class="kw">return</span> <span class="ident">mem</span>::<span class="ident">forget</span>(<span class="ident">node</span>),
+            <span class="prelude-val">Err</span>(<span class="ident">cur</span>) <span class="op">=&gt;</span> <span class="ident">head</span> <span class="op">=</span> <span class="ident">cur</span>,
+        }
+    }
+}
+
+<span class="comment">// -------------------------------------------------------------------------</span>
+<span class="comment">// Where the Magic (TM) Happens</span>
+<span class="comment">//</span>
+<span class="comment">// If you&#39;re looking at this code, and wondering &quot;what is this doing?&quot;,</span>
+<span class="comment">// you&#39;re not alone! I&#39;ll try to break this down step by step:</span>
+<span class="comment">//</span>
+<span class="comment">// # What&#39;s up with CRT$XLB?</span>
+<span class="comment">//</span>
+<span class="comment">// For anything about TLS destructors to work on Windows, we have to be able</span>
+<span class="comment">// to run *something* when a thread exits. To do so, we place a very special</span>
+<span class="comment">// static in a very special location. If this is encoded in just the right</span>
+<span class="comment">// way, the kernel&#39;s loader is apparently nice enough to run some function</span>
+<span class="comment">// of ours whenever a thread exits! How nice of the kernel!</span>
+<span class="comment">//</span>
+<span class="comment">// Lots of detailed information can be found in source [1] above, but the</span>
+<span class="comment">// gist of it is that this is leveraging a feature of Microsoft&#39;s PE format</span>
+<span class="comment">// (executable format) which is not actually used by any compilers today.</span>
+<span class="comment">// This apparently translates to any callbacks in the &quot;.CRT$XLB&quot; section</span>
+<span class="comment">// being run on certain events.</span>
+<span class="comment">//</span>
+<span class="comment">// So after all that, we use the compiler&#39;s #[link_section] feature to place</span>
+<span class="comment">// a callback pointer into the magic section so it ends up being called.</span>
+<span class="comment">//</span>
+<span class="comment">// # What&#39;s up with this callback?</span>
+<span class="comment">//</span>
+<span class="comment">// The callback specified receives a number of parameters from... someone!</span>
+<span class="comment">// (the kernel? the runtime? I&#39;m not quite sure!) There are a few events that</span>
+<span class="comment">// this gets invoked for, but we&#39;re currently only interested on when a</span>
+<span class="comment">// thread or a process &quot;detaches&quot; (exits). The process part happens for the</span>
+<span class="comment">// last thread and the thread part happens for any normal thread.</span>
+<span class="comment">//</span>
+<span class="comment">// # Ok, what&#39;s up with running all these destructors?</span>
+<span class="comment">//</span>
+<span class="comment">// This will likely need to be improved over time, but this function</span>
+<span class="comment">// attempts a &quot;poor man&#39;s&quot; destructor callback system. Once we&#39;ve got a list</span>
+<span class="comment">// of what to run, we iterate over all keys, check their values, and then run</span>
+<span class="comment">// destructors if the values turn out to be non null (setting them to null just</span>
+<span class="comment">// beforehand). We do this a few times in a loop to basically match Unix</span>
+<span class="comment">// semantics. If we don&#39;t reach a fixed point after a short while then we just</span>
+<span class="comment">// inevitably leak something most likely.</span>
+<span class="comment">//</span>
+<span class="comment">// # The article mentions weird stuff about &quot;/INCLUDE&quot;?</span>
+<span class="comment">//</span>
+<span class="comment">// It sure does! Specifically we&#39;re talking about this quote:</span>
+<span class="comment">//</span>
+<span class="comment">//      The Microsoft run-time library facilitates this process by defining a</span>
+<span class="comment">//      memory image of the TLS Directory and giving it the special name</span>
+<span class="comment">//      “__tls_used” (Intel x86 platforms) or “_tls_used” (other platforms). The</span>
+<span class="comment">//      linker looks for this memory image and uses the data there to create the</span>
+<span class="comment">//      TLS Directory. Other compilers that support TLS and work with the</span>
+<span class="comment">//      Microsoft linker must use this same technique.</span>
+<span class="comment">//</span>
+<span class="comment">// Basically what this means is that if we want support for our TLS</span>
+<span class="comment">// destructors/our hook being called then we need to make sure the linker does</span>
+<span class="comment">// not omit this symbol. Otherwise it will omit it and our callback won&#39;t be</span>
+<span class="comment">// wired up.</span>
+<span class="comment">//</span>
+<span class="comment">// We don&#39;t actually use the `/INCLUDE` linker flag here like the article</span>
+<span class="comment">// mentions because the Rust compiler doesn&#39;t propagate linker flags, but</span>
+<span class="comment">// instead we use a shim function which performs a volatile 1-byte load from</span>
+<span class="comment">// the address of the symbol to ensure it sticks around.</span>
+
+<span class="attribute">#[<span class="ident">link_section</span> <span class="op">=</span> <span class="string">&quot;.CRT$XLB&quot;</span>]</span>
+<span class="attribute">#[<span class="ident">allow</span>(<span class="ident">dead_code</span>, <span class="ident">unused_variables</span>)]</span>
+<span class="attribute">#[<span class="ident">used</span>]</span> <span class="comment">// we don&#39;t want LLVM eliminating this symbol for any reason, and</span>
+        <span class="comment">// when the symbol makes it to the linker the linker will take over</span>
+<span class="kw">pub</span> <span class="kw">static</span> <span class="ident">p_thread_callback</span>: <span class="kw">unsafe</span> <span class="kw">extern</span> <span class="string">&quot;system&quot;</span> <span class="kw">fn</span>(<span class="ident">c</span>::<span class="ident">LPVOID</span>, <span class="ident">c</span>::<span class="ident">DWORD</span>,
+                                                        <span class="ident">c</span>::<span class="ident">LPVOID</span>) <span class="op">=</span>
+        <span class="ident">on_tls_callback</span>;
+
+<span class="attribute">#[<span class="ident">allow</span>(<span class="ident">dead_code</span>, <span class="ident">unused_variables</span>)]</span>
+<span class="kw">unsafe</span> <span class="kw">extern</span> <span class="string">&quot;system&quot;</span> <span class="kw">fn</span> <span class="ident">on_tls_callback</span>(<span class="ident">h</span>: <span class="ident">c</span>::<span class="ident">LPVOID</span>,
+                                          <span class="ident">dwReason</span>: <span class="ident">c</span>::<span class="ident">DWORD</span>,
+                                          <span class="ident">pv</span>: <span class="ident">c</span>::<span class="ident">LPVOID</span>) {
+    <span class="kw">if</span> <span class="ident">dwReason</span> <span class="op">==</span> <span class="ident">c</span>::<span class="ident">DLL_THREAD_DETACH</span> <span class="op">||</span> <span class="ident">dwReason</span> <span class="op">==</span> <span class="ident">c</span>::<span class="ident">DLL_PROCESS_DETACH</span> {
+        <span class="ident">run_dtors</span>();
+    }
+
+    <span class="comment">// See comments above for what this is doing. Note that we don&#39;t need this</span>
+    <span class="comment">// trickery on GNU windows, just on MSVC.</span>
+    <span class="ident">reference_tls_used</span>();
+    <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">target_env</span> <span class="op">=</span> <span class="string">&quot;msvc&quot;</span>)]</span>
+    <span class="kw">unsafe</span> <span class="kw">fn</span> <span class="ident">reference_tls_used</span>() {
+        <span class="kw">extern</span> { <span class="kw">static</span> <span class="ident">_tls_used</span>: <span class="ident">u8</span>; }
+        ::<span class="ident">intrinsics</span>::<span class="ident">volatile_load</span>(<span class="kw-2">&amp;</span><span class="ident">_tls_used</span>);
+    }
+    <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">not</span>(<span class="ident">target_env</span> <span class="op">=</span> <span class="string">&quot;msvc&quot;</span>))]</span>
+    <span class="kw">unsafe</span> <span class="kw">fn</span> <span class="ident">reference_tls_used</span>() {}
+}
+
+<span class="attribute">#[<span class="ident">allow</span>(<span class="ident">dead_code</span>)]</span> <span class="comment">// actually called above</span>
+<span class="kw">unsafe</span> <span class="kw">fn</span> <span class="ident">run_dtors</span>() {
+    <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">any_run</span> <span class="op">=</span> <span class="bool-val">true</span>;
+    <span class="kw">for</span> <span class="kw">_</span> <span class="kw">in</span> <span class="number">0</span>..<span class="number">5</span> {
+        <span class="kw">if</span> <span class="op">!</span><span class="ident">any_run</span> {
+            <span class="kw">break</span>
+        }
+        <span class="ident">any_run</span> <span class="op">=</span> <span class="bool-val">false</span>;
+        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">cur</span> <span class="op">=</span> <span class="ident">DTORS</span>.<span class="ident">load</span>(<span class="ident">SeqCst</span>);
+        <span class="kw">while</span> <span class="op">!</span><span class="ident">cur</span>.<span class="ident">is_null</span>() {
+            <span class="kw">let</span> <span class="ident">ptr</span> <span class="op">=</span> <span class="ident">c</span>::<span class="ident">TlsGetValue</span>((<span class="kw-2">*</span><span class="ident">cur</span>).<span class="ident">key</span>);
+
+            <span class="kw">if</span> <span class="op">!</span><span class="ident">ptr</span>.<span class="ident">is_null</span>() {
+                <span class="ident">c</span>::<span class="ident">TlsSetValue</span>((<span class="kw-2">*</span><span class="ident">cur</span>).<span class="ident">key</span>, <span class="ident">ptr</span>::<span class="ident">null_mut</span>());
+                ((<span class="kw-2">*</span><span class="ident">cur</span>).<span class="ident">dtor</span>)(<span class="ident">ptr</span> <span class="kw">as</span> <span class="kw-2">*</span><span class="kw-2">mut</span> <span class="kw">_</span>);
+                <span class="ident">any_run</span> <span class="op">=</span> <span class="bool-val">true</span>;
+            }
+
+            <span class="ident">cur</span> <span class="op">=</span> (<span class="kw-2">*</span><span class="ident">cur</span>).<span class="ident">next</span>;
+        }
+    }
+}
+</pre>
+</section><section id="search" class="content hidden"></section><section class="footer"></section><aside id="help" class="hidden"><div><h1 class="hidden">Help</h1><div class="shortcuts"><h2>Keyboard Shortcuts</h2><dl><dt><kbd>?</kbd></dt><dd>Show this help dialog</dd><dt><kbd>S</kbd></dt><dd>Focus the search field</dd><dt><kbd>↑</kbd></dt><dd>Move up in search results</dd><dt><kbd>↓</kbd></dt><dd>Move down in search results</dd><dt><kbd>↹</kbd></dt><dd>Switch tab</dd><dt><kbd>&#9166;</kbd></dt><dd>Go to active search result</dd><dt><kbd>+</kbd></dt><dd>Expand all sections</dd><dt><kbd>-</kbd></dt><dd>Collapse all sections</dd></dl></div><div class="infos"><h2>Search Tricks</h2><p>Prefix searches with a type followed by a colon (e.g. <code>fn:</code>) to restrict the search to a given type.</p><p>Accepted types are: <code>fn</code>, <code>mod</code>, <code>struct</code>, <code>enum</code>, <code>trait</code>, <code>type</code>, <code>macro</code>, and <code>const</code>.</p><p>Search functions by type signature (e.g. <code>vec -> usize</code> or <code>* -> vec</code>)</p><p>Search multiple things at once by splitting your query with comma (e.g. <code>str,u8</code> or <code>String,struct:Vec,test</code>)</p></div></div></aside><script>window.rootPath = "../../../../";window.currentCrate = "std";</script><script src="../../../../aliases.js"></script><script src="../../../../main.js"></script><script defer src="../../../../search-index.js"></script></body></html>
