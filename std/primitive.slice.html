@@ -874,7 +874,7 @@ but non-ASCII letters are unchanged.</p>
 sorting and it doesn't allocate auxiliary memory.
 See [`sort_unstable`](#method.sort_unstable). -->
 <h1 id="現在の実装" class="section-header"><a href="#現在の実装">現在の実装</a></h1><!-- # Current implementation -->
-<p>現在のアルゴリズムは<a href="https://en.wikipedia.org/wiki/Timsort">timsort</a>に影響を受けたアダプティブな逐次のマージソートです。これはスライスがほとんどソートされている、または二つ以上のソートされた列を次々に結合したものである場合、非常に速くなるように設計されています。</p>
+<p>現在のアルゴリズムは<a href="https://en.wikipedia.org/wiki/Timsort">timsort</a>に影響を受けた適応型で逐次のマージソートです。これはスライスがほとんどソートされている、または二つ以上のソートされた列を次々に結合したものである場合、非常に速くなるように設計されています。</p>
 <!-- The current algorithm is an adaptive, iterative merge sort inspired by
 [timsort](https://en.wikipedia.org/wiki/Timsort).
 It is designed to be very fast in cases where the slice is nearly sorted, or consists of
@@ -893,11 +893,11 @@ non-allocating insertion sort is used instead. -->
 <p>このソートは安定で (すなわち等しい要素を並べ替えない)、最悪の場合でも<code>O(n log n)</code>です。</p>
 <!-- This sort is stable (i.e. does not reorder equal elements) and `O(n log n)` worst-case. -->
 <p>可能ならば不安定なソートが望ましいです。一般に安定なソートより高速で、補助的なメモリを確保しません。<a href="#method.sort_unstable_by"><code>sort_unstable_by</code></a>を参照してください。</p>
-<p>When applicable, unstable sorting is preferred because it is generally faster than stable
+<!-- When applicable, unstable sorting is preferred because it is generally faster than stable
 sorting and it doesn't allocate auxiliary memory.
-See <a href="#method.sort_unstable_by"><code>sort_unstable_by</code></a>.</p>
+See [`sort_unstable_by`](#method.sort_unstable_by). -->
 <h1 id="現在の実装-1" class="section-header"><a href="#現在の実装-1">現在の実装</a></h1><!-- # Current implementation -->
-<p>現在のアルゴリズムは<a href="https://en.wikipedia.org/wiki/Timsort">timsort</a>に影響を受けたアダプティブな逐次のマージソートです。これはスライスがほとんどソートされている、または二つ以上のソートされた列を次々に結合したものである場合、非常に速くなるように設計されています。</p>
+<p>現在のアルゴリズムは<a href="https://en.wikipedia.org/wiki/Timsort">timsort</a>に影響を受けた適応型で逐次のマージソートです。これはスライスがほとんどソートされている、または二つ以上のソートされた列を次々に結合したものである場合、非常に速くなるように設計されています。</p>
 <!-- The current algorithm is an adaptive, iterative merge sort inspired by
 [timsort](https://en.wikipedia.org/wiki/Timsort).
 It is designed to be very fast in cases where the slice is nearly sorted, or consists of
@@ -931,7 +931,7 @@ worst-case, where the key function is `O(m)`. -->
 sorting and it doesn't allocate auxiliary memory.
 See [`sort_unstable_by_key`](#method.sort_unstable_by_key). -->
 <h1 id="現在の実装-2" class="section-header"><a href="#現在の実装-2">現在の実装</a></h1><!-- # Current implementation -->
-<p>現在のアルゴリズムは<a href="https://en.wikipedia.org/wiki/Timsort">timsort</a>に影響を受けたアダプティブな逐次のマージソートです。これはスライスがほとんどソートされている、または二つ以上のソートされた列を次々に結合したものである場合、非常に速くなるように設計されています。</p>
+<p>現在のアルゴリズムは<a href="https://en.wikipedia.org/wiki/Timsort">timsort</a>に影響を受けた適応型で逐次のマージソートです。これはスライスがほとんどソートされている、または二つ以上のソートされた列を次々に結合したものである場合、非常に速くなるように設計されています。</p>
 <!-- The current algorithm is an adaptive, iterative merge sort inspired by
 [timsort](https://en.wikipedia.org/wiki/Timsort).
 It is designed to be very fast in cases where the slice is nearly sorted, or consists of
@@ -958,7 +958,7 @@ basic operations), [`sort_by_key`](#method.sort_by_key) is likely to be
 faster. -->
 <h1 id="現在の実装-3" class="section-header"><a href="#現在の実装-3">現在の実装</a></h1><!-- # Current implementation -->
 <p>現在のアルゴリズムはOrson Petersによる<a href="https://github.com/orlp/pdqsort">pattern-defeating quicksort</a>に基づいています。
-<a href="https://github.com/orlp/pdqsort">pattern-defeating quicksort</a>はランダマイズドクイックソートの平均的な速さとヒープソートの最悪の場合の速さを併せ持ち、特定のパターンでは線形時間で完了します。
+<a href="https://github.com/orlp/pdqsort">pattern-defeating quicksort</a>は乱択クイックソートの平均的な速さとヒープソートの最悪の場合の速さを併せ持ち、特定のパターンでは線形時間で完了します。
 性能が悪くなる場合を避けるために乱数を使用しますが、常に決定的な振る舞いをさせるために固定されたシードを使用します。</p>
 <!-- The current algorithm is based on [pattern-defeating quicksort][pdqsort] by Orson Peters,
 which combines the fast average case of randomized quicksort with the fast worst case of
@@ -1022,7 +1022,7 @@ is mapped to its ASCII upper case equivalent. -->
 <p>ASCII文字の'a'から'z'は'A'から'Z'に変換されますが、非ASCII文字は変更されません。</p>
 <!-- ASCII letters 'a' to 'z' are mapped to 'A' to 'Z',
 but non-ASCII letters are unchanged. -->
-<p>in-placeで大文字にするには、<a href="#method.make_ascii_uppercase"><code>make_ascii_uppercase</code></a>を使用してください。</p>
+<p>インプレースで大文字にするには、<a href="#method.make_ascii_uppercase"><code>make_ascii_uppercase</code></a>を使用してください。</p>
 <!-- To uppercase the value in-place, use [`make_ascii_uppercase`]. -->
 </div><h4 id='method.to_ascii_lowercase' class="method"><div class="important-traits"><div class='tooltip'>ⓘ<span class='tooltiptext'>Important traits for <a class="struct" href="../std/vec/struct.Vec.html" title="struct std::vec::Vec">Vec</a>&lt;<a class="primitive" href="primitive.u8.html">u8</a>&gt;</span></div><div class="content hidden"><h3 class="important">Important traits for <a class="struct" href="../std/vec/struct.Vec.html" title="struct std::vec::Vec">Vec</a>&lt;<a class="primitive" href="primitive.u8.html">u8</a>&gt;</h3><code class="content"><span class="where fmt-newline">impl <a class="trait" href="../std/io/trait.Write.html" title="trait std::io::Write">Write</a> for <a class="struct" href="../std/vec/struct.Vec.html" title="struct std::vec::Vec">Vec</a>&lt;<a class="primitive" href="primitive.u8.html">u8</a>&gt;</span></code></div></div><span id='to_ascii_lowercase.v' class='invisible'><table class='table-display'><tbody><tr><td><code>pub fn <a href='#method.to_ascii_lowercase' class='fnname'>to_ascii_lowercase</a>(&amp;self) -&gt; <a class="struct" href="../std/vec/struct.Vec.html" title="struct std::vec::Vec">Vec</a>&lt;<a class="primitive" href="primitive.u8.html">u8</a>&gt;</code></span></td><td><span class='out-of-band'><div class='ghost'></div><div class='since' title='Stable since Rust version 1.23.0'>1.23.0</div><a class='srclink' href='../src/alloc/slice.rs.html#635-639' title='goto source code'>[src]</a></td></tr></tbody></table></span></h4><div class='docblock'><p>各バイトをASCIIの対応する小文字に変換したこのスライスのコピーを含むベクターを返します。</p>
 <!-- Returns a vector containing a copy of this slice where each byte
@@ -1030,7 +1030,7 @@ is mapped to its ASCII lower case equivalent. -->
 <p>ASCII文字の'a'から'z'は'A'から'Z'に変換されますが、非ASCII文字は変更されません。</p>
 <!-- ASCII letters 'A' to 'Z' are mapped to 'a' to 'z',
 but non-ASCII letters are unchanged. -->
-<p>in-placeで小文字にするには、[<code>make_ascii_uppercase</code>]を使用してください。</p>
+<p>インプレースで小文字にするには、<a href="#method.make_ascii_lowercase"><code>make_ascii_lowercase</code></a>を使用してください。</p>
 <!-- To lowercase the value in-place, use [`make_ascii_lowercase`]. -->
 </div></div>
                 <h2 id='implementations' class='small-section-header'>
