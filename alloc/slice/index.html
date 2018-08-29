@@ -1,61 +1,85 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="API documentation for the Rust `slice` mod in crate `alloc`."><meta name="keywords" content="rust, rustlang, rust-lang, slice"><title>alloc::slice - Rust</title><link rel="stylesheet" type="text/css" href="../../normalize.css"><link rel="stylesheet" type="text/css" href="../../rustdoc.css" id="mainThemeStyle"><link rel="stylesheet" type="text/css" href="../../dark.css"><link rel="stylesheet" type="text/css" href="../../light.css" id="themeStyle"><script src="../../storage.js"></script><link rel="shortcut icon" href="https://doc.rust-lang.org/favicon.ico"></head><body class="rustdoc mod"><!--[if lte IE 8]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="sidebar-menu">&#9776;</div><a href='../../alloc/index.html'><img src='https://www.rust-lang.org/logos/rust-logo-128x128-blk-v2.png' alt='logo' width='100'></a><p class='location'>Module slice</p><div class="sidebar-elems"><div class="block items"><ul><li><a href="#structs">Structs</a></li><li><a href="#traits">Traits</a></li><li><a href="#functions">Functions</a></li></ul></div><p class='location'><a href='../index.html'>alloc</a></p><script>window.sidebarCurrent = {name: 'slice', ty: 'mod', relpath: '../'};</script><script defer src="../sidebar-items.js"></script></div></nav><div class="theme-picker"><button id="theme-picker" aria-label="Pick another theme!"><img src="../../brush.svg" width="18" alt="Pick another theme!"></button><div id="theme-choices"></div></div><script src="../../theme.js"></script><nav class="sub"><form class="search-form js-only"><div class="search-container"><input class="search-input" name="search" autocomplete="off" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"><a id="settings-menu" href="../../settings.html"><img src="../../wheel.svg" width="18" alt="Change settings"></a></div></form></nav><section id="main" class="content"><h1 class='fqn'><span class='in-band'>Module <a href='../index.html'>alloc</a>::<wbr><a class="mod" href=''>slice</a></span><span class='out-of-band'><span class='since' title='Stable since Rust version 1.0.0'>1.0.0</span><span id='render-detail'><a id="toggle-all-docs" href="javascript:void(0)" title="collapse all docs">[<span class='inner'>&#x2212;</span>]</a></span><a class='srclink' href='../../src/alloc/slice.rs.html#11-958' title='goto source code'>[src]</a></span></h1><div class='docblock'><p>A dynamically-sized view into a contiguous sequence, <code>[T]</code>.</p>
-<p><em><a href="../../std/primitive.slice.html">See also the slice primitive type</a>.</em></p>
-<p>Slices are a view into a block of memory represented as a pointer and a
-length.</p>
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="API documentation for the Rust `slice` mod in crate `alloc`."><meta name="keywords" content="rust, rustlang, rust-lang, slice"><title>alloc::slice - Rust</title><link rel="stylesheet" type="text/css" href="../../normalize.css"><link rel="stylesheet" type="text/css" href="../../rustdoc.css" id="mainThemeStyle"><link rel="stylesheet" type="text/css" href="../../dark.css"><link rel="stylesheet" type="text/css" href="../../light.css" id="themeStyle"><script src="../../storage.js"></script><link rel="shortcut icon" href="https://doc.rust-lang.org/favicon.ico"></head><body class="rustdoc mod"><!--[if lte IE 8]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="sidebar-menu">&#9776;</div><a href='../../alloc/index.html'><img src='https://www.rust-lang.org/logos/rust-logo-128x128-blk-v2.png' alt='logo' width='100'></a><p class='location'>Module slice</p><div class="sidebar-elems"><div class="block items"><ul><li><a href="#structs">Structs</a></li><li><a href="#traits">Traits</a></li><li><a href="#functions">Functions</a></li></ul></div><p class='location'><a href='../index.html'>alloc</a></p><script>window.sidebarCurrent = {name: 'slice', ty: 'mod', relpath: '../'};</script><script defer src="../sidebar-items.js"></script></div></nav><div class="theme-picker"><button id="theme-picker" aria-label="Pick another theme!"><img src="../../brush.svg" width="18" alt="Pick another theme!"></button><div id="theme-choices"></div></div><script src="../../theme.js"></script><nav class="sub"><form class="search-form js-only"><div class="search-container"><input class="search-input" name="search" autocomplete="off" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"><a id="settings-menu" href="../../settings.html"><img src="../../wheel.svg" width="18" alt="Change settings"></a></div></form></nav><section id="main" class="content"><h1 class='fqn'><span class='in-band'>Module <a href='../index.html'>alloc</a>::<wbr><a class="mod" href=''>slice</a></span><span class='out-of-band'><span class='since' title='Stable since Rust version 1.0.0'>1.0.0</span><span id='render-detail'><a id="toggle-all-docs" href="javascript:void(0)" title="collapse all docs">[<span class='inner'>&#x2212;</span>]</a></span><a class='srclink' href='../../src/alloc/slice.rs.html#11-1111' title='goto source code'>[src]</a></span></h1><div class='docblock'><p>連続する列への動的な大きさを持つビュー<code>[T]</code>。</p>
+<!-- A dynamically-sized view into a contiguous sequence, `[T]`. -->
+<ul>
+<li><a href="../../std/primitive.slice.html">プリミティブ型sliceも参照してください</a>。</li>
+</ul>
+<!-- *[See also the slice primitive type](../../std/primitive.slice.html).* -->
+<p>スライスはメモリの塊へのポインタと長さで表現されるビューです。</p>
+<!-- Slices are a view into a block of memory represented as a pointer and a
+length. -->
 
 <pre class="rust rust-example-rendered">
-<span class="comment">// slicing a Vec</span>
+<span class="comment">// ベクタのスライス</span>
 <span class="kw">let</span> <span class="ident">vec</span> <span class="op">=</span> <span class="macro">vec</span><span class="macro">!</span>[<span class="number">1</span>, <span class="number">2</span>, <span class="number">3</span>];
 <span class="kw">let</span> <span class="ident">int_slice</span> <span class="op">=</span> <span class="kw-2">&amp;</span><span class="ident">vec</span>[..];
-<span class="comment">// coercing an array to a slice</span>
+<span class="comment">// 配列のスライスへの矯正</span>
 <span class="kw">let</span> <span class="ident">str_slice</span>: <span class="kw-2">&amp;</span>[<span class="kw-2">&amp;</span><span class="ident">str</span>] <span class="op">=</span> <span class="kw-2">&amp;</span>[<span class="string">&quot;one&quot;</span>, <span class="string">&quot;two&quot;</span>, <span class="string">&quot;three&quot;</span>];</pre>
-<p>Slices are either mutable or shared. The shared slice type is <code>&amp;[T]</code>,
-while the mutable slice type is <code>&amp;mut [T]</code>, where <code>T</code> represents the element
+<!-- ``` -->
+<!-- // slicing a Vec
+let vec = vec![1, 2, 3];
+let int_slice = &vec[..];
+// coercing an array to a slice
+let str_slice: &[&str] = &["one", "two", "three"]; -->
+<!-- ``` -->
+<p>スライスはミュータブルまたは共有状態のいずれかです。共有されるスライス型は<code>&amp;[T]</code>ですが、ミュータブルなスライス型は<code>&amp;mut [T]</code>です。ここで<code>T</code>は要素の型を表します。例えば、ミュータブルなスライスが指すメモリの塊を変化させることができます:</p>
+<!-- Slices are either mutable or shared. The shared slice type is `&[T]`,
+while the mutable slice type is `&mut [T]`, where `T` represents the element
 type. For example, you can mutate the block of memory that a mutable slice
-points to:</p>
+points to: -->
 
 <pre class="rust rust-example-rendered">
 <span class="kw">let</span> <span class="ident">x</span> <span class="op">=</span> <span class="kw-2">&amp;</span><span class="kw-2">mut</span> [<span class="number">1</span>, <span class="number">2</span>, <span class="number">3</span>];
 <span class="ident">x</span>[<span class="number">1</span>] <span class="op">=</span> <span class="number">7</span>;
 <span class="macro">assert_eq</span><span class="macro">!</span>(<span class="ident">x</span>, <span class="kw-2">&amp;</span>[<span class="number">1</span>, <span class="number">7</span>, <span class="number">3</span>]);</pre>
-<p>Here are some of the things this module contains:</p>
-<h2 id="structs" class="section-header"><a href="#structs">Structs</a></h2>
-<p>There are several structs that are useful for slices, such as <a href="struct.Iter.html"><code>Iter</code></a>, which
-represents iteration over a slice.</p>
-<h2 id="trait-implementations" class="section-header"><a href="#trait-implementations">Trait Implementations</a></h2>
-<p>There are several implementations of common traits for slices. Some examples
-include:</p>
+<!-- 以下はこのモジュールが含むものの一部です: -->
+<!-- Here are some of the things this module contains: -->
+<h2 id="構造体" class="section-header"><a href="#構造体">構造体</a></h2><!-- ## Structs -->
+<p>スライス上の繰り返しを表現する<a href="struct.Iter.html"><code>Iter</code></a>のように、スライスを扱うのに便利な構造体がいくつかあります。</p>
+<!-- There are several structs that are useful for slices, such as [`Iter`], which
+represents iteration over a slice. -->
+<h2 id="トレイトの実装" class="section-header"><a href="#トレイトの実装">トレイトの実装</a></h2><!-- ## Trait Implementations -->
+<p>いくつかのスライス共通のトレイト実装があります。例えば:</p>
+<!-- There are several implementations of common traits for slices. Some examples
+include: -->
 <ul>
 <li><a href="../../std/clone/trait.Clone.html"><code>Clone</code></a></li>
-<li><a href="../../std/cmp/trait.Eq.html"><code>Eq</code></a>, <a href="../../std/cmp/trait.Ord.html"><code>Ord</code></a> - for slices whose element type are <a href="../../std/cmp/trait.Eq.html"><code>Eq</code></a> or <a href="../../std/cmp/trait.Ord.html"><code>Ord</code></a>.</li>
-<li><a href="../../std/hash/trait.Hash.html"><code>Hash</code></a> - for slices whose element type is <a href="../../std/hash/trait.Hash.html"><code>Hash</code></a>.</li>
+<li><a href="../../std/cmp/trait.Eq.html"><code>Eq</code></a>, <a href="../../std/cmp/trait.Ord.html"><code>Ord</code></a> - 要素の型が<a href="../../std/cmp/trait.Eq.html"><code>Eq</code></a>や<a href="../../std/cmp/trait.Ord.html"><code>Ord</code></a>であるようなスライスに対して。</li>
+<li><a href="../../std/hash/trait.Hash.html"><code>Hash</code></a> - 要素の型が<a href="../../std/hash/trait.Hash.html"><code>Hash</code></a>であるようなスライスに対して。</li>
 </ul>
-<h2 id="iteration" class="section-header"><a href="#iteration">Iteration</a></h2>
-<p>The slices implement <code>IntoIterator</code>. The iterator yields references to the
-slice elements.</p>
+<!-- * [`Clone`] -->
+<!-- * [`Eq`], [`Ord`] - for slices whose element type are [`Eq`] or [`Ord`]. -->
+<!-- * [`Hash`] - for slices whose element type is [`Hash`]. -->
+<h2 id="繰り返し" class="section-header"><a href="#繰り返し">繰り返し</a></h2><!-- ## Iteration -->
+<p>スライスは<code>IntoIterator</code>を実装します。このイテレータはスライスの要素への参照を与えます。</p>
+<!-- The slices implement `IntoIterator`. The iterator yields references to the
+slice elements. -->
 
 <pre class="rust rust-example-rendered">
 <span class="kw">let</span> <span class="ident">numbers</span> <span class="op">=</span> <span class="kw-2">&amp;</span>[<span class="number">0</span>, <span class="number">1</span>, <span class="number">2</span>];
 <span class="kw">for</span> <span class="ident">n</span> <span class="kw">in</span> <span class="ident">numbers</span> {
     <span class="macro">println</span><span class="macro">!</span>(<span class="string">&quot;{} is a number!&quot;</span>, <span class="ident">n</span>);
 }</pre>
-<p>The mutable slice yields mutable references to the elements:</p>
+<p>ミュータブルなスライスは要素へのミュータブルな参照を与えます。</p>
+<!-- The mutable slice yields mutable references to the elements: -->
 
 <pre class="rust rust-example-rendered">
 <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">scores</span> <span class="op">=</span> [<span class="number">7</span>, <span class="number">8</span>, <span class="number">9</span>];
 <span class="kw">for</span> <span class="ident">score</span> <span class="kw">in</span> <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">scores</span>[..] {
     <span class="kw-2">*</span><span class="ident">score</span> <span class="op">+=</span> <span class="number">1</span>;
 }</pre>
-<p>This iterator yields mutable references to the slice's elements, so while
-the element type of the slice is <code>i32</code>, the element type of the iterator is
-<code>&amp;mut i32</code>.</p>
+<p>このイテレータはスライスの要素へのミュータブルな参照を与えます。それゆえ、スライスの要素の型は<code>i32</code>ですが、イテレータの要素の型は<code>&amp;mut i32</code>です。</p>
+<!-- This iterator yields mutable references to the slice's elements, so while
+the element type of the slice is `i32`, the element type of the iterator is
+`&mut i32`. -->
 <ul>
-<li><a href="../../std/primitive.slice.html#method.iter"><code>.iter</code></a> and <a href="../../std/primitive.slice.html#method.iter_mut"><code>.iter_mut</code></a> are the explicit methods to return the default
-iterators.</li>
-<li>Further methods that return iterators are <a href="../../std/primitive.slice.html#method.split"><code>.split</code></a>, <a href="../../std/primitive.slice.html#method.splitn"><code>.splitn</code></a>,
-<a href="../../std/primitive.slice.html#method.chunks"><code>.chunks</code></a>, <a href="../../std/primitive.slice.html#method.windows"><code>.windows</code></a> and more.</li>
+<li><a href="../../std/primitive.slice.html#method.iter"><code>.iter</code></a>と<a href="../../std/primitive.slice.html#method.iter_mut"><code>.iter_mut</code></a>は明示的にデフォルトのイテレータを返すメソッドです。</li>
+<li>イテレータを返すメソッドは他にも<a href="../../std/primitive.slice.html#method.split"><code>.split</code></a>, <a href="../../std/primitive.slice.html#method.splitn"><code>.splitn</code></a>, <a href="../../std/primitive.slice.html#method.chunks"><code>.chunks</code></a>, <a href="../../std/primitive.slice.html#method.windows"><code>.windows</code></a>等があります。</li>
 </ul>
-</div><h2 id='structs-1' class='section-header'><a href="#structs-1">Structs</a></h2>
+<!-- * [`.iter`] and [`.iter_mut`] are the explicit methods to return the default
+  iterators. -->
+<!-- * Further methods that return iterators are [`.split`], [`.splitn`],
+  [`.chunks`], [`.windows`] and more. -->
+</div><h2 id='structs' class='section-header'><a href="#structs">Structs</a></h2>
 <table>
                        <tr class=' module-item'>
                            <td><a class="struct" href="struct.Chunks.html"
@@ -206,7 +230,7 @@ size, the last up to <code>chunk_size-1</code> elements will be omitted.</p>
                            <td><a class="trait" href="trait.SliceConcatExt.html"
                                   title='trait alloc::slice::SliceConcatExt'>SliceConcatExt</a></td>
                            <td class='docblock-short'>
-                               [<div class='stab unstable'>Experimental</div>] <p>An extension trait for concatenating slices</p>
+                               [<div class='stab unstable'>Experimental</div>] <p>スライスを結合するための拡張トレイト</p>
 
                            </td>
                        </tr></table><h2 id='functions' class='section-header'><a href="#functions">Functions</a></h2>

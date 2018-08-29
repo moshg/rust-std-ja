@@ -3232,6 +3232,8 @@
 <span id="3232">3232</span>
 <span id="3233">3233</span>
 <span id="3234">3234</span>
+<span id="3235">3235</span>
+<span id="3236">3236</span>
 </pre><pre class="rust ">
 <span class="comment">// Copyright 2014 The Rust Project Developers. See the COPYRIGHT</span>
 <span class="comment">// file at the top-level directory of this distribution and at</span>
@@ -3248,7 +3250,7 @@
 <span class="doccomment">//! &lt;!-- A contiguous growable array type with heap-allocated contents, written</span>
 <span class="doccomment">//! `Vec&lt;T&gt;`. --&gt;</span>
 <span class="doccomment">//!</span>
-<span class="doccomment">//! ベクタは`O(1)`のインデクシングができ、償却`O(1)`の (最後への) プッシュと`O(1)`の</span>
+<span class="doccomment">//! ベクターは`O(1)`のインデクシングができ、償却`O(1)`の (最後への) プッシュと`O(1)`の</span>
 <span class="doccomment">//! (最後からの) ポップができます。</span>
 <span class="doccomment">//!</span>
 <span class="doccomment">//! &lt;!-- Vectors have `O(1)` indexing, amortized `O(1)` push (to the end) and</span>
@@ -3284,7 +3286,7 @@
 <span class="doccomment">//! let v = vec![0; 10]; // ten zeroes --&gt;</span>
 <span class="doccomment">//! &lt;!-- ``` --&gt;</span>
 <span class="doccomment">//!</span>
-<span class="doccomment">//! 値をベクタの最後に[`push`]することができます (必要に応じてベクタを拡張します):</span>
+<span class="doccomment">//! 値をベクターの最後に[`push`]することができます (必要に応じてベクターを拡張します):</span>
 <span class="doccomment">//!</span>
 <span class="doccomment">//! &lt;!-- You can [`push`] values onto the end of a vector (which will grow the vector</span>
 <span class="doccomment">//! as needed): --&gt;</span>
@@ -3305,7 +3307,7 @@
 <span class="doccomment">//! let two = v.pop();</span>
 <span class="doccomment">//! ```</span>
 <span class="doccomment">//!</span>
-<span class="doccomment">//! ベクタはインデクシングもサポートします ([`Index`]と[`IndexMut`]トレイトを通して):</span>
+<span class="doccomment">//! ベクターはインデクシングもサポートします ([`Index`]と[`IndexMut`]トレイトを通して):</span>
 <span class="doccomment">//!</span>
 <span class="doccomment">//! &lt;!-- Vectors also support indexing (through the [`Index`] and [`IndexMut`] traits): --&gt;</span>
 <span class="doccomment">//!</span>
@@ -3344,7 +3346,7 @@
 <span class="kw">use</span> <span class="ident">boxed</span>::<span class="ident">Box</span>;
 <span class="kw">use</span> <span class="ident">raw_vec</span>::<span class="ident">RawVec</span>;
 
-<span class="doccomment">/// 連続する拡張可能な配列型。`Vec&lt;T&gt;`と書かれますが「ベクタ」と発音されます。</span>
+<span class="doccomment">/// 連続する拡張可能な配列型。`Vec&lt;T&gt;`と書かれますが「ベクター」と発音されます。</span>
 <span class="doccomment">///</span>
 <span class="doccomment">/// &lt;!-- A contiguous growable array type, written `Vec&lt;T&gt;` but pronounced &#39;vector&#39;. --&gt;</span>
 <span class="doccomment">///</span>
@@ -3495,7 +3497,7 @@
 <span class="doccomment">/// let x : &amp;[usize] = &amp;v; --&gt;</span>
 <span class="doccomment">/// &lt;!-- ``` --&gt;</span>
 <span class="doccomment">///</span>
-<span class="doccomment">/// Rustにおいて、単に読み取りアクセスできるようにしたいときはベクタよりもスライスを引数として渡すことが一般的です。[`String`]と[`&amp;str`]についても同様です。</span>
+<span class="doccomment">/// Rustにおいて、単に読み取りアクセスできるようにしたいときはベクターよりもスライスを引数として渡すことが一般的です。[`String`]と[`&amp;str`]についても同様です。</span>
 <span class="doccomment">///</span>
 <span class="doccomment">/// &lt;!-- In Rust, it&#39;s more common to pass slices as arguments rather than vectors</span>
 <span class="doccomment">/// when you just want to provide a read access. The same goes for [`String`] and</span>
@@ -3505,7 +3507,7 @@
 <span class="doccomment">///</span>
 <span class="doccomment">/// &lt;!-- # Capacity and reallocation --&gt;</span>
 <span class="doccomment">///</span>
-<span class="doccomment">/// ベクタの容量 (capacity) とは将来ベクタに追加される要素のためにアロケートされる領域の量のことです。これをベクタの*長さ (length)* と混同しないでください。ベクタの長さとはそのベクタに入っている実際の要素の個数のことです。ベクタの長さが容量を超えると、容量は自動的に増えますが、その要素は再確保されなければなりません。</span>
+<span class="doccomment">/// ベクターの容量 (capacity) とは将来ベクターに追加される要素のためにアロケートされる領域の量のことです。これをベクターの*長さ (length)* と混同しないでください。ベクターの長さとはそのベクターに入っている実際の要素の個数のことです。ベクターの長さが容量を超えると、容量は自動的に増えますが、その要素は再確保されなければなりません。</span>
 <span class="doccomment">///</span>
 <span class="doccomment">/// &lt;!-- The capacity of a vector is the amount of space allocated for any future</span>
 <span class="doccomment">/// elements that will be added onto the vector. This is not to be confused with</span>
@@ -3514,7 +3516,7 @@
 <span class="doccomment">/// will automatically be increased, but its elements will have to be</span>
 <span class="doccomment">/// reallocated. --&gt;</span>
 <span class="doccomment">///</span>
-<span class="doccomment">/// 例えば、容量10で長さ0のベクタは追加10要素分の領域をもった空のベクタです。10またはそれ以下の要素をベクタにプッシュしてもベクタの容量は変わりませんし、メモリの再確保も起きません。しかし、ベクタの長さが11まで増加すると、ベクタはメモリを再確保しなければならず、遅いです。このため、ベクタがどれだけ大きくなるかが予期できるときは常に[`Vec::with_capacity`]を利用することが推奨されます。</span>
+<span class="doccomment">/// 例えば、容量10で長さ0のベクターは追加10要素分の領域をもった空のベクターです。10またはそれ以下の要素をベクターにプッシュしてもベクターの容量は変わりませんし、メモリの再確保も起きません。しかし、ベクターの長さが11まで増加すると、ベクターはメモリを再確保しなければならず、遅いです。このため、ベクターがどれだけ大きくなるかが予期できるときは常に[`Vec::with_capacity`]を利用することが推奨されます。</span>
 <span class="doccomment">///</span>
 <span class="doccomment">/// &lt;!-- For example, a vector with capacity 10 and length 0 would be an empty vector</span>
 <span class="doccomment">/// with space for 10 more elements. Pushing 10 or fewer elements onto the</span>
@@ -3543,7 +3545,7 @@
 <span class="doccomment">/// unspecified, and you should use the appropriate methods to modify these.</span>
 <span class="doccomment">/// The pointer will never be null, so this type is null-pointer-optimized. --&gt;</span>
 <span class="doccomment">///</span>
-<span class="doccomment">/// しかし、ポインタは実際には確保されたメモリを指さないかもしれません。特に、空のベクタの作成を[`Vec::new`]や[`vec![]`][`vec!`]や[`Vec::with_capacity(0)`][`Vec::with_capacity`]により行ったり、[`shrink_to_fit`]の空のベクタでの呼び出しから行ったりするとき、メモリを確保しません。同様に、ゼロサイズ型を`Vec`に格納するとき、それらのための領域を確保しません。*この場合`Vec`は[`capacity`]がゼロであると伝えないかもしれないことに注意してください。*`Vec`は[`mem::size_of::&lt;T&gt;`]`() * capacity() &gt; 0`のとき、またそのときに限りメモリを確保します。一般に、`Vec`のアロケーションの詳細はとても微妙です &amp;mdash; もし`Vec`を使ってメモリを確保し他の何か (アンセーフコードに渡す、またはメモリが背後にあるあなた自身のコレクションのいずれか) に使うつもりなら、必ず`from_raw_parts`を使って`Vec`を復元しドロップすることでそのメモリを解放してください。</span>
+<span class="doccomment">/// しかし、ポインタは実際には確保されたメモリを指さないかもしれません。特に、空のベクターの作成を[`Vec::new`]や[`vec![]`][`vec!`]や[`Vec::with_capacity(0)`][`Vec::with_capacity`]により行ったり、[`shrink_to_fit`]の空のベクターでの呼び出しから行ったりするとき、メモリを確保しません。同様に、ゼロサイズ型を`Vec`に格納するとき、それらのための領域を確保しません。*この場合`Vec`は[`capacity`]がゼロであると伝えないかもしれないことに注意してください。*`Vec`は[`mem::size_of::&lt;T&gt;`]`() * capacity() &gt; 0`のとき、またそのときに限りメモリを確保します。一般に、`Vec`のアロケーションの詳細はとても微妙です &amp;mdash; もし`Vec`を使ってメモリを確保し他の何か (アンセーフコードに渡す、またはメモリが背後にあるあなた自身のコレクションのいずれか) に使うつもりなら、必ず`from_raw_parts`を使って`Vec`を復元しドロップすることでそのメモリを解放してください。</span>
 <span class="doccomment">///</span>
 <span class="doccomment">/// &lt;!-- However, the pointer may not actually point to allocated memory. In particular,</span>
 <span class="doccomment">/// if you construct a `Vec` with capacity 0 via [`Vec::new`], [`vec![]`][`vec!`],</span>
@@ -3599,7 +3601,7 @@
 <span class="doccomment">/// allocated by a `Vec` if desired. Bulk insertion methods *may* reallocate, even</span>
 <span class="doccomment">/// when not necessary. --&gt;</span>
 <span class="doccomment">///</span>
-<span class="doccomment">/// `Vec`は満杯になったときや[`reserve`]が呼び出されたときにメモリの再確保をする際の特定の拡張戦略をまったく保証しません。現在の戦略は基本的であり、定数でない増大係数が望ましいことが示されるかもしれません。どのような戦略を使うとしても当然[`push`]が償却`O(1)`であることは保証されます。</span>
+<span class="doccomment">/// `Vec`は満杯になったときや[`reserve`]が呼び出されたときにメモリの再確保をする際の特定の拡張戦略をまったく保証しません。現在の戦略は基本的であり、定数でない増大係数が望ましいことが証明されるかもしれません。どのような戦略を使うとしても当然[`push`]が償却`O(1)`であることは保証されます。</span>
 <span class="doccomment">///</span>
 <span class="doccomment">/// &lt;!-- `Vec` does not guarantee any particular growth strategy when reallocating</span>
 <span class="doccomment">/// when full, nor when [`reserve`] is called. The current strategy is basic</span>
@@ -3661,7 +3663,7 @@
     <span class="doccomment">///</span>
     <span class="doccomment">/// &lt;!-- Constructs a new, empty `Vec&lt;T&gt;`. --&gt;</span>
     <span class="doccomment">///</span>
-    <span class="doccomment">/// ベクタは要素をプッシュされるまでメモリを確保しません。</span>
+    <span class="doccomment">/// ベクターは要素をプッシュされるまでメモリを確保しません。</span>
     <span class="doccomment">///</span>
     <span class="doccomment">/// &lt;!-- The vector will not allocate until elements are pushed onto it. --&gt;</span>
     <span class="doccomment">///</span>
@@ -3685,12 +3687,12 @@
     <span class="doccomment">///</span>
     <span class="doccomment">/// &lt;!-- Constructs a new, empty `Vec&lt;T&gt;` with the specified capacity. --&gt;</span>
     <span class="doccomment">///</span>
-    <span class="doccomment">/// 返されたベクタはメモリの再確保なしにちょうど`capacity`個の要素を格納することができます。`capacity`が0ならばメモリを確保しません。</span>
+    <span class="doccomment">/// 返されたベクターはメモリの再確保なしにちょうど`capacity`個の要素を格納することができます。`capacity`が0ならばメモリを確保しません。</span>
     <span class="doccomment">///</span>
     <span class="doccomment">/// &lt;!-- The vector will be able to hold exactly `capacity` elements without</span>
     <span class="doccomment">/// reallocating. If `capacity` is 0, the vector will not allocate. --&gt;</span>
     <span class="doccomment">///</span>
-    <span class="doccomment">/// 返されたベクタは指定された*容量*を持ちますが、長さが0であることに注意することが大切です。長さと容量の違いの説明については*[容量とメモリの再確保]*を見てください。</span>
+    <span class="doccomment">/// 返されたベクターは指定された*容量*を持ちますが、長さが0であることに注意することが大切です。長さと容量の違いの説明については*[容量とメモリの再確保]*を参照してください。</span>
     <span class="doccomment">///</span>
     <span class="doccomment">/// &lt;!-- It is important to note that although the returned vector has the</span>
     <span class="doccomment">/// *capacity* specified, the vector will have a zero *length*. For an</span>
@@ -3741,7 +3743,7 @@
         }
     }
 
-    <span class="doccomment">/// `Vec&lt;T&gt;`を他のベクタの生の構成要素から直接作成します。</span>
+    <span class="doccomment">/// `Vec&lt;T&gt;`を他のベクターの生の構成要素から直接作成します。</span>
     <span class="doccomment">///</span>
     <span class="doccomment">/// &lt;!-- Creates a `Vec&lt;T&gt;` directly from the raw components of another vector. --&gt;</span>
     <span class="doccomment">///</span>
@@ -3846,7 +3848,7 @@
         }
     }
 
-    <span class="doccomment">/// ベクタがメモリの再確保なしに保持することのできる要素の数を返します。</span>
+    <span class="doccomment">/// ベクターがメモリの再確保なしに保持することのできる要素の数を返します。</span>
     <span class="doccomment">///</span>
     <span class="doccomment">/// &lt;!-- Returns the number of elements the vector can hold without</span>
     <span class="doccomment">/// reallocating. --&gt;</span>
@@ -4049,11 +4051,11 @@
         <span class="self">self</span>.<span class="ident">buf</span>.<span class="ident">try_reserve_exact</span>(<span class="self">self</span>.<span class="ident">len</span>, <span class="ident">additional</span>)
     }
 
-    <span class="doccomment">/// ベクタの容量を可能な限り縮小します。</span>
+    <span class="doccomment">/// ベクターの容量を可能な限り縮小します。</span>
     <span class="doccomment">///</span>
     <span class="doccomment">/// &lt;!-- Shrinks the capacity of the vector as much as possible. --&gt;</span>
     <span class="doccomment">///</span>
-    <span class="doccomment">/// 可能な限り長さの近くまで領域を破棄しますが、アロケータはまだ少し要素を格納できる領域があるとベクタに通知するかもしれません。</span>
+    <span class="doccomment">/// 可能な限り長さの近くまで領域を破棄しますが、アロケータはまだ少し要素を格納できる領域があるとベクターに通知するかもしれません。</span>
     <span class="doccomment">///</span>
     <span class="doccomment">/// &lt;!-- It will drop down as close as possible to the length but the allocator</span>
     <span class="doccomment">/// may still inform the vector that there is space for a few more elements. --&gt;</span>
@@ -4074,7 +4076,7 @@
         }
     }
 
-    <span class="doccomment">/// 下限付きでベクタを縮小します。</span>
+    <span class="doccomment">/// 下限付きでベクターを縮小します。</span>
     <span class="doccomment">///</span>
     <span class="doccomment">/// &lt;!-- Shrinks the capacity of the vector with a lower bound. --&gt;</span>
     <span class="doccomment">///</span>
@@ -4105,7 +4107,7 @@
         <span class="self">self</span>.<span class="ident">buf</span>.<span class="ident">shrink_to_fit</span>(<span class="ident">cmp</span>::<span class="ident">max</span>(<span class="self">self</span>.<span class="ident">len</span>, <span class="ident">min_capacity</span>));
     }
 
-    <span class="doccomment">/// ベクタを[`Box&lt;[T]&gt;`][owned slice]に変換します。</span>
+    <span class="doccomment">/// ベクターを[`Box&lt;[T]&gt;`][owned slice]に変換します。</span>
     <span class="doccomment">///</span>
     <span class="doccomment">/// &lt;!-- Converts the vector into [`Box&lt;[T]&gt;`][owned slice]. --&gt;</span>
     <span class="doccomment">///</span>
@@ -4145,12 +4147,12 @@
         }
     }
 
-    <span class="doccomment">/// 初めの`len`個の要素を残し、残りを捨てることでベクタを短くします。</span>
+    <span class="doccomment">/// 初めの`len`個の要素を残し、残りを捨てることでベクターを短くします。</span>
     <span class="doccomment">///</span>
     <span class="doccomment">/// &lt;!-- Shortens the vector, keeping the first `len` elements and dropping</span>
     <span class="doccomment">/// the rest. --&gt;</span>
     <span class="doccomment">///</span>
-    <span class="doccomment">/// `len`がベクタの現在の長さより大きいときは何の効果もありません。</span>
+    <span class="doccomment">/// `len`がベクターの現在の長さより大きいときは何の効果もありません。</span>
     <span class="doccomment">///</span>
     <span class="doccomment">/// &lt;!-- If `len` is greater than the vector&#39;s current length, this has no</span>
     <span class="doccomment">/// effect. --&gt;</span>
@@ -4160,14 +4162,14 @@
     <span class="doccomment">/// &lt;!-- The [`drain`] method can emulate `truncate`, but causes the excess</span>
     <span class="doccomment">/// elements to be returned instead of dropped. --&gt;</span>
     <span class="doccomment">///</span>
-    <span class="doccomment">/// このメソッドはベクタの確保された容量に影響しないことに注意してください。</span>
+    <span class="doccomment">/// このメソッドはベクターの確保された容量に影響しないことに注意してください。</span>
     <span class="doccomment">///</span>
     <span class="doccomment">/// &lt;!-- Note that this method has no effect on the allocated capacity</span>
     <span class="doccomment">/// of the vector. --&gt;</span>
     <span class="doccomment">///</span>
     <span class="doccomment">/// # Examples</span>
     <span class="doccomment">///</span>
-    <span class="doccomment">/// 五要素のベクタの二要素への切り詰め:</span>
+    <span class="doccomment">/// 五要素のベクターの二要素への切り詰め:</span>
     <span class="doccomment">///</span>
     <span class="doccomment">/// &lt;!-- Truncating a five element vector to two elements: --&gt;</span>
     <span class="doccomment">///</span>
@@ -4177,7 +4179,7 @@
     <span class="doccomment">/// assert_eq!(vec, [1, 2]);</span>
     <span class="doccomment">/// ```</span>
     <span class="doccomment">///</span>
-    <span class="doccomment">/// `len`がベクタの現在の長さより大きいときは切り詰めが起きません:</span>
+    <span class="doccomment">/// `len`がベクターの現在の長さより大きいときは切り詰めが起きません:</span>
     <span class="doccomment">///</span>
     <span class="doccomment">/// &lt;!-- No truncation occurs when `len` is greater than the vector&#39;s current</span>
     <span class="doccomment">/// length: --&gt;</span>
@@ -4215,7 +4217,7 @@
         }
     }
 
-    <span class="doccomment">/// ベクタ全体を含むスライスを抜き出します。</span>
+    <span class="doccomment">/// ベクター全体を含むスライスを抜き出します。</span>
     <span class="doccomment">///</span>
     <span class="doccomment">/// &lt;!-- Extracts a slice containing the entire vector. --&gt;</span>
     <span class="doccomment">///</span>
@@ -4236,7 +4238,7 @@
         <span class="self">self</span>
     }
 
-    <span class="doccomment">/// ベクタ全体のミュータブルなスライスを抜き出します。</span>
+    <span class="doccomment">/// ベクター全体のミュータブルなスライスを抜き出します。</span>
     <span class="doccomment">///</span>
     <span class="doccomment">/// &lt;!-- Extracts a mutable slice of the entire vector. --&gt;</span>
     <span class="doccomment">///</span>
@@ -4257,12 +4259,12 @@
         <span class="self">self</span>
     }
 
-    <span class="doccomment">/// ベクタの長さを設定します。</span>
+    <span class="doccomment">/// ベクターの長さを設定します。</span>
     <span class="doccomment">///</span>
     <span class="doccomment">/// &lt;!-- Sets the length of a vector. --&gt;</span>
     <span class="doccomment">///</span>
-    <span class="doccomment">/// このメソッドは明示的にベクタの大きさを設定し、実際にはバッファを変更しません。</span>
-    <span class="doccomment">/// よって呼び出し元はベクタが実際に指定された大きさを持つことを保証する義務があります。</span>
+    <span class="doccomment">/// このメソッドは明示的にベクターの大きさを設定し、実際にはバッファを変更しません。</span>
+    <span class="doccomment">/// よって呼び出し元はベクターが実際に指定された大きさを持つことを保証する義務があります。</span>
     <span class="doccomment">///</span>
     <span class="doccomment">/// &lt;!-- This will explicitly set the size of the vector, without actually</span>
     <span class="doccomment">/// modifying its buffers, so it is up to the caller to ensure that the</span>
@@ -4282,7 +4284,7 @@
     <span class="doccomment">/// assert_eq!(vec, [&#39;r&#39;, &#39;u&#39;, &#39;s&#39;]);</span>
     <span class="doccomment">/// ```</span>
     <span class="doccomment">///</span>
-    <span class="doccomment">/// この例ではメモリリークがあります。内部のベクタが所有するメモリ上の位置が`set_len`の呼び出しの前に解放されていないからです:</span>
+    <span class="doccomment">/// この例ではメモリリークがあります。内部のベクターが所有するメモリ上の位置が`set_len`の呼び出しの前に解放されていないからです:</span>
     <span class="doccomment">///</span>
     <span class="doccomment">/// &lt;!-- In this example, there is a memory leak since the memory locations</span>
     <span class="doccomment">/// owned by the inner vectors were not freed prior to the `set_len` call: --&gt;</span>
@@ -4296,7 +4298,7 @@
     <span class="doccomment">/// }</span>
     <span class="doccomment">/// ```</span>
     <span class="doccomment">///</span>
-    <span class="doccomment">/// この例ではまったくメモリ確保を起こさずにゼロ個から四個にベクタを拡張することによって、確保されていないメモリがベクタの値になっています:</span>
+    <span class="doccomment">/// この例ではまったくメモリ確保を起こさずにゼロ個から四個にベクターを拡張することによって、確保されていないメモリがベクターの値になっています:</span>
     <span class="doccomment">///</span>
     <span class="doccomment">/// &lt;!-- In this example, the vector gets expanded from zero to four items</span>
     <span class="doccomment">/// without any memory allocations occurring, resulting in vector</span>
@@ -4315,11 +4317,11 @@
         <span class="self">self</span>.<span class="ident">len</span> <span class="op">=</span> <span class="ident">len</span>;
     }
 
-    <span class="doccomment">/// ベクタから要素を取り除き、その要素を返します。</span>
+    <span class="doccomment">/// ベクターから要素を取り除き、その要素を返します。</span>
     <span class="doccomment">///</span>
     <span class="doccomment">/// &lt;!-- Removes an element from the vector and returns it. --&gt;</span>
     <span class="doccomment">///</span>
-    <span class="doccomment">/// 取り除かれた要素はベクタの最後の要素に置き換えられます。</span>
+    <span class="doccomment">/// 取り除かれた要素はベクターの最後の要素に置き換えられます。</span>
     <span class="doccomment">///</span>
     <span class="doccomment">/// &lt;!-- The removed element is replaced by the last element of the vector. --&gt;</span>
     <span class="doccomment">///</span>
@@ -4352,7 +4354,7 @@
         <span class="self">self</span>.<span class="ident">pop</span>().<span class="ident">unwrap</span>()
     }
 
-    <span class="doccomment">/// 後続する全ての要素を右側に移動して、要素をベクタの`index`の位置に挿入します。</span>
+    <span class="doccomment">/// 後続する全ての要素を右側に移動して、要素をベクターの`index`の位置に挿入します。</span>
     <span class="doccomment">///</span>
     <span class="doccomment">/// &lt;!-- Inserts an element at position `index` within the vector, shifting all</span>
     <span class="doccomment">/// elements after it to the right. --&gt;</span>
@@ -4398,7 +4400,7 @@
         }
     }
 
-    <span class="doccomment">/// ベクタの`index`の位置にある要素を取り除き、返します。後続するすべての要素は左に移動します。</span>
+    <span class="doccomment">/// ベクターの`index`の位置にある要素を取り除き、返します。後続するすべての要素は左に移動します。</span>
     <span class="doccomment">///</span>
     <span class="doccomment">/// &lt;!-- Removes and returns the element at position `index` within the vector,</span>
     <span class="doccomment">/// shifting all elements after it to the left. --&gt;</span>
@@ -4462,12 +4464,12 @@
         <span class="self">self</span>.<span class="ident">drain_filter</span>(<span class="op">|</span><span class="ident">x</span><span class="op">|</span> <span class="op">!</span><span class="ident">f</span>(<span class="ident">x</span>));
     }
 
-    <span class="doccomment">/// ベクタ内の同じキーが解決される連続した要素から先頭以外全てを取り除きます。</span>
+    <span class="doccomment">/// ベクター内の同じキーが解決される連続した要素から先頭以外全てを取り除きます。</span>
     <span class="doccomment">///</span>
     <span class="doccomment">/// &lt;!-- Removes all but the first of consecutive elements in the vector that resolve to the same</span>
     <span class="doccomment">/// key. --&gt;</span>
     <span class="doccomment">///</span>
-    <span class="doccomment">/// ベクタがソートされているとき、このメソッドは全ての重複を取り除きます。</span>
+    <span class="doccomment">/// ベクターがソートされているとき、このメソッドは全ての重複を取り除きます。</span>
     <span class="doccomment">///</span>
     <span class="doccomment">/// &lt;!-- If the vector is sorted, this removes all duplicates. --&gt;</span>
     <span class="doccomment">///</span>
@@ -4486,20 +4488,20 @@
         <span class="self">self</span>.<span class="ident">dedup_by</span>(<span class="op">|</span><span class="ident">a</span>, <span class="ident">b</span><span class="op">|</span> <span class="ident">key</span>(<span class="ident">a</span>) <span class="op">==</span> <span class="ident">key</span>(<span class="ident">b</span>))
     }
 
-    <span class="doccomment">/// ベクタ内の与えられた等価関係を満たす連続する要素から先頭以外全てを取り除きます。</span>
+    <span class="doccomment">/// ベクター内の与えられた等価関係を満たす連続する要素から先頭以外全てを取り除きます。</span>
     <span class="doccomment">///</span>
     <span class="doccomment">/// &lt;!-- Removes all but the first of consecutive elements in the vector satisfying a given equality</span>
     <span class="doccomment">/// relation. --&gt;</span>
     <span class="doccomment">///</span>
-    <span class="doccomment">/// `same_bucket`関数はベクタから二つの要素を渡され、その要素を比較して等しいとき`true`を返し、そうでないとき`false`を返します。</span>
-    <span class="doccomment">/// 要素はベクタ内での順と逆の順で渡されるので、`same_bucket(a, b)`が`true`を返すとき、`a`が取り除かれます。</span>
+    <span class="doccomment">/// `same_bucket`関数はベクターから二つの要素を渡され、その要素を比較して等しいとき`true`を返し、そうでないとき`false`を返します。</span>
+    <span class="doccomment">/// 要素はベクター内での順と逆の順で渡されるので、`same_bucket(a, b)`が`true`を返すとき、`a`が取り除かれます。</span>
     <span class="doccomment">///</span>
     <span class="doccomment">/// &lt;!-- The `same_bucket` function is passed references to two elements from the vector, and</span>
     <span class="doccomment">/// returns `true` if the elements compare equal, or `false` if they do not. The elements are</span>
     <span class="doccomment">/// passed in opposite order from their order in the vector, so if `same_bucket(a, b)` returns</span>
     <span class="doccomment">/// `true`, `a` is removed. --&gt;</span>
     <span class="doccomment">///</span>
-    <span class="doccomment">/// ベクタがソートされているとき、このメソッドは全ての重複を取り除きます。</span>
+    <span class="doccomment">/// ベクターがソートされているとき、このメソッドは全ての重複を取り除きます。</span>
     <span class="doccomment">///</span>
     <span class="doccomment">/// &lt;!-- If the vector is sorted, this removes all duplicates. --&gt;</span>
     <span class="doccomment">///</span>
@@ -4605,7 +4607,7 @@
     <span class="doccomment">///</span>
     <span class="doccomment">/// # Panics</span>
     <span class="doccomment">///</span>
-    <span class="doccomment">/// ベクタ内の要素の数が`usize`に収まらない場合パニックします。</span>
+    <span class="doccomment">/// ベクター内の要素の数が`usize`に収まらない場合パニックします。</span>
     <span class="doccomment">///</span>
     <span class="doccomment">/// &lt;!-- Panics if the number of elements in the vector overflows a `usize`. --&gt;</span>
     <span class="doccomment">///</span>
@@ -4662,7 +4664,7 @@
     <span class="doccomment">///</span>
     <span class="doccomment">/// # Panics</span>
     <span class="doccomment">///</span>
-    <span class="doccomment">/// ベクタの要素の数が`usize`に収まらない場合パニックします。</span>
+    <span class="doccomment">/// ベクターの要素の数が`usize`に収まらない場合パニックします。</span>
     <span class="doccomment">///</span>
     <span class="doccomment">/// &lt;!-- Panics if the number of elements in the vector overflows a `usize`. --&gt;</span>
     <span class="doccomment">///</span>
@@ -4696,7 +4698,7 @@
         <span class="self">self</span>.<span class="ident">len</span> <span class="op">+=</span> <span class="ident">count</span>;
     }
 
-    <span class="doccomment">/// ベクタ内の指定された区間を取り除き、取り除かれた要素を与える排出イテレータを作成します。</span>
+    <span class="doccomment">/// ベクター内の指定された区間を取り除き、取り除かれた要素を与える排出イテレータを作成します。</span>
     <span class="doccomment">///</span>
     <span class="doccomment">/// &lt;!-- Creates a draining iterator that removes the specified range in the vector</span>
     <span class="doccomment">/// and yields the removed items. --&gt;</span>
@@ -4706,14 +4708,14 @@
     <span class="doccomment">/// &lt;!-- Note 1: The element range is removed even if the iterator is only</span>
     <span class="doccomment">/// partially consumed or not consumed at all. --&gt;</span>
     <span class="doccomment">///</span>
-    <span class="doccomment">/// 注2: `Drain`の値がリークしたとき、ベクタから要素がいくつ取り除かれるかは未規定です。</span>
+    <span class="doccomment">/// 注2: `Drain`の値がリークしたとき、ベクターから要素がいくつ取り除かれるかは未規定です。</span>
     <span class="doccomment">///</span>
     <span class="doccomment">/// &lt;!-- Note 2: It is unspecified how many elements are removed from the vector</span>
     <span class="doccomment">/// if the `Drain` value is leaked. --&gt;</span>
     <span class="doccomment">///</span>
     <span class="doccomment">/// # Panics</span>
     <span class="doccomment">///</span>
-    <span class="doccomment">/// 始点が終点より大きい、または終了位置がベクタの長さより大きいときパニックします。</span>
+    <span class="doccomment">/// 始点が終点より大きい、または終了位置がベクターの長さより大きいときパニックします。</span>
     <span class="doccomment">///</span>
     <span class="doccomment">/// &lt;!-- Panics if the starting point is greater than the end point or if</span>
     <span class="doccomment">/// the end point is greater than the length of the vector. --&gt;</span>
@@ -4726,7 +4728,7 @@
     <span class="doccomment">/// assert_eq!(v, &amp;[1]);</span>
     <span class="doccomment">/// assert_eq!(u, &amp;[2, 3]);</span>
     <span class="doccomment">///</span>
-    <span class="doccomment">/// // 全区間でベクタをクリアします</span>
+    <span class="doccomment">/// // 全区間でベクターをクリアします</span>
     <span class="doccomment">/// v.drain(..);</span>
     <span class="doccomment">/// assert_eq!(v, &amp;[]);</span>
     <span class="doccomment">/// ```</span>
@@ -4785,7 +4787,7 @@
         }
     }
 
-    <span class="doccomment">/// 全ての値を取り除き、ベクタを空にします。</span>
+    <span class="doccomment">/// 全ての値を取り除き、ベクターを空にします。</span>
     <span class="doccomment">///</span>
     <span class="doccomment">/// &lt;!-- Clears the vector, removing all values. --&gt;</span>
     <span class="doccomment">///</span>
@@ -4809,7 +4811,7 @@
         <span class="self">self</span>.<span class="ident">truncate</span>(<span class="number">0</span>)
     }
 
-    <span class="doccomment">/// ベクタ内の要素の数を返します。ベクタの長さとも呼ばれるものです。</span>
+    <span class="doccomment">/// ベクター内の要素の数を返します。ベクターの長さとも呼ばれるものです。</span>
     <span class="doccomment">///</span>
     <span class="doccomment">/// &lt;!-- Returns the number of elements in the vector, also referred to</span>
     <span class="doccomment">/// as its &#39;length&#39;. --&gt;</span>
@@ -4826,7 +4828,7 @@
         <span class="self">self</span>.<span class="ident">len</span>
     }
 
-    <span class="doccomment">/// ベクタが要素を持たないとき`true`を返します。</span>
+    <span class="doccomment">/// ベクターが要素を持たないとき`true`を返します。</span>
     <span class="doccomment">///</span>
     <span class="doccomment">/// &lt;!-- Returns `true` if the vector contains no elements. --&gt;</span>
     <span class="doccomment">///</span>
@@ -4995,8 +4997,8 @@
     <span class="doccomment">/// &lt;!-- Iterates over the slice `other`, clones each element, and then appends</span>
     <span class="doccomment">/// it to this `Vec`. The `other` vector is traversed in-order. --&gt;</span>
     <span class="doccomment">///</span>
-    <span class="doccomment">/// この関数はスライスと共に動作することに特化していることを除いて[`extend`]と同じであることに注意してください。</span>
-    <span class="doccomment">/// もしRustが特化 (訳注: [specialization](https://github.com/rust-lang/rust/issues/31844)) を得た場合、この関数は恐らく非推奨になります (しかしそれでも利用は可能です)。</span>
+    <span class="doccomment">/// この関数はスライスと共に動作することに特殊化していることを除いて[`extend`]と同じであることに注意してください。</span>
+    <span class="doccomment">/// もしRustが特殊化 (訳注: [specialization](https://github.com/rust-lang/rust/issues/31844)) を得た場合、この関数は恐らく非推奨になります (しかしそれでも利用は可能です)。</span>
     <span class="doccomment">///</span>
     <span class="doccomment">/// &lt;!-- Note that this function is same as [`extend`] except that it is</span>
     <span class="doccomment">/// specialized to work with slices instead. If and when Rust gets</span>
@@ -5089,7 +5091,7 @@
 }
 
 <span class="kw">impl</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span> <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span> {
-    <span class="doccomment">/// 与えられたジェネレータを使って、ベクタを`n`個の値で拡張します。</span>
+    <span class="doccomment">/// 与えられたジェネレータを使って、ベクターを`n`個の値で拡張します。</span>
     <span class="doccomment">///</span>
     <span class="doccomment">/// &lt;!-- Extend the vector by `n` values, using the given generator. --&gt;</span>
     <span class="kw">fn</span> <span class="ident">extend_with</span><span class="op">&lt;</span><span class="ident">E</span>: <span class="ident">ExtendWith</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;&gt;</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">n</span>: <span class="ident">usize</span>, <span class="kw-2">mut</span> <span class="ident">value</span>: <span class="ident">E</span>) {
@@ -5155,7 +5157,7 @@
     <span class="doccomment">///</span>
     <span class="doccomment">/// &lt;!-- Removes consecutive repeated elements in the vector. --&gt;</span>
     <span class="doccomment">///</span>
-    <span class="doccomment">/// ベクタがソートされているときこのメソッドは全ての重複を取り除きます。</span>
+    <span class="doccomment">/// ベクターがソートされているときこのメソッドは全ての重複を取り除きます。</span>
     <span class="doccomment">///</span>
     <span class="doccomment">/// &lt;!-- If the vector is sorted, this removes all duplicates. --&gt;</span>
     <span class="doccomment">///</span>
@@ -5174,7 +5176,7 @@
         <span class="self">self</span>.<span class="ident">dedup_by</span>(<span class="op">|</span><span class="ident">a</span>, <span class="ident">b</span><span class="op">|</span> <span class="ident">a</span> <span class="op">==</span> <span class="ident">b</span>)
     }
 
-    <span class="doccomment">/// ベクタから最初の`item`のインスタンスをもし存在するなら取り除きます。</span>
+    <span class="doccomment">/// ベクターから最初の`item`のインスタンスをもし存在するなら取り除きます。</span>
     <span class="doccomment">///</span>
     <span class="doccomment">/// &lt;!-- Removes the first instance of `item` from the vector if the item exists. --&gt;</span>
     <span class="doccomment">///</span>
@@ -5398,7 +5400,7 @@
     <span class="kw">type</span> <span class="ident">Item</span> <span class="op">=</span> <span class="ident">T</span>;
     <span class="kw">type</span> <span class="ident">IntoIter</span> <span class="op">=</span> <span class="ident">IntoIter</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span>;
 
-    <span class="doccomment">/// `Vec&lt;T&gt;`を消費するイテレータを作成します。すなわちベクタの各値を (最初から最後まで) ムーブします。このメソッドを呼び出した後、ベクタは使用できません。</span>
+    <span class="doccomment">/// `Vec&lt;T&gt;`を消費するイテレータを作成します。すなわちベクターの各値を (最初から最後まで) ムーブします。このメソッドを呼び出した後、ベクターは使用できません。</span>
     <span class="doccomment">///</span>
     <span class="doccomment">/// &lt;!-- Creates a consuming iterator, that is, one that moves each value out of</span>
     <span class="doccomment">/// the vector (from start to end). The vector cannot be used after calling</span>
@@ -5621,7 +5623,7 @@
         }
     }
 
-    <span class="doccomment">/// ベクタ内の指定された区間を与えられた`replace_with`イテレータで置き換え、取り除かれた要素を与える置換イテレータを作成します。`replace_with`は`range`と同じ長さでなくてもかまいません。</span>
+    <span class="doccomment">/// ベクター内の指定された区間を与えられた`replace_with`イテレータで置き換え、取り除かれた要素を与える置換イテレータを作成します。`replace_with`は`range`と同じ長さでなくてもかまいません。</span>
     <span class="doccomment">///</span>
     <span class="doccomment">/// &lt;!-- Creates a splicing iterator that replaces the specified range in the vector</span>
     <span class="doccomment">/// with the given `replace_with` iterator and yields the removed items.</span>
@@ -5632,7 +5634,7 @@
     <span class="doccomment">/// &lt;!-- Note 1: The element range is removed even if the iterator is not</span>
     <span class="doccomment">/// consumed until the end. --&gt;</span>
     <span class="doccomment">///</span>
-    <span class="doccomment">/// `Splice`の値がリークした場合、いくつの要素がベクタから取り除かれるかは未規定です。</span>
+    <span class="doccomment">/// `Splice`の値がリークした場合、いくつの要素がベクターから取り除かれるかは未規定です。</span>
     <span class="doccomment">///</span>
     <span class="doccomment">/// &lt;!-- Note 2: It is unspecified how many elements are removed from the vector,</span>
     <span class="doccomment">/// if the `Splice` value is leaked. --&gt;</span>
@@ -5644,7 +5646,7 @@
     <span class="doccomment">///</span>
     <span class="doccomment">/// 注4: このメソッドは次の場合最適です:</span>
     <span class="doccomment">///</span>
-    <span class="doccomment">/// * 後部 (ベクタ内の`range`の後の要素) が空のとき</span>
+    <span class="doccomment">/// * 後部 (ベクター内の`range`の後の要素) が空のとき</span>
     <span class="doccomment">/// * または`replace_with`が`range`の長さ以下の個数の要素を与えるとき</span>
     <span class="doccomment">/// * または`size_hint()`の下限が正確であるとき。</span>
     <span class="doccomment">///</span>
@@ -5654,13 +5656,13 @@
     <span class="doccomment">/// * or `replace_with` yields fewer elements than `range`’s length</span>
     <span class="doccomment">/// * or the lower bound of its `size_hint()` is exact. --&gt;</span>
     <span class="doccomment">///</span>
-    <span class="doccomment">/// さもなくば一時ベクタがアロケートされ、後部は二度移動されます。</span>
+    <span class="doccomment">/// さもなくば一時ベクターがアロケートされ、後部は二度移動されます。</span>
     <span class="doccomment">///</span>
     <span class="doccomment">/// &lt;!-- Otherwise, a temporary vector is allocated and the tail is moved twice. --&gt;</span>
     <span class="doccomment">///</span>
     <span class="doccomment">/// # Panics</span>
     <span class="doccomment">///</span>
-    <span class="doccomment">/// 始点が終点より大きい場合、または終点がベクタの長さより大きい場合パニックします。</span>
+    <span class="doccomment">/// 始点が終点より大きい場合、または終点がベクターの長さより大きい場合パニックします。</span>
     <span class="doccomment">///</span>
     <span class="doccomment">/// &lt;!-- Panics if the starting point is greater than the end point or if</span>
     <span class="doccomment">/// the end point is greater than the length of the vector. --&gt;</span>
@@ -5690,7 +5692,7 @@
     <span class="doccomment">/// &lt;!-- Creates an iterator which uses a closure to determine if an element should be removed. --&gt;</span>
     <span class="doccomment">///</span>
     <span class="doccomment">/// クロージャがtrueを返すとき、要素は取り除かれ、イテレータによって与えられます。</span>
-    <span class="doccomment">/// クロージャがfalseを返すとき、要素はベクタに残り、イテレータによって与えられません。</span>
+    <span class="doccomment">/// クロージャがfalseを返すとき、要素はベクターに残り、イテレータによって与えられません。</span>
     <span class="doccomment">///</span>
     <span class="doccomment">/// &lt;!-- If the closure returns true, then the element is removed and yielded.</span>
     <span class="doccomment">/// If the closure returns false, the element will remain in the vector and will not be yielded</span>
@@ -5838,7 +5840,7 @@
     <span class="number">30</span> <span class="number">31</span> <span class="number">32</span>
 }
 
-<span class="doccomment">/// 辞書式にベクタの比較を実装します。</span>
+<span class="doccomment">/// 辞書式にベクターの比較を実装します。</span>
 <span class="doccomment">///</span>
 <span class="doccomment">/// &lt;!-- Implements comparison of vectors, lexicographically. --&gt;</span>
 <span class="attribute">#[<span class="ident">stable</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;rust1&quot;</span>, <span class="ident">since</span> <span class="op">=</span> <span class="string">&quot;1.0.0&quot;</span>)]</span>
@@ -5852,7 +5854,7 @@
 <span class="attribute">#[<span class="ident">stable</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;rust1&quot;</span>, <span class="ident">since</span> <span class="op">=</span> <span class="string">&quot;1.0.0&quot;</span>)]</span>
 <span class="kw">impl</span><span class="op">&lt;</span><span class="ident">T</span>: <span class="ident">Eq</span><span class="op">&gt;</span> <span class="ident">Eq</span> <span class="kw">for</span> <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span> {}
 
-<span class="doccomment">/// 辞書式順序でベクタの順序を実装します。</span>
+<span class="doccomment">/// 辞書式順序でベクターの順序を実装します。</span>
 <span class="doccomment">///</span>
 <span class="doccomment">/// &lt;!-- Implements ordering of vectors, lexicographically. --&gt;</span>
 <span class="attribute">#[<span class="ident">stable</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;rust1&quot;</span>, <span class="ident">since</span> <span class="op">=</span> <span class="string">&quot;1.0.0&quot;</span>)]</span>
@@ -6011,7 +6013,7 @@
 <span class="comment">// Iterators</span>
 <span class="comment">////////////////////////////////////////////////////////////////////////////////</span>
 
-<span class="doccomment">/// ベクタから所有権を奪うイテレータ。</span>
+<span class="doccomment">/// ベクターから所有権を奪うイテレータ。</span>
 <span class="doccomment">///</span>
 <span class="doccomment">/// &lt;!-- An iterator that moves out of a vector. --&gt;</span>
 <span class="doccomment">///</span>
@@ -6285,6 +6287,8 @@
 <span class="doccomment">///</span>
 <span class="doccomment">/// &lt;!-- A splicing iterator for `Vec`. --&gt;</span>
 <span class="doccomment">///</span>
+<span class="doccomment">/// この構造体は[`Vec`]の[`splice()`]メソッドによって作成されます。より詳しい情報は[`splice()`]のドキュメンテーションを参照してください。</span>
+<span class="doccomment">///</span>
 <span class="doccomment">/// &lt;!-- This struct is created by the [`splice()`] method on [`Vec`]. See its</span>
 <span class="doccomment">/// documentation for more. --&gt;</span>
 <span class="doccomment">///</span>
@@ -6407,7 +6411,7 @@
     }
 }
 
-<span class="doccomment">/// Vecで`drain_filter`を呼び出すと得られるイテレータ。</span>
+<span class="doccomment">/// Vecにおいて`drain_filter`を呼び出すと得られるイテレータ。</span>
 <span class="doccomment">///</span>
 <span class="doccomment">/// An iterator produced by calling `drain_filter` on Vec.</span>
 <span class="attribute">#[<span class="ident">unstable</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;drain_filter&quot;</span>, <span class="ident">reason</span> <span class="op">=</span> <span class="string">&quot;recently added&quot;</span>, <span class="ident">issue</span> <span class="op">=</span> <span class="string">&quot;43244&quot;</span>)]</span>

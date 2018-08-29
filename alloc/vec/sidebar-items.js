@@ -1,1 +1,1 @@
-initSidebarItems({"struct":[["Drain","`Vec<T>`の排出イテレータ。"],["DrainFilter","Vecで`drain_filter`を呼び出すと得られるイテレータ。"],["IntoIter","ベクタから所有権を奪うイテレータ。"],["Splice","`Vec`の置換イテレータ。"],["Vec","連続する拡張可能な配列型。`Vec<T>`と書かれますが「ベクタ」と発音されます。"]]});
+initSidebarItems({"struct":[["Drain","`Vec<T>`の排出イテレータ。"],["DrainFilter","Vecにおいて`drain_filter`を呼び出すと得られるイテレータ。"],["IntoIter","ベクターから所有権を奪うイテレータ。"],["Splice","`Vec`の置換イテレータ。"],["Vec","連続する拡張可能な配列型。`Vec<T>`と書かれますが「ベクター」と発音されます。"]]});
