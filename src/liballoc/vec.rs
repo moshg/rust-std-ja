@@ -1311,7 +1311,7 @@ impl<T> Vec<T> {
     ///
     /// <!-- Retains only the elements specified by the predicate. -->
     ///
-    /// 言い換えると、`f(&e)`が`false`を返すような全ての`e`を取り除きます。このメソッドはin-placeで動作し、残った要素の順序を保ちます。
+    /// 言い換えると、`f(&e)`が`false`を返すような全ての`e`を取り除きます。このメソッドはインプレースで動作し、残った要素の順序を保ちます。
     ///
     /// <!-- In other words, remove all elements `e` such that `f(&e)` returns `false`.
     /// This method operates in place and preserves the order of the retained
@@ -1681,7 +1681,7 @@ impl<T> Vec<T> {
         other
     }
 
-    /// `Vec`を`len`と`new_len`が等しくなるようにin-placeでリサイズします。
+    /// `Vec`を`len`と`new_len`が等しくなるようにインプレースでリサイズします。
     ///
     /// <!-- Resizes the `Vec` in-place so that `len` is equal to `new_len`. -->
     ///
@@ -1732,7 +1732,7 @@ impl<T> Vec<T> {
 }
 
 impl<T: Clone> Vec<T> {
-    /// `Vec`を`len`と`new_len`が等しくなるようにin-placeでリサイズします。
+    /// `Vec`を`len`と`new_len`が等しくなるようにインプレースでリサイズします。
     ///
     /// <!-- Resizes the `Vec` in-place so that `len` is equal to `new_len`. -->
     ///
@@ -1807,7 +1807,7 @@ impl<T: Clone> Vec<T> {
 }
 
 impl<T: Default> Vec<T> {
-    /// `Vec`を`len`と`new_len`が等しくなるようにin-placeでリサイズします。
+    /// `Vec`を`len`と`new_len`が等しくなるようにインプレースでリサイズします。
     ///
     /// <!-- Resizes the `Vec` in-place so that `len` is equal to `new_len`. -->
     ///
