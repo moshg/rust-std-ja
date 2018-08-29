@@ -1,6 +1,10 @@
-//! Slice management and manipulation.
+//! スライスの管理と操作。
 //!
-//! For more details see [`std::slice`].
+//! <!-- Slice management and manipulation. -->
+//!
+//! より詳しくは[`std::slice`]を参照してください。
+//!
+//! <!-- For more details see [`std::slice`]. -->
 //!
 //! [`std::slice`]: ../../std/slice/index.html
 
@@ -37,7 +41,9 @@ use marker::{Copy, Send, Sync, Sized, self};
 
 #[unstable(feature = "slice_internals", issue = "0",
            reason = "exposed from core to be reused in std; use the memchr crate")]
-/// Pure rust memchr implementation, taken from rust-memchr
+/// rust-memchrに由来する純粋なrustによるmemchrの実装
+///
+/// <!-- Pure rust memchr implementation, taken from rust-memchr -->
 pub mod memchr;
 
 mod rotate;
@@ -63,7 +69,9 @@ struct FatPtr<T> {
 #[lang = "slice"]
 #[cfg(not(test))]
 impl<T> [T] {
-    /// Returns the number of elements in the slice.
+    /// スライス内の要素の数を返します。
+    ///
+    /// <!-- Returns the number of elements in the slice. -->
     ///
     /// # Examples
     ///
@@ -80,7 +88,9 @@ impl<T> [T] {
         }
     }
 
-    /// Returns `true` if the slice has a length of 0.
+    /// スライスの長さが0であるとき`true`を返します。
+    ///
+    /// <!-- Returns `true` if the slice has a length of 0. -->
     ///
     /// # Examples
     ///
@@ -95,7 +105,9 @@ impl<T> [T] {
         self.len() == 0
     }
 
-    /// Returns the first element of the slice, or `None` if it is empty.
+    /// スライスの最初の要素を返します。スライスが空ならば`None`を返します。
+    ///
+    /// <!-- Returns the first element of the slice, or `None` if it is empty. -->
     ///
     /// # Examples
     ///
@@ -112,7 +124,9 @@ impl<T> [T] {
         self.get(0)
     }
 
-    /// Returns a mutable pointer to the first element of the slice, or `None` if it is empty.
+    /// スライスの最初の要素へのミュータブルなポインタを返します。スライスが空ならば`None`を返します。
+    ///
+    /// <!-- Returns a mutable pointer to the first element of the slice, or `None` if it is empty. -->
     ///
     /// # Examples
     ///
@@ -130,7 +144,9 @@ impl<T> [T] {
         self.get_mut(0)
     }
 
-    /// Returns the first and all the rest of the elements of the slice, or `None` if it is empty.
+    /// スライスの要素の最初と残り全てを返します。スライスが空ならば`None`を返します。
+    ///
+    /// <!-- Returns the first and all the rest of the elements of the slice, or `None` if it is empty. -->
     ///
     /// # Examples
     ///
@@ -148,7 +164,9 @@ impl<T> [T] {
         if self.is_empty() { None } else { Some((&self[0], &self[1..])) }
     }
 
-    /// Returns the first and all the rest of the elements of the slice, or `None` if it is empty.
+    /// スライスの要素の最初と残り全てを返します。スライスが空ならば`None`を返します。
+    ///
+    /// <!-- Returns the first and all the rest of the elements of the slice, or `None` if it is empty. -->
     ///
     /// # Examples
     ///
@@ -171,7 +189,9 @@ impl<T> [T] {
         }
     }
 
-    /// Returns the last and all the rest of the elements of the slice, or `None` if it is empty.
+    /// スライスの要素の最後と残り全てを返します。スライスが空ならば`None`を返します。
+    ///
+    /// <!-- Returns the last and all the rest of the elements of the slice, or `None` if it is empty. -->
     ///
     /// # Examples
     ///
@@ -190,7 +210,9 @@ impl<T> [T] {
         if len == 0 { None } else { Some((&self[len - 1], &self[..(len - 1)])) }
     }
 
-    /// Returns the last and all the rest of the elements of the slice, or `None` if it is empty.
+    /// スライスの要素の最後と残り全てを返します。スライスが空ならば`None`を返します。
+    ///
+    /// <!-- Returns the last and all the rest of the elements of the slice, or `None` if it is empty. -->
     ///
     /// # Examples
     ///
@@ -215,7 +237,9 @@ impl<T> [T] {
 
     }
 
-    /// Returns the last element of the slice, or `None` if it is empty.
+    /// スライスの最後の要素を返します。スライスが空ならば`None`を返します。
+    ///
+    /// <!-- Returns the last element of the slice, or `None` if it is empty. -->
     ///
     /// # Examples
     ///
@@ -233,7 +257,9 @@ impl<T> [T] {
         self.get(last_idx)
     }
 
-    /// Returns a mutable pointer to the last item in the slice.
+    /// スライスの最後の要素へのミュータブルなポインタを返します。
+    ///
+    /// <!-- Returns a mutable pointer to the last item in the slice. -->
     ///
     /// # Examples
     ///
@@ -252,13 +278,19 @@ impl<T> [T] {
         self.get_mut(last_idx)
     }
 
-    /// Returns a reference to an element or subslice depending on the type of
-    /// index.
+    /// 要素への参照か部分スライスをインデックスの型に応じて返します。
     ///
-    /// - If given a position, returns a reference to the element at that
-    ///   position or `None` if out of bounds.
-    /// - If given a range, returns the subslice corresponding to that range,
-    ///   or `None` if out of bounds.
+    /// <!-- Returns a reference to an element or subslice depending on the type of
+    /// index. -->
+    ///
+    /// - 位置を与えられた場合、その位置への参照を返します。境界外ならば`None`を返します。
+    ///
+    /// - 範囲を与えられた場合、その範囲に対応する部分スライスを返します。境界外ならば`None`を返します。
+    ///
+    /// <!--  - If given a position, returns a reference to the element at that
+    ///   position or `None` if out of bounds. -->
+    /// <!-- - If given a range, returns the subslice corresponding to that range,
+    ///   or `None` if out of bounds. -->
     ///
     /// # Examples
     ///
