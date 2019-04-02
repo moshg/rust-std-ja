@@ -408,9 +408,13 @@ use fmt;
 use iter::{FromIterator, FusedIterator, TrustedLen};
 use ops::{self, Deref};
 
-/// `Result` is a type that represents either success ([`Ok`]) or failure ([`Err`]).
+/// `Result`は成功 ([`Ok`]) または失敗 ([`Err`]) を表す型です。
 ///
-/// See the [`std::result`](index.html) module documentation for details.
+/// <!-- `Result` is a type that represents either success ([`Ok`]) or failure ([`Err`]). -->
+///
+/// 詳細はモジュールレベルドキュメンテーション[`std::result`](index.html)を参照してください。
+///
+/// <!-- See the [`std::result`](index.html) module documentation for details. -->
 ///
 /// [`Ok`]: enum.Result.html#variant.Ok
 /// [`Err`]: enum.Result.html#variant.Err
@@ -418,11 +422,15 @@ use ops::{self, Deref};
 #[must_use = "this `Result` may be an `Err` variant, which should be handled"]
 #[stable(feature = "rust1", since = "1.0.0")]
 pub enum Result<T, E> {
-    /// Contains the success value
+    /// 成功値を含みます
+    ///
+    /// <!-- Contains the success value -->
     #[stable(feature = "rust1", since = "1.0.0")]
     Ok(#[stable(feature = "rust1", since = "1.0.0")] T),
 
-    /// Contains the error value
+    /// エラー値を含みます
+    ///
+    /// <!-- Contains the error value -->
     #[stable(feature = "rust1", since = "1.0.0")]
     Err(#[stable(feature = "rust1", since = "1.0.0")] E),
 }
@@ -436,21 +444,33 @@ impl<T, E> Result<T, E> {
     // Querying the contained values
     /////////////////////////////////////////////////////////////////////////
 
-    /// Returns `true` if the result is [`Ok`].
+    /// 結果が[`Ok`]のとき`true`を返します。
+    ///
+    /// <!-- Returns `true` if the result is [`Ok`]. -->
     ///
     /// [`Ok`]: enum.Result.html#variant.Ok
     ///
     /// # Examples
     ///
-    /// Basic usage:
+    /// 基本的な使い方:
+    ///
+    /// <!-- Basic usage: -->
     ///
     /// ```
     /// let x: Result<i32, &str> = Ok(-3);
     /// assert_eq!(x.is_ok(), true);
     ///
-    /// let x: Result<i32, &str> = Err("Some error message");
+    /// let x: Result<i32, &str> = Err("エラーメッセージ");
     /// assert_eq!(x.is_ok(), false);
     /// ```
+    ///
+    /// <!-- ```
+    /// let x: Result<i32, &str> = Ok(-3);
+    /// assert_eq!(x.is_ok(), true);
+    ///
+    /// let x: Result<i32, &str> = Err("Some error message");
+    /// assert_eq!(x.is_ok(), false); -->
+    /// <-- ``` -->
     #[inline]
     #[stable(feature = "rust1", since = "1.0.0")]
     pub fn is_ok(&self) -> bool {
@@ -460,21 +480,33 @@ impl<T, E> Result<T, E> {
         }
     }
 
-    /// Returns `true` if the result is [`Err`].
+    /// 結果が[`Err`]のとき`true`を返します。
+    ///
+    /// <!-- Returns `true` if the result is [`Err`]. -->
     ///
     /// [`Err`]: enum.Result.html#variant.Err
     ///
     /// # Examples
     ///
-    /// Basic usage:
+    /// 基本的な使い方:
+    ///
+    /// <!-- Basic usage: -->
     ///
     /// ```
     /// let x: Result<i32, &str> = Ok(-3);
     /// assert_eq!(x.is_err(), false);
     ///
-    /// let x: Result<i32, &str> = Err("Some error message");
+    /// let x: Result<i32, &str> = Err("エラーメッセージ");
     /// assert_eq!(x.is_err(), true);
     /// ```
+    ///
+    /// <!-- ```
+    /// let x: Result<i32, &str> = Ok(-3);
+    /// assert_eq!(x.is_err(), false);
+    ///
+    /// let x: Result<i32, &str> = Err("Some error message");
+    /// assert_eq!(x.is_err(), true); -->
+    /// <!-- ``` -->
     #[inline]
     #[stable(feature = "rust1", since = "1.0.0")]
     pub fn is_err(&self) -> bool {
