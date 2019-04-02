@@ -1,9 +1,13 @@
-//! Error handling with the `Result` type.
+//! `Result`型を利用したエラーハンドリング。
 //!
-//! [`Result<T, E>`][`Result`] is the type used for returning and propagating
+//! <!-- Error handling with the `Result` type. -->
+//!
+//! [`Result<T, E>`][`Result`]はエラーを返し、伝播させるために利用される型です。[`Result`]は列挙型であり、成功を表し、値を持つバリアント[`Ok(T)`]とエラーを表し、エラー値を持つバリアント[`Err(E)`]から成ります。
+//!
+//! <!-- [`Result<T, E>`][`Result`] is the type used for returning and propagating
 //! errors. It is an enum with the variants, [`Ok(T)`], representing
 //! success and containing a value, and [`Err(E)`], representing error
-//! and containing an error value.
+//! and containing an error value. -->
 //!
 //! ```
 //! # #[allow(dead_code)]
@@ -13,14 +17,38 @@
 //! }
 //! ```
 //!
-//! Functions return [`Result`] whenever errors are expected and
-//! recoverable. In the `std` crate, [`Result`] is most prominently used
-//! for [I/O](../../std/io/index.html).
+//! エラーが予期され、回復可能なとき関数は必ず[`Result`]を返します。`std`クレートでは、[`Result`]は[I/O](../../std/io/index.html)で最も顕著に利用されます。
 //!
-//! A simple function returning [`Result`] might be
-//! defined and used like so:
+//! <!-- Functions return [`Result`] whenever errors are expected and
+//! recoverable. In the `std` crate, [`Result`] is most prominently used
+//! for [I/O](../../std/io/index.html). -->
+//!
+//! [`Result`]を返す単純な関数は以下のように定義し利用することができます:
+//!
+//! <!-- A simple function returning [`Result`] might be
+//! defined and used like so: -->
 //!
 //! ```
+//! #[derive(Debug)]
+//! enum Version { Version1, Version2 }
+//!
+//! fn parse_version(header: &[u8]) -> Result<Version, &'static str> {
+//!     match header.get(0) {
+//!         None => Err("ヘッダーの長さが不正です"),
+//!         Some(&1) => Ok(Version::Version1),
+//!         Some(&2) => Ok(Version::Version2),
+//!         Some(_) => Err("バージョンが不正です"),
+//!     }
+//! }
+//!
+//! let version = parse_version(&[1, 2, 3, 4]);
+//! match version {
+//!     Ok(v) => println!("次のバージョンで動作しています: {:?}", v),
+//!     Err(e) => println!("パース中のエラー: {:?}", e),
+//! }
+//! ```
+//!
+//! <!-- ```
 //! #[derive(Debug)]
 //! enum Version { Version1, Version2 }
 //!
@@ -37,14 +65,38 @@
 //! match version {
 //!     Ok(v) => println!("working with version: {:?}", v),
 //!     Err(e) => println!("error parsing header: {:?}", e),
-//! }
-//! ```
+//! } -->
+//! <!-- ``` -->
 //!
-//! Pattern matching on [`Result`]s is clear and straightforward for
+//! [`Result`]におけるパターンマッチングは単純なケースでは明白で素直な方法です。しかし[`Result`]にはいくつかの便利なメソッドが付随していてより簡潔に作業することができます。
+//!
+//! <!-- Pattern matching on [`Result`]s is clear and straightforward for
 //! simple cases, but [`Result`] comes with some convenience methods
-//! that make working with it more succinct.
+//! that make working with it more succinct. -->
 //!
 //! ```
+//! let good_result: Result<i32, i32> = Ok(10);
+//! let bad_result: Result<i32, i32> = Err(10);
+//!
+//! // `is_ok`と`is_err`のメソッドは名前通りの動作をします。
+//! assert!(good_result.is_ok() && !good_result.is_err());
+//! assert!(bad_result.is_err() && !bad_result.is_ok());
+//!
+//! // `map`は`Result`を消費し、他の`Result`を生み出します。
+//! let good_result: Result<i32, i32> = good_result.map(|i| i + 1);
+//! let bad_result: Result<i32, i32> = bad_result.map(|i| i - 1);
+//!
+//! // `and_then`を使用して計算を継続します。
+//! let good_result: Result<bool, i32> = good_result.and_then(|i| Ok(i == 11));
+//!
+//! // `or_else`を使用してエラーハンドリングをします。
+//! let bad_result: Result<i32, i32> = bad_result.or_else(|i| Ok(i + 20));
+//!
+//! // リザルトを消費し、中身を`unwrap`を使って返します。
+//! let final_awesome_result = good_result.unwrap();
+//! ```
+//!
+//! <!-- ```
 //! let good_result: Result<i32, i32> = Ok(10);
 //! let bad_result: Result<i32, i32> = Err(10);
 //!
@@ -63,21 +115,27 @@
 //! let bad_result: Result<i32, i32> = bad_result.or_else(|i| Ok(i + 20));
 //!
 //! // Consume the result and return the contents with `unwrap`.
-//! let final_awesome_result = good_result.unwrap();
-//! ```
+//! let final_awesome_result = good_result.unwrap(); -->
+//! <!-- ``` -->
 //!
-//! # Results must be used
+//! # Resultは必ず使用されなければなりません
 //!
-//! A common problem with using return values to indicate errors is
+//! <!-- # Results must be used -->
+//!
+//! 返り値を使ってエラーを表すことに付随する一般的な問題は返り値を無視することが簡単であり、それ故エラーをハンドリングすることに失敗することです。[`Result`]を`#[must_use]`で修飾すると、Result値が無視されたときコンパイラが警告を出します。これにより[`Result`]はエラーに遭遇するかもしれないがそうでない場合は有用な値を返す関数にとって特に有益になります。
+//!
+//! <!-- A common problem with using return values to indicate errors is
 //! that it is easy to ignore the return value, thus failing to handle
 //! the error. [`Result`] is annotated with the `#[must_use]` attribute,
 //! which will cause the compiler to issue a warning when a Result
 //! value is ignored. This makes [`Result`] especially useful with
 //! functions that may encounter errors but don't otherwise return a
-//! useful value.
+//! useful value. -->
 //!
-//! Consider the [`write_all`] method defined for I/O types
-//! by the [`Write`] trait:
+//! [`Write`]トレイトによってI/O型に定義された[`write_all`]メソッドを利用することを考えます:
+//!
+//! <!-- Consider the [`write_all`] method defined for I/O types
+//! by the [`Write`] trait: -->
 //!
 //! ```
 //! use std::io;
@@ -87,14 +145,28 @@
 //! }
 //! ```
 //!
-//! *Note: The actual definition of [`Write`] uses [`io::Result`], which
-//! is just a synonym for [`Result`]`<T, `[`io::Error`]`>`.*
+//! *注意: [`Write`]の実際の定義は[`Result`]`<T, `[`io::Error`]`>`の単なる同義語である[`io::Result`]を使用しています。*
 //!
-//! This method doesn't produce a value, but the write may
+//! <!-- *Note: The actual definition of [`Write`] uses [`io::Result`], which
+//! is just a synonym for [`Result`]`<T, `[`io::Error`]`>`.* -->
+//!
+//! このメソッドは値を供給しませんが、書き込みは失敗するかもしれません。エラーケースをハンドルするのは重要であり、次のように書いては*いけません*:
+//!
+//! <!-- This method doesn't produce a value, but the write may
 //! fail. It's crucial to handle the error case, and *not* write
-//! something like this:
+//! something like this: -->
 //!
 //! ```no_run
+//! # #![allow(unused_must_use)] // \o/
+//! use std::fs::File;
+//! use std::io::prelude::*;
+//!
+//! let mut file = File::create("重要データ.txt").unwrap();
+//! // `write_all`がエラーのとき、返り値が無視されるのでそれに気づきません。
+//! file.write_all(b"重要メッセージ");
+//! ```
+//!
+//! <!-- ```no_run
 //! # #![allow(unused_must_use)] // \o/
 //! use std::fs::File;
 //! use std::io::prelude::*;
@@ -102,36 +174,71 @@
 //! let mut file = File::create("valuable_data.txt").unwrap();
 //! // If `write_all` errors, then we'll never know, because the return
 //! // value is ignored.
-//! file.write_all(b"important message");
-//! ```
+//! file.write_all(b"important message"); -->
+//! <!-- ``` -->
 //!
-//! If you *do* write that in Rust, the compiler will give you a
-//! warning (by default, controlled by the `unused_must_use` lint).
+//! もしそれをRustで書いた場合、コンパイラは警告を出します (デフォルトでは、`unused_must_use`リントで制御できます)。
 //!
-//! You might instead, if you don't want to handle the error, simply
+//! <!-- If you *do* write that in Rust, the compiler will give you a
+//! warning (by default, controlled by the `unused_must_use` lint). -->
+//!
+//! その代わりに、エラーをハンドルしたくないのなら、単に[`expect`]で成功を断定してもよいです。これは書き込みが失敗したときパニックし、原因を示唆するほんの少し有用なメッセージを与えます:
+//!
+//! <!-- You might instead, if you don't want to handle the error, simply
 //! assert success with [`expect`]. This will panic if the
-//! write fails, providing a marginally useful message indicating why:
+//! write fails, providing a marginally useful message indicating why: -->
 //!
 //! ```{.no_run}
 //! use std::fs::File;
 //! use std::io::prelude::*;
 //!
-//! let mut file = File::create("valuable_data.txt").unwrap();
-//! file.write_all(b"important message").expect("failed to write message");
+//! let mut file = File::create("重要データ.txt").unwrap();
+//! file.write_all(b"重要メッセージ").expect("メッセージの書き込みに失敗しました");
 //! ```
 //!
-//! You might also simply assert success:
+//! <!-- ```{.no_run}
+//! use std::fs::File;
+//! use std::io::prelude::*;
+//!
+//! let mut file = File::create("valuable_data.txt").unwrap();
+//! file.write_all(b"important message").expect("failed to write message"); -->
+//! <!-- ``` -->
+//!
+//! また、単に成功を断定してもよいです:
+//!
+//! <!-- You might also simply assert success: -->
 //!
 //! ```{.no_run}
 //! # use std::fs::File;
 //! # use std::io::prelude::*;
+//! # let mut file = File::create("重要データ.txt").unwrap();
+//! assert!(file.write_all(b"重要メッセージ").is_ok());
+//! ```
+//!
+//! <!-- ```{.no_run}
+//! # use std::fs::File;
+//! # use std::io::prelude::*;
 //! # let mut file = File::create("valuable_data.txt").unwrap();
-//! assert!(file.write_all(b"important message").is_ok());
+//! assert!(file.write_all(b"important message").is_ok()); -->
+//! <!-- ``` -->
+//!
+//! または[`?`]でコールスタックにエラーを伝播させます:
+//!
+//! <!-- Or propagate the error up the call stack with [`?`]: -->
+//!
+//! ```
+//! # use std::fs::File;
+//! # use std::io::prelude::*;
+//! # use std::io;
+//! # #[allow(dead_code)]
+//! fn write_message() -> io::Result<()> {
+//!     let mut file = File::create("重要データ.txt")?;
+//!     file.write_all(b"重要メッセージ")?;
+//!     Ok(())
+//! }
 //! ```
 //!
-//! Or propagate the error up the call stack with [`?`]:
-//!
-//! ```
+//! <!-- ```
 //! # use std::fs::File;
 //! # use std::io::prelude::*;
 //! # use std::io;
@@ -140,19 +247,56 @@
 //!     let mut file = File::create("valuable_data.txt")?;
 //!     file.write_all(b"important message")?;
 //!     Ok(())
+//! } -->
+//! <!-- ``` -->
+//!
+//! # クエスチョンマークオペレータ `?`
+//!
+//! <!-- # The question mark operator, `?` -->
+//!
+//! [`Result`]型を返す多数の関数を呼び出すコードを書いているとき、エラーハンドリングは退屈なことかもしれません。クエスチョンマークオペレータ [`?`]はコールスタックへのエラーの伝播のボイラープレートのいくつかを隠蔽してくれます。
+//!
+//! <!-- When writing code that calls many functions that return the
+//! [`Result`] type, the error handling can be tedious. The question mark
+//! operator, [`?`], hides some of the boilerplate of propagating errors
+//! up the call stack. -->
+//!
+//! クエスチョンマークオペレータはこのコードを:
+//!
+//! <!-- It replaces this: -->
+//!
+//! ```
+//! # #![allow(dead_code)]
+//! use std::fs::File;
+//! use std::io::prelude::*;
+//! use std::io;
+//!
+//! struct Info {
+//!     name: String,
+//!     age: i32,
+//!     rating: i32,
+//! }
+//!
+//! fn write_info(info: &Info) -> io::Result<()> {
+//!     // エラーでの早期リターン
+//!     let mut file = match File::create("ベストフレンド.txt") {
+//!            Err(e) => return Err(e),
+//!            Ok(f) => f,
+//!     };
+//!     if let Err(e) = file.write_all(format!("名前: {}\n", info.name).as_bytes()) {
+//!         return Err(e)
+//!     }
+//!     if let Err(e) = file.write_all(format!("年齢: {}\n", info.age).as_bytes()) {
+//!         return Err(e)
+//!     }
+//!     if let Err(e) = file.write_all(format!("評価: {}\n", info.rating).as_bytes()) {
+//!         return Err(e)
+//!     }
+//!     Ok(())
 //! }
 //! ```
 //!
-//! # The question mark operator, `?`
-//!
-//! When writing code that calls many functions that return the
-//! [`Result`] type, the error handling can be tedious. The question mark
-//! operator, [`?`], hides some of the boilerplate of propagating errors
-//! up the call stack.
-//!
-//! It replaces this:
-//!
-//! ```
+//! <!-- ```
 //! # #![allow(dead_code)]
 //! use std::fs::File;
 //! use std::io::prelude::*;
@@ -180,12 +324,36 @@
 //!         return Err(e)
 //!     }
 //!     Ok(())
+//! } -->
+//! <!-- ``` -->
+//!
+//! このコードに置き換えます:
+//!
+//! <!-- With this: -->
+//!
+//! ```
+//! # #![allow(dead_code)]
+//! use std::fs::File;
+//! use std::io::prelude::*;
+//! use std::io;
+//!
+//! struct Info {
+//!     name: String,
+//!     age: i32,
+//!     rating: i32,
+//! }
+//!
+//! fn write_info(info: &Info) -> io::Result<()> {
+//!     let mut file = File::create("ベストフレンド.txt")?;
+//!     // Early return on error
+//!     file.write_all(format!("名前: {}\n", info.name).as_bytes())?;
+//!     file.write_all(format!("年齢: {}\n", info.age).as_bytes())?;
+//!     file.write_all(format!("評価: {}\n", info.rating).as_bytes())?;
+//!     Ok(())
 //! }
 //! ```
 //!
-//! With this:
-//!
-//! ```
+//! <!-- ```
 //! # #![allow(dead_code)]
 //! use std::fs::File;
 //! use std::io::prelude::*;
@@ -204,17 +372,23 @@
 //!     file.write_all(format!("age: {}\n", info.age).as_bytes())?;
 //!     file.write_all(format!("rating: {}\n", info.rating).as_bytes())?;
 //!     Ok(())
-//! }
-//! ```
+//! } -->
+//! <!-- ``` -->
 //!
-//! *It's much nicer!*
+//! *よりよくなっています！*
 //!
-//! Ending the expression with [`?`] will result in the unwrapped
+//! <!-- *It's much nicer!* -->
+//!
+//! 式を[`?`]で終端させることでリザルトが[`Err`]でない場合アンラップされた成功値 ([`Ok`])になり、この状況において[`Err`]は囲っている関数から早期リターンされます。
+//!
+//! <!-- Ending the expression with [`?`] will result in the unwrapped
 //! success ([`Ok`]) value, unless the result is [`Err`], in which case
-//! [`Err`] is returned early from the enclosing function.
+//! [`Err`] is returned early from the enclosing function. -->
 //!
-//! [`?`] can only be used in functions that return [`Result`] because of the
-//! early return of [`Err`] that it provides.
+//! [`Result`]が提供する[`Err`]を早期リターンするため、[`?`]は[`Result`]を返す関数返す関数でのみ使用することができます。
+//!
+//! <!-- [`?`] can only be used in functions that return [`Result`] because of the
+//! early return of [`Err`] that it provides. -->
 //!
 //! [`expect`]: enum.Result.html#method.expect
 //! [`Write`]: ../../std/io/trait.Write.html
