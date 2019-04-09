@@ -517,7 +517,11 @@ impl<T, E> Result<T, E> {
     // Adapter for each variant
     /////////////////////////////////////////////////////////////////////////
 
-    /// Converts from `Result<T, E>` to [`Option<T>`].
+    /// `Result<T, E>`を[`Option<T>`]に変換します。
+    ///
+    /// <!-- Converts from `Result<T, E>` to [`Option<T>`]. -->
+    ///
+    /// `self`を[`Option<T>`]に変換し、`self`を消費し、エラーがあればそれを放棄します。
     ///
     /// Converts `self` into an [`Option<T>`], consuming `self`,
     /// and discarding the error, if any.
@@ -526,15 +530,25 @@ impl<T, E> Result<T, E> {
     ///
     /// # Examples
     ///
-    /// Basic usage:
+    /// 基本的な使い方:
+    ///
+    /// <!-- Basic usage: -->
     ///
     /// ```
     /// let x: Result<u32, &str> = Ok(2);
     /// assert_eq!(x.ok(), Some(2));
     ///
-    /// let x: Result<u32, &str> = Err("Nothing here");
+    /// let x: Result<u32, &str> = Err("なにもありません");
     /// assert_eq!(x.ok(), None);
     /// ```
+    ///
+    /// <!-- ```
+    /// let x: Result<u32, &str> = Ok(2);
+    /// assert_eq!(x.ok(), Some(2));
+    ///
+    /// let x: Result<u32, &str> = Err("Nothing here");
+    /// assert_eq!(x.ok(), None); -->
+    /// <!-- ``` -->
     #[inline]
     #[stable(feature = "rust1", since = "1.0.0")]
     pub fn ok(self) -> Option<T> {
@@ -544,24 +558,38 @@ impl<T, E> Result<T, E> {
         }
     }
 
-    /// Converts from `Result<T, E>` to [`Option<E>`].
+    /// `Result<T, E>`を[`Option<E>`]に変換します。
     ///
-    /// Converts `self` into an [`Option<E>`], consuming `self`,
-    /// and discarding the success value, if any.
+    /// <!-- Converts from `Result<T, E>` to [`Option<E>`]. -->
+    ///
+    /// `self`を[`Option<E>`]に変換し、`self`を消費し、成功値があればそれを放棄します。
+    ///
+    /// <!-- Converts `self` into an [`Option<E>`], consuming `self`,
+    /// and discarding the success value, if any. -->
     ///
     /// [`Option<E>`]: ../../std/option/enum.Option.html
     ///
     /// # Examples
     ///
-    /// Basic usage:
+    /// 基本的な使い方:
+    ///
+    /// <!-- Basic usage: -->
     ///
     /// ```
     /// let x: Result<u32, &str> = Ok(2);
     /// assert_eq!(x.err(), None);
     ///
-    /// let x: Result<u32, &str> = Err("Nothing here");
-    /// assert_eq!(x.err(), Some("Nothing here"));
+    /// let x: Result<u32, &str> = Err("なにもありません");
+    /// assert_eq!(x.err(), Some("なにもありません"));
     /// ```
+    ///
+    /// <!-- ```
+    /// let x: Result<u32, &str> = Ok(2);
+    /// assert_eq!(x.err(), None);
+    ///
+    /// let x: Result<u32, &str> = Err("Nothing here");
+    /// assert_eq!(x.err(), Some("Nothing here")); -->
+    /// <!-- ``` -->
     #[inline]
     #[stable(feature = "rust1", since = "1.0.0")]
     pub fn err(self) -> Option<E> {
