@@ -36,6 +36,7 @@ fn shortest_sanity_test() {
 }
 
 #[test]
+#[cfg(not(miri))] // Miri is too slow
 fn exact_sanity_test() {
     // See comments in dragon.rs's exact_sanity_test for why this test is
     // ignored on MSVC
@@ -64,4 +65,3 @@ fn test_to_exact_exp_str() {
 fn test_to_exact_fixed_str() {
     to_exact_fixed_str_test(format_exact);
 }
-

@@ -1,7 +1,7 @@
 warning: unnecessary parentheses around `return` value
   --> $DIR/path-lookahead.rs:8:10
    |
-LL |   return (<T as ToString>::to_string(&arg)); //~WARN unnecessary parentheses around `return` value
+LL |   return (<T as ToString>::to_string(&arg));
    |          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ help: remove these parentheses
    |
 note: lint level defined here
@@ -9,12 +9,12 @@ note: lint level defined here
    |
 LL | #![warn(unused)]
    |         ^^^^^^
-   = note: #[warn(unused_parens)] implied by #[warn(unused)]
+   = note: `#[warn(unused_parens)]` implied by `#[warn(unused)]`
 
 warning: function is never used: `with_parens`
   --> $DIR/path-lookahead.rs:7:1
    |
-LL | fn with_parens<T: ToString>(arg: T) -> String { //~WARN function is never used: `with_parens`
+LL | fn with_parens<T: ToString>(arg: T) -> String {
    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
    |
 note: lint level defined here
@@ -22,11 +22,11 @@ note: lint level defined here
    |
 LL | #![warn(unused)]
    |         ^^^^^^
-   = note: #[warn(dead_code)] implied by #[warn(unused)]
+   = note: `#[warn(dead_code)]` implied by `#[warn(unused)]`
 
 warning: function is never used: `no_parens`
   --> $DIR/path-lookahead.rs:11:1
    |
-LL | fn no_parens<T: ToString>(arg: T) -> String { //~WARN function is never used: `no_parens`
+LL | fn no_parens<T: ToString>(arg: T) -> String {
    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 

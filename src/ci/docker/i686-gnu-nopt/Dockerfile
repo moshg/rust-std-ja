@@ -18,4 +18,7 @@ COPY scripts/sccache.sh /scripts/
 RUN sh /scripts/sccache.sh
 
 ENV RUST_CONFIGURE_ARGS --build=i686-unknown-linux-gnu --disable-optimize-tests
-ENV RUST_CHECK_TARGET check
+ENV SCRIPT python2.7 ../x.py test
+
+# FIXME(#59637) takes too long on CI right now
+ENV NO_LLVM_ASSERTIONS=1 NO_DEBUG_ASSERTIONS=1

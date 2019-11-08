@@ -3,8 +3,7 @@
 
 // run-pass
 
-#![feature(nll)]
-#![allow(warnings)]
+#![allow(dead_code)]
 
 struct Inner<I, V> {
     iterator: I,

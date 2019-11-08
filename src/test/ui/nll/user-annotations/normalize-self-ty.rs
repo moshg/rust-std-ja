@@ -2,9 +2,7 @@
 // the inherent impl requires normalization to be equal to the
 // user-provided type.
 //
-// run-pass
-
-#![feature(nll)]
+// check-pass
 
 trait Mirror {
     type Me;
@@ -17,7 +15,7 @@ impl<T> Mirror for T {
 struct Foo<A, B>(A, B);
 
 impl<A> Foo<A, <A as Mirror>::Me> {
-    fn m(b: A) { }
+    fn m(_: A) { }
 }
 
 fn main() {

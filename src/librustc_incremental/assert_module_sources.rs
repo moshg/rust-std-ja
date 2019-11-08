@@ -27,14 +27,15 @@ use rustc::mir::mono::CodegenUnitNameBuilder;
 use rustc::ty::TyCtxt;
 use std::collections::BTreeSet;
 use syntax::ast;
+use syntax::symbol::{InternedString, Symbol, sym};
 use rustc::ich::{ATTR_PARTITION_REUSED, ATTR_PARTITION_CODEGENED,
                  ATTR_EXPECTED_CGU_REUSE};
 
-const MODULE: &str = "module";
-const CFG: &str = "cfg";
-const KIND: &str = "kind";
+const MODULE: Symbol = sym::module;
+const CFG: Symbol = sym::cfg;
+const KIND: Symbol = sym::kind;
 
-pub fn assert_module_sources<'a, 'tcx>(tcx: TyCtxt<'a, 'tcx, 'tcx>) {
+pub fn assert_module_sources(tcx: TyCtxt<'_>) {
     tcx.dep_graph.with_ignore(|| {
         if tcx.sess.opts.incremental.is_none() {
             return;
@@ -44,8 +45,8 @@ pub fn assert_module_sources<'a, 'tcx>(tcx: TyCtxt<'a, 'tcx, 'tcx>) {
             .collect_and_partition_mono_items(LOCAL_CRATE)
             .1
             .iter()
-            .map(|cgu| format!("{}", cgu.name()))
-            .collect::<BTreeSet<String>>();
+            .map(|cgu| *cgu.name())
+            .collect::<BTreeSet<InternedString>>();
 
         let ams = AssertModuleSource {
             tcx,
@@ -58,12 +59,12 @@ pub fn assert_module_sources<'a, 'tcx>(tcx: TyCtxt<'a, 'tcx, 'tcx>) {
     })
 }
 
-struct AssertModuleSource<'a, 'tcx: 'a> {
-    tcx: TyCtxt<'a, 'tcx, 'tcx>,
-    available_cgus: BTreeSet<String>,
+struct AssertModuleSource<'tcx> {
+    tcx: TyCtxt<'tcx>,
+    available_cgus: BTreeSet<InternedString>,
 }
 
-impl<'a, 'tcx> AssertModuleSource<'a, 'tcx> {
+impl AssertModuleSource<'tcx> {
     fn check_attr(&self, attr: &ast::Attribute) {
         let (expected_reuse, comp_kind) = if attr.check_name(ATTR_PARTITION_REUSED) {
             (CguReuse::PreLto, ComparisonKind::AtLeast)
@@ -126,7 +127,7 @@ impl<'a, 'tcx> AssertModuleSource<'a, 'tcx> {
 
         debug!("mapping '{}' to cgu name '{}'", self.field(attr, MODULE), cgu_name);
 
-        if !self.available_cgus.contains(&cgu_name.as_str()[..]) {
+        if !self.available_cgus.contains(&cgu_name) {
             self.tcx.sess.span_err(attr.span,
                 &format!("no module named `{}` (mangled: {}). \
                           Available modules: {}",
@@ -134,7 +135,7 @@ impl<'a, 'tcx> AssertModuleSource<'a, 'tcx> {
                     cgu_name,
                     self.available_cgus
                         .iter()
-                        .cloned()
+                        .map(|cgu| cgu.as_str().to_string())
                         .collect::<Vec<_>>()
                         .join(", ")));
         }
@@ -146,14 +147,14 @@ impl<'a, 'tcx> AssertModuleSource<'a, 'tcx> {
                                                         comp_kind);
     }
 
-    fn field(&self, attr: &ast::Attribute, name: &str) -> ast::Name {
+    fn field(&self, attr: &ast::Attribute, name: Symbol) -> ast::Name {
         for item in attr.meta_item_list().unwrap_or_else(Vec::new) {
             if item.check_name(name) {
                 if let Some(value) = item.value_str() {
                     return value;
                 } else {
                     self.tcx.sess.span_fatal(
-                        item.span,
+                        item.span(),
                         &format!("associated value expected for `{}`", name));
                 }
             }

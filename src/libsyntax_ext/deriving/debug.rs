@@ -7,8 +7,8 @@ use rustc_data_structures::thin_vec::ThinVec;
 use syntax::ast::{self, Ident};
 use syntax::ast::{Expr, MetaItem};
 use syntax::ext::base::{Annotatable, ExtCtxt};
-use syntax::ext::build::AstBuilder;
 use syntax::ptr::P;
+use syntax::symbol::sym;
 use syntax_pos::{DUMMY_SP, Span};
 
 pub fn expand_deriving_debug(cx: &mut ExtCtxt<'_>,
@@ -51,73 +51,69 @@ fn show_substructure(cx: &mut ExtCtxt<'_>, span: Span, substr: &Substructure<'_>
     // build fmt.debug_struct(<name>).field(<fieldname>, &<fieldval>)....build()
     // or fmt.debug_tuple(<name>).field(&<fieldval>)....build()
     // based on the "shape".
-    let (ident, is_struct) = match *substr.fields {
-        Struct(vdata, _) => (substr.type_ident, vdata.is_struct()),
-        EnumMatching(_, _, v, _) => (v.node.ident, v.node.data.is_struct()),
+    let (ident, vdata, fields) = match substr.fields {
+        Struct(vdata, fields) => (substr.type_ident, *vdata, fields),
+        EnumMatching(_, _, v, fields) => (v.ident, &v.data, fields),
         EnumNonMatchingCollapsed(..) |
         StaticStruct(..) |
         StaticEnum(..) => cx.span_bug(span, "nonsensical .fields in `#[derive(Debug)]`"),
     };
 
     // We want to make sure we have the ctxt set so that we can use unstable methods
-    let span = span.with_ctxt(cx.backtrace());
+    let span = cx.with_def_site_ctxt(span);
     let name = cx.expr_lit(span, ast::LitKind::Str(ident.name, ast::StrStyle::Cooked));
-    let builder = Ident::from_str("debug_trait_builder").gensym();
+    let builder = cx.ident_of("debug_trait_builder", span);
     let builder_expr = cx.expr_ident(span, builder.clone());
 
     let fmt = substr.nonself_args[0].clone();
 
-    let mut stmts = match *substr.fields {
-        Struct(_, ref fields) |
-        EnumMatching(.., ref fields) => {
-            let mut stmts = vec![];
-            if !is_struct {
-                // tuple struct/"normal" variant
-                let expr =
-                    cx.expr_method_call(span, fmt, Ident::from_str("debug_tuple"), vec![name]);
-                stmts.push(cx.stmt_let(DUMMY_SP, true, builder, expr));
+    let mut stmts = vec![];
+    match vdata {
+        ast::VariantData::Tuple(..) | ast::VariantData::Unit(..) => {
+            // tuple struct/"normal" variant
+            let expr =
+                cx.expr_method_call(span, fmt, cx.ident_of("debug_tuple", span), vec![name]);
+            stmts.push(cx.stmt_let(span, true, builder, expr));
 
-                for field in fields {
-                    // Use double indirection to make sure this works for unsized types
-                    let field = cx.expr_addr_of(field.span, field.self_.clone());
-                    let field = cx.expr_addr_of(field.span, field);
+            for field in fields {
+                // Use double indirection to make sure this works for unsized types
+                let field = cx.expr_addr_of(field.span, field.self_.clone());
+                let field = cx.expr_addr_of(field.span, field);
 
-                    let expr = cx.expr_method_call(span,
-                                                   builder_expr.clone(),
-                                                   Ident::from_str("field"),
-                                                   vec![field]);
+                let expr = cx.expr_method_call(span,
+                                                builder_expr.clone(),
+                                                Ident::new(sym::field, span),
+                                                vec![field]);
 
-                    // Use `let _ = expr;` to avoid triggering the
-                    // unused_results lint.
-                    stmts.push(stmt_let_undescore(cx, span, expr));
-                }
-            } else {
-                // normal struct/struct variant
-                let expr =
-                    cx.expr_method_call(span, fmt, Ident::from_str("debug_struct"), vec![name]);
-                stmts.push(cx.stmt_let(DUMMY_SP, true, builder, expr));
-
-                for field in fields {
-                    let name = cx.expr_lit(field.span,
-                                           ast::LitKind::Str(field.name.unwrap().name,
-                                                             ast::StrStyle::Cooked));
-
-                    // Use double indirection to make sure this works for unsized types
-                    let field = cx.expr_addr_of(field.span, field.self_.clone());
-                    let field = cx.expr_addr_of(field.span, field);
-                    let expr = cx.expr_method_call(span,
-                                                   builder_expr.clone(),
-                                                   Ident::from_str("field"),
-                                                   vec![name, field]);
-                    stmts.push(stmt_let_undescore(cx, span, expr));
-                }
+                // Use `let _ = expr;` to avoid triggering the
+                // unused_results lint.
+                stmts.push(stmt_let_undescore(cx, span, expr));
             }
-            stmts
         }
-        _ => unreachable!(),
-    };
+        ast::VariantData::Struct(..) => {
+            // normal struct/struct variant
+            let expr =
+                cx.expr_method_call(span, fmt, cx.ident_of("debug_struct", span), vec![name]);
+            stmts.push(cx.stmt_let(DUMMY_SP, true, builder, expr));
 
-    let expr = cx.expr_method_call(span, builder_expr, Ident::from_str("finish"), vec![]);
+            for field in fields {
+                let name = cx.expr_lit(field.span,
+                                        ast::LitKind::Str(field.name.unwrap().name,
+                                                            ast::StrStyle::Cooked));
+
+                // Use double indirection to make sure this works for unsized types
+                let field = cx.expr_addr_of(field.span, field.self_.clone());
+                let field = cx.expr_addr_of(field.span, field);
+                let expr = cx.expr_method_call(span,
+                                                builder_expr.clone(),
+                                                Ident::new(sym::field, span),
+                                                vec![name, field]);
+                stmts.push(stmt_let_undescore(cx, span, expr));
+            }
+        }
+    }
+
+    let expr = cx.expr_method_call(span, builder_expr, cx.ident_of("finish", span), vec![]);
 
     stmts.push(cx.stmt_expr(expr));
     let block = cx.block(span, stmts);

@@ -1,11 +1,8 @@
 error[E0282]: type annotations needed
   --> $DIR/match-unresolved-one-arm.rs:4:9
    |
-LL |     let x = match () { //~ ERROR type annotations needed
-   |         ^
-   |         |
-   |         cannot infer type
-   |         consider giving `x` a type
+LL |     let x = match () {
+   |         ^ consider giving `x` a type
 
 error: aborting due to previous error
 

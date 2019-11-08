@@ -1,12 +1,10 @@
 #![stable(feature = "metadata_ext", since = "1.1.0")]
 
-use libc;
-
-use fs::Metadata;
-use sys_common::AsInner;
+use crate::fs::Metadata;
+use crate::sys_common::AsInner;
 
 #[allow(deprecated)]
-use os::linux::raw;
+use crate::os::linux::raw;
 
 /// OS-specific extensions to [`fs::Metadata`].
 ///
@@ -36,9 +34,10 @@ pub trait MetadataExt {
     /// }
     /// ```
     #[stable(feature = "metadata_ext", since = "1.1.0")]
-    #[rustc_deprecated(since = "1.8.0",
-                       reason = "deprecated in favor of the accessor \
-                                 methods of this trait")]
+    #[rustc_deprecated(
+        since = "1.8.0",
+        reason = "other methods of this trait are now prefered"
+    )]
     #[allow(deprecated)]
     fn as_raw_stat(&self) -> &raw::stat;
 

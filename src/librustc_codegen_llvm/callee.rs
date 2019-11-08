@@ -6,12 +6,11 @@
 
 use crate::attributes;
 use crate::llvm;
-use crate::monomorphize::Instance;
 use crate::context::CodegenCx;
 use crate::value::Value;
 use rustc_codegen_ssa::traits::*;
 
-use rustc::ty::TypeFoldable;
+use rustc::ty::{TypeFoldable, Instance};
 use rustc::ty::layout::{LayoutOf, HasTyCtxt};
 
 /// Codegens a reference to a fn/method item, monomorphizing and
@@ -38,7 +37,7 @@ pub fn get_fn(
         return llfn;
     }
 
-    let sym = tcx.symbol_name(instance).as_str();
+    let sym = tcx.symbol_name(instance).name.as_str();
     debug!("get_fn({:?}: {:?}) => {}", instance, sig, sym);
 
     // Create a fn pointer with the substituted signature.
@@ -113,7 +112,7 @@ pub fn get_fn(
         unsafe {
             llvm::LLVMRustSetLinkage(llfn, llvm::Linkage::ExternalLinkage);
 
-            let is_generic = instance.substs.types().next().is_some();
+            let is_generic = instance.substs.non_erasable_generics().next().is_some();
 
             if is_generic {
                 // This is a monomorphization. Its expected visibility depends

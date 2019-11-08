@@ -34,7 +34,7 @@
 //! the target's settings, though `target-feature` and `link-args` will *add*
 //! to the list specified by the target, rather than replace.
 
-use serialize::json::{Json, ToJson};
+use rustc_serialize::json::{Json, ToJson};
 use std::collections::BTreeMap;
 use std::default::Default;
 use std::{fmt, io};
@@ -47,13 +47,13 @@ mod android_base;
 mod apple_base;
 mod apple_ios_base;
 mod arm_base;
-mod bitrig_base;
 mod cloudabi_base;
 mod dragonfly_base;
 mod freebsd_base;
 mod haiku_base;
 mod hermit_base;
 mod linux_base;
+mod linux_kernel_base;
 mod linux_musl_base;
 mod openbsd_base;
 mod netbsd_base;
@@ -61,11 +61,15 @@ mod solaris_base;
 mod uefi_base;
 mod windows_base;
 mod windows_msvc_base;
+mod windows_uwp_base;
+mod windows_uwp_msvc_base;
 mod thumb_base;
 mod l4re_base;
 mod fuchsia_base;
 mod redox_base;
 mod riscv_base;
+mod wasm32_base;
+mod vxworks_base;
 
 #[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd, Hash,
          RustcEncodable, RustcDecodable)]
@@ -119,19 +123,19 @@ macro_rules! flavor_mappings {
     ($((($($flavor:tt)*), $string:expr),)*) => (
         impl LinkerFlavor {
             pub const fn one_of() -> &'static str {
-                concat!("one of: ", $($string, " ",)+)
+                concat!("one of: ", $($string, " ",)*)
             }
 
             pub fn from_str(s: &str) -> Option<Self> {
                 Some(match s {
-                    $($string => $($flavor)*,)+
+                    $($string => $($flavor)*,)*
                     _ => return None,
                 })
             }
 
             pub fn desc(&self) -> &str {
                 match *self {
-                    $($($flavor)* => $string,)+
+                    $($($flavor)* => $string,)*
                 }
             }
         }
@@ -268,16 +272,16 @@ pub type LinkArgs = BTreeMap<LinkerFlavor, Vec<String>>;
 pub type TargetResult = Result<Target, String>;
 
 macro_rules! supported_targets {
-    ( $(($triple:expr, $module:ident),)+ ) => (
-        $(mod $module;)*
+    ( $(($( $triple:literal, )+ $module:ident ),)+ ) => {
+        $(mod $module;)+
 
         /// List of supported targets
-        const TARGETS: &[&str] = &[$($triple),*];
+        const TARGETS: &[&str] = &[$($($triple),+),+];
 
         fn load_specific(target: &str) -> Result<Target, LoadTargetError> {
             match target {
                 $(
-                    $triple => {
+                    $($triple)|+ => {
                         let mut t = $module::target()
                             .map_err(LoadTargetError::Other)?;
                         t.options.is_builtin = true;
@@ -286,7 +290,7 @@ macro_rules! supported_targets {
                         // run-time that the parser works correctly
                         t = Target::from_json(t.to_json())
                             .map_err(LoadTargetError::Other)?;
-                        debug!("Got builtin target: {:?}", t);
+                        debug!("got builtin target: {:?}", t);
                         Ok(t)
                     },
                 )+
@@ -305,12 +309,12 @@ macro_rules! supported_targets {
 
         #[cfg(test)]
         mod test_json_encode_decode {
-            use serialize::json::ToJson;
+            use rustc_serialize::json::ToJson;
             use super::Target;
-            $(use super::$module;)*
+            $(use super::$module;)+
 
             $(
-                #[test]
+                #[test] // `#[test]` - this is hard to put into a separate file, make an exception
                 fn $module() {
                     // Grab the TargetResult struct. If we successfully retrieved
                     // a Target, then the test JSON encoding/decoding can run for this
@@ -322,9 +326,9 @@ macro_rules! supported_targets {
                         assert_eq!(original, parsed);
                     });
                 }
-            )*
+            )+
         }
-    )
+    };
 }
 
 supported_targets! {
@@ -335,6 +339,10 @@ supported_targets! {
     ("mips-unknown-linux-gnu", mips_unknown_linux_gnu),
     ("mips64-unknown-linux-gnuabi64", mips64_unknown_linux_gnuabi64),
     ("mips64el-unknown-linux-gnuabi64", mips64el_unknown_linux_gnuabi64),
+    ("mipsisa32r6-unknown-linux-gnu", mipsisa32r6_unknown_linux_gnu),
+    ("mipsisa32r6el-unknown-linux-gnu", mipsisa32r6el_unknown_linux_gnu),
+    ("mipsisa64r6-unknown-linux-gnuabi64", mipsisa64r6_unknown_linux_gnuabi64),
+    ("mipsisa64r6el-unknown-linux-gnuabi64", mipsisa64r6el_unknown_linux_gnuabi64),
     ("mipsel-unknown-linux-gnu", mipsel_unknown_linux_gnu),
     ("powerpc-unknown-linux-gnu", powerpc_unknown_linux_gnu),
     ("powerpc-unknown-linux-gnuspe", powerpc_unknown_linux_gnuspe),
@@ -353,17 +361,21 @@ supported_targets! {
     ("armv4t-unknown-linux-gnueabi", armv4t_unknown_linux_gnueabi),
     ("armv5te-unknown-linux-gnueabi", armv5te_unknown_linux_gnueabi),
     ("armv5te-unknown-linux-musleabi", armv5te_unknown_linux_musleabi),
+    ("armv7-unknown-linux-gnueabi", armv7_unknown_linux_gnueabi),
     ("armv7-unknown-linux-gnueabihf", armv7_unknown_linux_gnueabihf),
     ("thumbv7neon-unknown-linux-gnueabihf", thumbv7neon_unknown_linux_gnueabihf),
+    ("armv7-unknown-linux-musleabi", armv7_unknown_linux_musleabi),
     ("armv7-unknown-linux-musleabihf", armv7_unknown_linux_musleabihf),
     ("aarch64-unknown-linux-gnu", aarch64_unknown_linux_gnu),
-
     ("aarch64-unknown-linux-musl", aarch64_unknown_linux_musl),
     ("x86_64-unknown-linux-musl", x86_64_unknown_linux_musl),
     ("i686-unknown-linux-musl", i686_unknown_linux_musl),
     ("i586-unknown-linux-musl", i586_unknown_linux_musl),
     ("mips-unknown-linux-musl", mips_unknown_linux_musl),
     ("mipsel-unknown-linux-musl", mipsel_unknown_linux_musl),
+    ("mips64-unknown-linux-muslabi64", mips64_unknown_linux_muslabi64),
+    ("mips64el-unknown-linux-muslabi64", mips64el_unknown_linux_muslabi64),
+    ("hexagon-unknown-linux-musl", hexagon_unknown_linux_musl),
 
     ("mips-unknown-linux-uclibc", mips_unknown_linux_uclibc),
     ("mipsel-unknown-linux-uclibc", mipsel_unknown_linux_uclibc),
@@ -375,7 +387,11 @@ supported_targets! {
     ("thumbv7neon-linux-androideabi", thumbv7neon_linux_androideabi),
     ("aarch64-linux-android", aarch64_linux_android),
 
+    ("x86_64-linux-kernel", x86_64_linux_kernel),
+
     ("aarch64-unknown-freebsd", aarch64_unknown_freebsd),
+    ("armv6-unknown-freebsd", armv6_unknown_freebsd),
+    ("armv7-unknown-freebsd", armv7_unknown_freebsd),
     ("i686-unknown-freebsd", i686_unknown_freebsd),
     ("powerpc64-unknown-freebsd", powerpc64_unknown_freebsd),
     ("x86_64-unknown-freebsd", x86_64_unknown_freebsd),
@@ -383,10 +399,9 @@ supported_targets! {
     ("i686-unknown-dragonfly", i686_unknown_dragonfly),
     ("x86_64-unknown-dragonfly", x86_64_unknown_dragonfly),
 
-    ("x86_64-unknown-bitrig", x86_64_unknown_bitrig),
-
     ("aarch64-unknown-openbsd", aarch64_unknown_openbsd),
     ("i686-unknown-openbsd", i686_unknown_openbsd),
+    ("sparc64-unknown-openbsd", sparc64_unknown_openbsd),
     ("x86_64-unknown-openbsd", x86_64_unknown_openbsd),
 
     ("aarch64-unknown-netbsd", aarch64_unknown_netbsd),
@@ -409,6 +424,7 @@ supported_targets! {
 
     ("x86_64-unknown-l4re-uclibc", x86_64_unknown_l4re_uclibc),
 
+    ("aarch64-unknown-redox", aarch64_unknown_redox),
     ("x86_64-unknown-redox", x86_64_unknown_redox),
 
     ("i386-apple-ios", i386_apple_ios),
@@ -416,27 +432,36 @@ supported_targets! {
     ("aarch64-apple-ios", aarch64_apple_ios),
     ("armv7-apple-ios", armv7_apple_ios),
     ("armv7s-apple-ios", armv7s_apple_ios),
+    ("x86_64-apple-ios-macabi", x86_64_apple_ios_macabi),
 
     ("armebv7r-none-eabi", armebv7r_none_eabi),
     ("armebv7r-none-eabihf", armebv7r_none_eabihf),
     ("armv7r-none-eabi", armv7r_none_eabi),
     ("armv7r-none-eabihf", armv7r_none_eabihf),
 
-    ("x86_64-sun-solaris", x86_64_sun_solaris),
+    // `x86_64-pc-solaris` is an alias for `x86_64_sun_solaris` for backwards compatibility reasons.
+    // (See <https://github.com/rust-lang/rust/issues/40531>.)
+    ("x86_64-sun-solaris", "x86_64-pc-solaris", x86_64_sun_solaris),
     ("sparcv9-sun-solaris", sparcv9_sun_solaris),
 
     ("x86_64-pc-windows-gnu", x86_64_pc_windows_gnu),
     ("i686-pc-windows-gnu", i686_pc_windows_gnu),
+    ("i686-uwp-windows-gnu", i686_uwp_windows_gnu),
+    ("x86_64-uwp-windows-gnu", x86_64_uwp_windows_gnu),
 
     ("aarch64-pc-windows-msvc", aarch64_pc_windows_msvc),
+    ("aarch64-uwp-windows-msvc", aarch64_uwp_windows_msvc),
     ("x86_64-pc-windows-msvc", x86_64_pc_windows_msvc),
+    ("x86_64-uwp-windows-msvc", x86_64_uwp_windows_msvc),
     ("i686-pc-windows-msvc", i686_pc_windows_msvc),
+    ("i686-uwp-windows-msvc", i686_uwp_windows_msvc),
     ("i586-pc-windows-msvc", i586_pc_windows_msvc),
     ("thumbv7a-pc-windows-msvc", thumbv7a_pc_windows_msvc),
 
     ("asmjs-unknown-emscripten", asmjs_unknown_emscripten),
     ("wasm32-unknown-emscripten", wasm32_unknown_emscripten),
     ("wasm32-unknown-unknown", wasm32_unknown_unknown),
+    ("wasm32-wasi", wasm32_wasi),
     ("wasm32-experimental-emscripten", wasm32_experimental_emscripten),
 
     ("thumbv6m-none-eabi", thumbv6m_none_eabi),
@@ -457,6 +482,7 @@ supported_targets! {
     ("aarch64-unknown-hermit", aarch64_unknown_hermit),
     ("x86_64-unknown-hermit", x86_64_unknown_hermit),
 
+    ("riscv32i-unknown-none-elf", riscv32i_unknown_none_elf),
     ("riscv32imc-unknown-none-elf", riscv32imc_unknown_none_elf),
     ("riscv32imac-unknown-none-elf", riscv32imac_unknown_none_elf),
     ("riscv64imac-unknown-none-elf", riscv64imac_unknown_none_elf),
@@ -467,8 +493,17 @@ supported_targets! {
     ("x86_64-fortanix-unknown-sgx", x86_64_fortanix_unknown_sgx),
 
     ("x86_64-unknown-uefi", x86_64_unknown_uefi),
+    ("i686-unknown-uefi", i686_unknown_uefi),
 
     ("nvptx64-nvidia-cuda", nvptx64_nvidia_cuda),
+
+    ("i686-wrs-vxworks", i686_wrs_vxworks),
+    ("x86_64-wrs-vxworks", x86_64_wrs_vxworks),
+    ("armv7-wrs-vxworks-eabihf", armv7_wrs_vxworks_eabihf),
+    ("aarch64-wrs-vxworks", aarch64_wrs_vxworks),
+    ("powerpc-wrs-vxworks", powerpc_wrs_vxworks),
+    ("powerpc-wrs-vxworks-spe", powerpc_wrs_vxworks_spe),
+    ("powerpc64-wrs-vxworks", powerpc64_wrs_vxworks),
 }
 
 /// Everything `rustc` knows about how to compile for a specific target.
@@ -490,8 +525,8 @@ pub struct Target {
     pub target_env: String,
     /// Vendor name to use for conditional compilation.
     pub target_vendor: String,
-    /// Architecture to use for ABI considerations. Valid options: "x86",
-    /// "x86_64", "arm", "aarch64", "mips", "powerpc", and "powerpc64".
+    /// Architecture to use for ABI considerations. Valid options include: "x86",
+    /// "x86_64", "arm", "aarch64", "mips", "powerpc", "powerpc64", and others.
     pub arch: String,
     /// [Data layout](http://llvm.org/docs/LangRef.html#data-layout) to pass to LLVM.
     pub data_layout: String,
@@ -546,8 +581,10 @@ pub struct TargetOptions {
     /// user-defined libraries.
     pub post_link_args: LinkArgs,
 
-    /// Environment variables to be set before invoking the linker.
+    /// Environment variables to be set for the linker invocation.
     pub link_env: Vec<(String, String)>,
+    /// Environment variables to be removed for the linker invocation.
+    pub link_env_remove: Vec<String>,
 
     /// Extra arguments to pass to the external assembler (when used)
     pub asm_args: Vec<String>,
@@ -715,10 +752,6 @@ pub struct TargetOptions {
     /// for this target unconditionally.
     pub no_builtins: bool,
 
-    /// Whether to lower 128-bit operations to compiler_builtins calls. Use if
-    /// your backend only supports 64-bit and smaller math.
-    pub i128_lowering: bool,
-
     /// The codegen backend to use for this target, typically "llvm"
     pub codegen_backend: String,
 
@@ -743,6 +776,9 @@ pub struct TargetOptions {
     /// wasm32 where the whole program either has simd or not.
     pub simd_types_indirect: bool,
 
+    /// Pass a list of symbol which should be exported in the dylib to the linker.
+    pub limit_rdylib_exports: bool,
+
     /// If set, have the linker export exactly these symbols, instead of using
     /// the usual logic to figure this out from the crate itself.
     pub override_export_symbols: Option<Vec<String>>,
@@ -753,7 +789,10 @@ pub struct TargetOptions {
     /// to opt out. The default is "aliases".
     ///
     /// Workaround for: https://github.com/rust-lang/rust/issues/57356
-    pub merge_functions: MergeFunctions
+    pub merge_functions: MergeFunctions,
+
+    /// Use platform dependent mcount function
+    pub target_mcount: String
 }
 
 impl Default for TargetOptions {
@@ -807,6 +846,7 @@ impl Default for TargetOptions {
             post_link_objects_crt: Vec::new(),
             late_link_args: LinkArgs::new(),
             link_env: Vec::new(),
+            link_env_remove: Vec::new(),
             archive_format: "gnu".to_string(),
             custom_unwind_resume: false,
             allow_asm: true,
@@ -828,15 +868,16 @@ impl Default for TargetOptions {
             requires_lto: false,
             singlethread: false,
             no_builtins: false,
-            i128_lowering: false,
             codegen_backend: "llvm".to_string(),
             default_hidden_visibility: false,
             embed_bitcode: false,
             emit_debug_gdb_scripts: true,
             requires_uwtable: false,
             simd_types_indirect: true,
+            limit_rdylib_exports: true,
             override_export_symbols: None,
             merge_functions: MergeFunctions::Aliases,
+            target_mcount: "mcount".to_string(),
         }
     }
 }
@@ -1081,6 +1122,7 @@ impl Target {
         key!(post_link_objects_crt, list);
         key!(post_link_args, link_args);
         key!(link_env, env);
+        key!(link_env_remove, list);
         key!(asm_args, list);
         key!(cpu);
         key!(features);
@@ -1140,8 +1182,10 @@ impl Target {
         key!(emit_debug_gdb_scripts, bool);
         key!(requires_uwtable, bool);
         key!(simd_types_indirect, bool);
+        key!(limit_rdylib_exports, bool);
         key!(override_export_symbols, opt_list);
         key!(merge_functions, MergeFunctions)?;
+        key!(target_mcount);
 
         if let Some(array) = obj.find("abi-blacklist").and_then(Json::as_array) {
             for name in array.iter().filter_map(|abi| abi.as_string()) {
@@ -1172,7 +1216,7 @@ impl Target {
     pub fn search(target_triple: &TargetTriple) -> Result<Target, String> {
         use std::env;
         use std::fs;
-        use serialize::json;
+        use rustc_serialize::json;
 
         fn load_file(path: &Path) -> Result<Target, String> {
             let contents = fs::read(path).map_err(|e| e.to_string())?;
@@ -1295,6 +1339,7 @@ impl ToJson for Target {
         target_option_val!(post_link_objects_crt);
         target_option_val!(link_args - post_link_args);
         target_option_val!(env - link_env);
+        target_option_val!(link_env_remove);
         target_option_val!(asm_args);
         target_option_val!(cpu);
         target_option_val!(features);
@@ -1354,8 +1399,10 @@ impl ToJson for Target {
         target_option_val!(emit_debug_gdb_scripts);
         target_option_val!(requires_uwtable);
         target_option_val!(simd_types_indirect);
+        target_option_val!(limit_rdylib_exports);
         target_option_val!(override_export_symbols);
         target_option_val!(merge_functions);
+        target_option_val!(target_mcount);
 
         if default.abi_blacklist != self.options.abi_blacklist {
             d.insert("abi-blacklist".to_string(), self.options.abi_blacklist.iter()

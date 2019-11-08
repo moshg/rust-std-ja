@@ -4,8 +4,8 @@ error[E0599]: no method named `kaname` found for type `Homura` in the current sc
 LL | struct Homura;
    | -------------- method `kaname` not found for this
 ...
-LL |     let Some(ref madoka) = Some(homura.kaname()); //~ ERROR no method named `kaname` found
-   |                                        ^^^^^^
+LL |     let Some(ref madoka) = Some(homura.kaname());
+   |                                        ^^^^^^ method not found in `Homura`
 
 error: aborting due to previous error
 

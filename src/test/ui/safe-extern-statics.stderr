@@ -1,10 +1,10 @@
 error: use of extern static is unsafe and requires unsafe function or block (error E0133)
   --> $DIR/safe-extern-statics.rs:13:13
    |
-LL |     let a = A; //~ ERROR use of extern static is unsafe
+LL |     let a = A;
    |             ^
    |
-   = note: #[deny(safe_extern_statics)] on by default
+   = note: `#[deny(safe_extern_statics)]` on by default
    = warning: this was previously accepted by the compiler but is being phased out; it will become a hard error in a future release!
    = note: for more information, see issue #36247 <https://github.com/rust-lang/rust/issues/36247>
    = note: extern statics are not controlled by the Rust type system: invalid data, aliasing violations or data races will cause undefined behavior
@@ -12,7 +12,7 @@ LL |     let a = A; //~ ERROR use of extern static is unsafe
 error: use of extern static is unsafe and requires unsafe function or block (error E0133)
   --> $DIR/safe-extern-statics.rs:15:14
    |
-LL |     let ra = &A; //~ ERROR use of extern static is unsafe
+LL |     let ra = &A;
    |              ^^
    |
    = warning: this was previously accepted by the compiler but is being phased out; it will become a hard error in a future release!
@@ -22,7 +22,7 @@ LL |     let ra = &A; //~ ERROR use of extern static is unsafe
 error: use of extern static is unsafe and requires unsafe function or block (error E0133)
   --> $DIR/safe-extern-statics.rs:17:14
    |
-LL |     let xa = XA; //~ ERROR use of extern static is unsafe
+LL |     let xa = XA;
    |              ^^
    |
    = warning: this was previously accepted by the compiler but is being phased out; it will become a hard error in a future release!
@@ -32,7 +32,7 @@ LL |     let xa = XA; //~ ERROR use of extern static is unsafe
 error: use of extern static is unsafe and requires unsafe function or block (error E0133)
   --> $DIR/safe-extern-statics.rs:19:15
    |
-LL |     let xra = &XA; //~ ERROR use of extern static is unsafe
+LL |     let xra = &XA;
    |               ^^^
    |
    = warning: this was previously accepted by the compiler but is being phased out; it will become a hard error in a future release!

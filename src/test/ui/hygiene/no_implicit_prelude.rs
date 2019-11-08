@@ -13,7 +13,7 @@ mod bar {
     }
     fn f() {
         ::foo::m!();
-        println!(); // OK on 2015 edition (at least for now)
+        assert_eq!(0, 0); //~ ERROR cannot find macro `panic` in this scope
     }
 }
 

@@ -31,7 +31,7 @@ pub enum RvalueFunc {
 /// Determines the category for a given expression. Note that scope
 /// and paren expressions have no category.
 impl Category {
-    pub fn of<'tcx>(ek: &ExprKind<'tcx>) -> Option<Category> {
+    pub fn of(ek: &ExprKind<'_>) -> Option<Category> {
         match *ek {
             ExprKind::Scope { .. } => None,
 
@@ -45,9 +45,9 @@ impl Category {
             | ExprKind::ValueTypeAscription { .. } => Some(Category::Place),
 
             ExprKind::LogicalOp { .. }
-            | ExprKind::If { .. }
             | ExprKind::Match { .. }
             | ExprKind::NeverToAny { .. }
+            | ExprKind::Use { .. }
             | ExprKind::Call { .. } => Some(Category::Rvalue(RvalueFunc::Into)),
 
             ExprKind::Array { .. }
@@ -58,11 +58,7 @@ impl Category {
             | ExprKind::Binary { .. }
             | ExprKind::Box { .. }
             | ExprKind::Cast { .. }
-            | ExprKind::Use { .. }
-            | ExprKind::ReifyFnPointer { .. }
-            | ExprKind::ClosureFnPointer { .. }
-            | ExprKind::UnsafeFnPointer { .. }
-            | ExprKind::Unsize { .. }
+            | ExprKind::Pointer { .. }
             | ExprKind::Repeat { .. }
             | ExprKind::Borrow { .. }
             | ExprKind::Assign { .. }

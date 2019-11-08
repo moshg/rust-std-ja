@@ -59,13 +59,13 @@
 
 #![stable(feature = "rust1", since = "1.0.0")]
 
-use ffi::{OsString, OsStr};
-use sys::os_str::Buf;
-use sys_common::wtf8::Wtf8Buf;
-use sys_common::{FromInner, AsInner};
+use crate::ffi::{OsString, OsStr};
+use crate::sys::os_str::Buf;
+use crate::sys_common::wtf8::Wtf8Buf;
+use crate::sys_common::{FromInner, AsInner};
 
 #[stable(feature = "rust1", since = "1.0.0")]
-pub use sys_common::wtf8::EncodeWide;
+pub use crate::sys_common::wtf8::EncodeWide;
 
 /// Windows-specific extensions to [`OsString`].
 ///
@@ -131,12 +131,12 @@ pub trait OsStrExt {
     ///
     /// [`OsString::from_wide`]: ./trait.OsStringExt.html#tymethod.from_wide
     #[stable(feature = "rust1", since = "1.0.0")]
-    fn encode_wide(&self) -> EncodeWide;
+    fn encode_wide(&self) -> EncodeWide<'_>;
 }
 
 #[stable(feature = "rust1", since = "1.0.0")]
 impl OsStrExt for OsStr {
-    fn encode_wide(&self) -> EncodeWide {
+    fn encode_wide(&self) -> EncodeWide<'_> {
         self.as_inner().inner.encode_wide()
     }
 }

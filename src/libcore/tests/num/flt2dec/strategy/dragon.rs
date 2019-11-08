@@ -23,6 +23,7 @@ fn shortest_sanity_test() {
 }
 
 #[test]
+#[cfg(not(miri))] // Miri is too slow
 fn exact_sanity_test() {
     // This test ends up running what I can only assume is some corner-ish case
     // of the `exp2` library function, defined in whatever C runtime we're
@@ -62,4 +63,3 @@ fn test_to_exact_exp_str() {
 fn test_to_exact_fixed_str() {
     to_exact_fixed_str_test(format_exact);
 }
-

@@ -1,26 +1,27 @@
 #![unstable(issue = "0", feature = "windows_net")]
 
-use cmp;
-use io::{self, Read, IoVec, IoVecMut};
+use crate::cmp;
+use crate::io::{self, Read, IoSlice, IoSliceMut};
+use crate::mem;
+use crate::net::{SocketAddr, Shutdown};
+use crate::ptr;
+use crate::sync::Once;
+use crate::sys::c;
+use crate::sys;
+use crate::sys_common::{self, AsInner, FromInner, IntoInner};
+use crate::sys_common::net;
+use crate::time::Duration;
+
 use libc::{c_int, c_void, c_ulong, c_long};
-use mem;
-use net::{SocketAddr, Shutdown};
-use ptr;
-use sync::Once;
-use sys::c;
-use sys;
-use sys_common::{self, AsInner, FromInner, IntoInner};
-use sys_common::net;
-use time::Duration;
 
 pub type wrlen_t = i32;
 
 pub mod netc {
-    pub use sys::c::*;
-    pub use sys::c::SOCKADDR as sockaddr;
-    pub use sys::c::SOCKADDR_STORAGE_LH as sockaddr_storage;
-    pub use sys::c::ADDRINFOA as addrinfo;
-    pub use sys::c::ADDRESS_FAMILY as sa_family_t;
+    pub use crate::sys::c::*;
+    pub use crate::sys::c::SOCKADDR as sockaddr;
+    pub use crate::sys::c::SOCKADDR_STORAGE_LH as sockaddr_storage;
+    pub use crate::sys::c::ADDRINFOA as addrinfo;
+    pub use crate::sys::c::ADDRESS_FAMILY as sa_family_t;
 }
 
 pub struct Socket(c::SOCKET);
@@ -96,12 +97,26 @@ impl Socket {
         };
         let socket = unsafe {
             match c::WSASocketW(fam, ty, 0, ptr::null_mut(), 0,
-                                c::WSA_FLAG_OVERLAPPED) {
-                c::INVALID_SOCKET => Err(last_error()),
+                                c::WSA_FLAG_OVERLAPPED | c::WSA_FLAG_NO_HANDLE_INHERIT) {
+                c::INVALID_SOCKET => {
+                    match c::WSAGetLastError() {
+                        c::WSAEPROTOTYPE => {
+                            match c::WSASocketW(fam, ty, 0, ptr::null_mut(), 0,
+                                                c::WSA_FLAG_OVERLAPPED) {
+                                c::INVALID_SOCKET => Err(last_error()),
+                                n => {
+                                    let s = Socket(n);
+                                    s.set_no_inherit()?;
+                                    Ok(s)
+                                },
+                            }
+                        },
+                        n => Err(io::Error::from_raw_os_error(n)),
+                    }
+                },
                 n => Ok(Socket(n)),
             }
         }?;
-        socket.set_no_inherit()?;
         Ok(socket)
     }
 
@@ -167,7 +182,6 @@ impl Socket {
                 n => Ok(Socket(n)),
             }
         }?;
-        socket.set_no_inherit()?;
         Ok(socket)
     }
 
@@ -177,16 +191,34 @@ impl Socket {
             cvt(c::WSADuplicateSocketW(self.0,
                                             c::GetCurrentProcessId(),
                                             &mut info))?;
+
             match c::WSASocketW(info.iAddressFamily,
                                 info.iSocketType,
                                 info.iProtocol,
                                 &mut info, 0,
-                                c::WSA_FLAG_OVERLAPPED) {
-                c::INVALID_SOCKET => Err(last_error()),
+                                c::WSA_FLAG_OVERLAPPED | c::WSA_FLAG_NO_HANDLE_INHERIT) {
+                c::INVALID_SOCKET => {
+                    match c::WSAGetLastError() {
+                        c::WSAEPROTOTYPE => {
+                            match c::WSASocketW(info.iAddressFamily,
+                                                info.iSocketType,
+                                                info.iProtocol,
+                                                &mut info, 0,
+                                                c::WSA_FLAG_OVERLAPPED) {
+                                c::INVALID_SOCKET => Err(last_error()),
+                                n => {
+                                    let s = Socket(n);
+                                    s.set_no_inherit()?;
+                                    Ok(s)
+                                },
+                            }
+                        },
+                        n => Err(io::Error::from_raw_os_error(n)),
+                    }
+                },
                 n => Ok(Socket(n)),
             }
         }?;
-        socket.set_no_inherit()?;
         Ok(socket)
     }
 
@@ -207,7 +239,7 @@ impl Socket {
         self.recv_with_flags(buf, 0)
     }
 
-    pub fn read_vectored(&self, bufs: &mut [IoVecMut<'_>]) -> io::Result<usize> {
+    pub fn read_vectored(&self, bufs: &mut [IoSliceMut<'_>]) -> io::Result<usize> {
         // On unix when a socket is shut down all further reads return 0, so we
         // do the same on windows to map a shut down socket to returning EOF.
         let len = cmp::min(bufs.len(), c::DWORD::max_value() as usize) as c::DWORD;
@@ -267,7 +299,7 @@ impl Socket {
         self.recv_from_with_flags(buf, c::MSG_PEEK)
     }
 
-    pub fn write_vectored(&self, bufs: &[IoVec<'_>]) -> io::Result<usize> {
+    pub fn write_vectored(&self, bufs: &[IoSlice<'_>]) -> io::Result<usize> {
         let len = cmp::min(bufs.len(), c::DWORD::max_value() as usize) as c::DWORD;
         let mut nwritten = 0;
         unsafe {
@@ -311,11 +343,17 @@ impl Socket {
         }
     }
 
+    #[cfg(not(target_vendor = "uwp"))]
     fn set_no_inherit(&self) -> io::Result<()> {
         sys::cvt(unsafe {
             c::SetHandleInformation(self.0 as c::HANDLE,
                                     c::HANDLE_FLAG_INHERIT, 0)
         }).map(|_| ())
+    }
+
+    #[cfg(target_vendor = "uwp")]
+    fn set_no_inherit(&self) -> io::Result<()> {
+        Err(io::Error::new(io::ErrorKind::Other, "Unavailable on UWP"))
     }
 
     pub fn shutdown(&self, how: Shutdown) -> io::Result<()> {

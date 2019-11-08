@@ -1,6 +1,5 @@
 #![cfg_attr(test, allow(dead_code))]
 
-use libc;
 use self::imp::{make_handler, drop_handler};
 
 pub use self::imp::cleanup;
@@ -26,7 +25,6 @@ impl Drop for Handler {
 
 #[cfg(any(target_os = "linux",
           target_os = "macos",
-          target_os = "bitrig",
           target_os = "dragonfly",
           target_os = "freebsd",
           target_os = "solaris",
@@ -34,17 +32,17 @@ impl Drop for Handler {
           target_os = "openbsd"))]
 mod imp {
     use super::Handler;
-    use mem;
-    use ptr;
+    use crate::mem;
+    use crate::ptr;
+
     use libc::{sigaltstack, SIGSTKSZ, SS_DISABLE};
     use libc::{sigaction, SIGBUS, SIG_DFL,
                SA_SIGINFO, SA_ONSTACK, sighandler_t};
-    use libc;
     use libc::{mmap, munmap};
     use libc::{SIGSEGV, PROT_READ, PROT_WRITE, MAP_PRIVATE, MAP_ANON};
     use libc::MAP_FAILED;
 
-    use sys_common::thread_info;
+    use crate::sys_common::thread_info;
 
 
     #[cfg(any(target_os = "linux", target_os = "android"))]
@@ -87,7 +85,7 @@ mod imp {
     unsafe extern fn signal_handler(signum: libc::c_int,
                                     info: *mut libc::siginfo_t,
                                     _data: *mut libc::c_void) {
-        use sys_common::util::report_overflow;
+        use crate::sys_common::util::report_overflow;
 
         let guard = thread_info::stack_guard().unwrap_or(0..0);
         let addr = siginfo_si_addr(info);
@@ -140,7 +138,7 @@ mod imp {
 
     #[cfg(any(target_os = "linux",
               target_os = "macos",
-              target_os = "bitrig",
+              target_os = "freebsd",
               target_os = "netbsd",
               target_os = "openbsd",
               target_os = "solaris"))]
@@ -148,8 +146,7 @@ mod imp {
         libc::stack_t { ss_sp: get_stackp(), ss_flags: 0, ss_size: SIGSTKSZ }
     }
 
-    #[cfg(any(target_os = "freebsd",
-              target_os = "dragonfly"))]
+    #[cfg(target_os = "dragonfly")]
     unsafe fn get_stack() -> libc::stack_t {
         libc::stack_t { ss_sp: get_stackp() as *mut i8, ss_flags: 0, ss_size: SIGSTKSZ }
     }
@@ -186,14 +183,13 @@ mod imp {
 
 #[cfg(not(any(target_os = "linux",
               target_os = "macos",
-              target_os = "bitrig",
               target_os = "dragonfly",
               target_os = "freebsd",
               target_os = "solaris",
               all(target_os = "netbsd", not(target_vendor = "rumprun")),
               target_os = "openbsd")))]
 mod imp {
-    use ptr;
+    use crate::ptr;
 
     pub unsafe fn init() {
     }

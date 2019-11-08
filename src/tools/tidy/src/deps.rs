@@ -5,6 +5,7 @@ use std::fs;
 use std::path::Path;
 use std::process::Command;
 
+use serde::Deserialize;
 use serde_json;
 
 const LICENSES: &[&str] = &[
@@ -13,6 +14,8 @@ const LICENSES: &[&str] = &[
     "Apache-2.0/MIT",
     "Apache-2.0 / MIT",
     "MIT OR Apache-2.0",
+    "Apache-2.0 OR MIT",
+    "Apache-2.0 WITH LLVM-exception OR Apache-2.0 OR MIT", // wasi license
     "MIT",
     "Unlicense/MIT",
     "Unlicense OR MIT",
@@ -32,6 +35,8 @@ const EXCEPTIONS: &[&str] = &[
     "is-match",           // MPL-2.0, mdbook
     "cssparser",          // MPL-2.0, rustdoc
     "smallvec",           // MPL-2.0, rustdoc
+    "rdrand",             // ISC, mdbook, rustfmt
+    "fuchsia-cprng",      // BSD-3-Clause, mdbook, rustfmt
     "fuchsia-zircon-sys", // BSD-3-Clause, rustdoc, rustc, cargo
     "fuchsia-zircon",     // BSD-3-Clause, rustdoc, rustc, cargo (jobserver & tempdir)
     "cssparser-macros",   // MPL-2.0, rustdoc
@@ -44,27 +49,35 @@ const EXCEPTIONS: &[&str] = &[
     "bytesize",           // Apache-2.0, cargo
     "im-rc",              // MPL-2.0+, cargo
     "adler32",            // BSD-3-Clause AND Zlib, cargo dep that isn't used
-    "fortanix-sgx-abi",   // MPL-2.0+, libstd but only for `sgx` target
     "constant_time_eq",   // CC0-1.0, rustfmt
+    "utf8parse",          // Apache-2.0 OR MIT, cargo via strip-ansi-escapes
+    "vte",                // Apache-2.0 OR MIT, cargo via strip-ansi-escapes
+    "sized-chunks",       // MPL-2.0+, cargo via im-rc
+    // FIXME: this dependency violates the documentation comment above:
+    "fortanix-sgx-abi",   // MPL-2.0+, libstd but only for `sgx` target
 ];
 
 /// Which crates to check against the whitelist?
-const WHITELIST_CRATES: &[CrateVersion] = &[
+const WHITELIST_CRATES: &[CrateVersion<'_>] = &[
     CrateVersion("rustc", "0.0.0"),
     CrateVersion("rustc_codegen_llvm", "0.0.0"),
 ];
 
 /// Whitelist of crates rustc is allowed to depend on. Avoid adding to the list if possible.
-const WHITELIST: &[Crate] = &[
+const WHITELIST: &[Crate<'_>] = &[
     Crate("adler32"),
     Crate("aho-corasick"),
+    Crate("annotate-snippets"),
+    Crate("ansi_term"),
     Crate("arrayvec"),
     Crate("atty"),
+    Crate("autocfg"),
     Crate("backtrace"),
     Crate("backtrace-sys"),
     Crate("bitflags"),
     Crate("build_const"),
     Crate("byteorder"),
+    Crate("c2-chacha"),
     Crate("cc"),
     Crate("cfg-if"),
     Crate("chalk-engine"),
@@ -78,15 +91,21 @@ const WHITELIST: &[Crate] = &[
     Crate("crossbeam-epoch"),
     Crate("crossbeam-utils"),
     Crate("datafrog"),
+    Crate("dlmalloc"),
     Crate("either"),
     Crate("ena"),
     Crate("env_logger"),
     Crate("filetime"),
     Crate("flate2"),
+    Crate("fortanix-sgx-abi"),
     Crate("fuchsia-zircon"),
     Crate("fuchsia-zircon-sys"),
     Crate("getopts"),
+    Crate("getrandom"),
+    Crate("hashbrown"),
     Crate("humantime"),
+    Crate("indexmap"),
+    Crate("itertools"),
     Crate("jobserver"),
     Crate("kernel32-sys"),
     Crate("lazy_static"),
@@ -95,6 +114,7 @@ const WHITELIST: &[Crate] = &[
     Crate("lock_api"),
     Crate("log"),
     Crate("log_settings"),
+    Crate("measureme"),
     Crate("memchr"),
     Crate("memmap"),
     Crate("memoffset"),
@@ -108,6 +128,7 @@ const WHITELIST: &[Crate] = &[
     Crate("parking_lot_core"),
     Crate("pkg-config"),
     Crate("polonius-engine"),
+    Crate("ppv-lite86"),
     Crate("proc-macro2"),
     Crate("quick-error"),
     Crate("quote"),
@@ -137,10 +158,12 @@ const WHITELIST: &[Crate] = &[
     Crate("smallvec"),
     Crate("stable_deref_trait"),
     Crate("syn"),
+    Crate("synstructure"),
     Crate("tempfile"),
     Crate("termcolor"),
     Crate("terminon"),
     Crate("termion"),
+    Crate("term_size"),
     Crate("thread_local"),
     Crate("ucd-util"),
     Crate("unicode-width"),
@@ -150,6 +173,7 @@ const WHITELIST: &[Crate] = &[
     Crate("vcpkg"),
     Crate("version_check"),
     Crate("void"),
+    Crate("wasi"),
     Crate("winapi"),
     Crate("winapi-build"),
     Crate("winapi-i686-pc-windows-gnu"),
@@ -183,7 +207,7 @@ struct Crate<'a>(&'a str); // (name)
 #[derive(Copy, Clone, PartialOrd, Ord, PartialEq, Eq, Debug, Hash)]
 struct CrateVersion<'a>(&'a str, &'a str); // (name, version)
 
-impl<'a> Crate<'a> {
+impl Crate<'_> {
     pub fn id_str(&self) -> String {
         format!("{} ", self.0)
     }
@@ -237,7 +261,7 @@ pub fn check(path: &Path, bad: &mut bool) {
         }
 
         let toml = dir.path().join("Cargo.toml");
-        *bad = *bad || !check_license(&toml);
+        *bad = !check_license(&toml) || *bad;
     }
     assert!(saw_dir, "no vendored source");
 }
@@ -330,10 +354,10 @@ fn get_deps(path: &Path, cargo: &Path) -> Resolve {
 
 /// Checks the dependencies of the given crate from the given cargo metadata to see if they are on
 /// the whitelist. Returns a list of illegal dependencies.
-fn check_crate_whitelist<'a, 'b>(
-    whitelist: &'a HashSet<Crate>,
+fn check_crate_whitelist<'a>(
+    whitelist: &'a HashSet<Crate<'_>>,
     resolve: &'a Resolve,
-    visited: &'b mut BTreeSet<CrateVersion<'a>>,
+    visited: &mut BTreeSet<CrateVersion<'a>>,
     krate: CrateVersion<'a>,
     must_be_on_whitelist: bool,
 ) -> BTreeSet<Crate<'a>> {
@@ -378,7 +402,7 @@ fn check_crate_duplicate(resolve: &Resolve, bad: &mut bool) {
         // to accidentally sneak into our dependency graph, in order to ensure we keep our CI times
         // under control.
 
-        // "cargo", // FIXME(#53005)
+        "cargo",
         "rustc-ap-syntax",
     ];
     let mut name_to_id: HashMap<_, Vec<_>> = HashMap::new();

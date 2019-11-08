@@ -2,17 +2,13 @@
 
 #![doc(html_root_url = "https://doc.rust-lang.org/nightly/")]
 
+#![feature(in_band_lifetimes)]
 #![feature(nll)]
 #![feature(specialization)]
 
 #![recursion_limit="256"]
 
-#![deny(rust_2018_idioms)]
-
 #[macro_use] extern crate rustc;
-#[allow(unused_extern_crates)]
-extern crate serialize as rustc_serialize; // used by deriving
-
 #[macro_use] extern crate log;
 
 mod assert_dep_graph;
@@ -21,7 +17,7 @@ mod persist;
 
 pub use assert_dep_graph::assert_dep_graph;
 pub use persist::dep_graph_tcx_init;
-pub use persist::load_dep_graph;
+pub use persist::{DepGraphFuture, load_dep_graph};
 pub use persist::load_query_result_cache;
 pub use persist::LoadResult;
 pub use persist::copy_cgu_workproducts_to_incr_comp_cache_dir;

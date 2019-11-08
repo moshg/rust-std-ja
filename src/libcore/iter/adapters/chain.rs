@@ -1,5 +1,6 @@
-use ops::Try;
-use usize;
+use crate::ops::Try;
+use crate::usize;
+
 use super::super::{Iterator, DoubleEndedIterator, FusedIterator, TrustedLen};
 
 /// An iterator that strings two iterators together.
@@ -172,17 +173,23 @@ impl<A, B> Iterator for Chain<A, B> where
 
     #[inline]
     fn size_hint(&self) -> (usize, Option<usize>) {
-        let (a_lower, a_upper) = self.a.size_hint();
-        let (b_lower, b_upper) = self.b.size_hint();
+        match self.state {
+            ChainState::Both => {
+                let (a_lower, a_upper) = self.a.size_hint();
+                let (b_lower, b_upper) = self.b.size_hint();
 
-        let lower = a_lower.saturating_add(b_lower);
+                let lower = a_lower.saturating_add(b_lower);
 
-        let upper = match (a_upper, b_upper) {
-            (Some(x), Some(y)) => x.checked_add(y),
-            _ => None
-        };
+                let upper = match (a_upper, b_upper) {
+                    (Some(x), Some(y)) => x.checked_add(y),
+                    _ => None
+                };
 
-        (lower, upper)
+                (lower, upper)
+            }
+            ChainState::Front => self.a.size_hint(),
+            ChainState::Back => self.b.size_hint(),
+        }
     }
 }
 
@@ -203,6 +210,29 @@ impl<A, B> DoubleEndedIterator for Chain<A, B> where
             },
             ChainState::Front => self.a.next_back(),
             ChainState::Back => self.b.next_back(),
+        }
+    }
+
+    #[inline]
+    fn nth_back(&mut self, mut n: usize) -> Option<A::Item> {
+        match self.state {
+            ChainState::Both | ChainState::Back => {
+                for x in self.b.by_ref().rev() {
+                    if n == 0 {
+                        return Some(x)
+                    }
+                    n -= 1;
+                }
+                if let ChainState::Both = self.state {
+                    self.state = ChainState::Front;
+                }
+            }
+            ChainState::Front => {}
+        }
+        if let ChainState::Front = self.state {
+            self.a.nth_back(n)
+        } else {
+            None
         }
     }
 
@@ -257,4 +287,3 @@ impl<A, B> FusedIterator for Chain<A, B>
 unsafe impl<A, B> TrustedLen for Chain<A, B>
     where A: TrustedLen, B: TrustedLen<Item=A::Item>,
 {}
-

@@ -1,26 +1,28 @@
 use crate::borrow_check::nll::constraints::OutlivesConstraint;
+use crate::borrow_check::nll::region_infer::AppliedMemberConstraint;
 use crate::borrow_check::nll::region_infer::RegionInferenceContext;
 use crate::borrow_check::nll::type_check::Locations;
 use crate::borrow_check::nll::universal_regions::DefiningTy;
 use crate::borrow_check::nll::ConstraintDescription;
-use crate::util::borrowck_errors::{BorrowckErrors, Origin};
+use crate::borrow_check::Upvar;
+use crate::util::borrowck_errors;
 use rustc::hir::def_id::DefId;
 use rustc::infer::error_reporting::nice_region_error::NiceRegionError;
 use rustc::infer::InferCtxt;
 use rustc::infer::NLLRegionVariableOrigin;
-use rustc::mir::{ConstraintCategory, Location, Mir};
+use rustc::mir::{ConstraintCategory, Location, Body};
 use rustc::ty::{self, RegionVid};
 use rustc_data_structures::indexed_vec::IndexVec;
-use rustc_errors::{Diagnostic, DiagnosticBuilder};
+use rustc_errors::DiagnosticBuilder;
 use std::collections::VecDeque;
 use syntax::errors::Applicability;
-use syntax::symbol::keywords;
+use syntax::symbol::kw;
 use syntax_pos::Span;
 
 mod region_name;
 mod var_name;
 
-crate use self::region_name::{RegionName, RegionNameSource};
+crate use self::region_name::{RegionName, RegionNameSource, RegionErrorNamingCtx};
 
 impl ConstraintDescription for ConstraintCategory {
     fn description(&self) -> &'static str {
@@ -52,6 +54,39 @@ enum Trace {
     NotVisited,
 }
 
+/// Various pieces of state used when reporting borrow checker errors.
+pub struct ErrorReportingCtx<'a, 'b, 'tcx> {
+    /// The region inference context used for borrow chekcing this MIR body.
+    #[allow(dead_code)] // FIXME(mark-i-m): used by outlives suggestions
+    region_infcx: &'b RegionInferenceContext<'tcx>,
+
+    /// The inference context used for type checking.
+    infcx: &'b InferCtxt<'a, 'tcx>,
+
+    /// The MIR def we are reporting errors on.
+    mir_def_id: DefId,
+
+    /// The MIR body we are reporting errors on (for convenience).
+    body: &'b Body<'tcx>,
+
+    /// Any upvars for the MIR body we have kept track of during borrow checking.
+    upvars: &'b [Upvar],
+}
+
+/// Information about the various region constraints involved in a borrow checker error.
+#[derive(Clone, Debug)]
+pub struct ErrorConstraintInfo {
+    // fr: outlived_fr
+    fr: RegionVid,
+    fr_is_local: bool,
+    outlived_fr: RegionVid,
+    outlived_fr_is_local: bool,
+
+    // Category and span for best blame constraint
+    category: ConstraintCategory,
+    span: Span,
+}
+
 impl<'tcx> RegionInferenceContext<'tcx> {
     /// Tries to find the best constraint to blame for the fact that
     /// `R: from_region`, where `R` is some region that meets
@@ -61,7 +96,7 @@ impl<'tcx> RegionInferenceContext<'tcx> {
     /// path to blame.
     fn best_blame_constraint(
         &self,
-        mir: &Mir<'tcx>,
+        body: &Body<'tcx>,
         from_region: RegionVid,
         target_test: impl Fn(RegionVid) -> bool,
     ) -> (ConstraintCategory, bool, Span) {
@@ -87,9 +122,9 @@ impl<'tcx> RegionInferenceContext<'tcx> {
         let mut categorized_path: Vec<(ConstraintCategory, bool, Span)> = path.iter()
             .map(|constraint| {
                 if constraint.category == ConstraintCategory::ClosureBounds {
-                    self.retrieve_closure_constraint_info(mir, &constraint)
+                    self.retrieve_closure_constraint_info(body, &constraint)
                 } else {
-                    (constraint.category, false, constraint.locations.span(mir))
+                    (constraint.category, false, constraint.locations.span(body))
                 }
             })
             .collect();
@@ -132,6 +167,15 @@ impl<'tcx> RegionInferenceContext<'tcx> {
             }
         });
         if let Some(i) = best_choice {
+            if let Some(next) = categorized_path.get(i + 1) {
+                if categorized_path[i].0 == ConstraintCategory::Return
+                    && next.0 == ConstraintCategory::OpaqueType
+                {
+                    // The return expression is being influenced by the return type being
+                    // impl Trait, point at the return type and not the return expr.
+                    return *next;
+                }
+            }
             return categorized_path[i];
         }
 
@@ -185,6 +229,7 @@ impl<'tcx> RegionInferenceContext<'tcx> {
                         Trace::NotVisited => {
                             bug!("found unvisited region {:?} on path to {:?}", p, r)
                         }
+
                         Trace::FromOutlivesConstraint(c) => {
                             result.push(c);
                             p = c.sup;
@@ -201,10 +246,30 @@ impl<'tcx> RegionInferenceContext<'tcx> {
             // Otherwise, walk over the outgoing constraints and
             // enqueue any regions we find, keeping track of how we
             // reached them.
+
+            // A constraint like `'r: 'x` can come from our constraint
+            // graph.
             let fr_static = self.universal_regions.fr_static;
-            for constraint in self.constraint_graph
-                .outgoing_edges(r, &self.constraints, fr_static)
-            {
+            let outgoing_edges_from_graph = self.constraint_graph
+                .outgoing_edges(r, &self.constraints, fr_static);
+
+
+            // But member constraints can also give rise to `'r: 'x`
+            // edges that were not part of the graph initially, so
+            // watch out for those.
+            let outgoing_edges_from_picks = self.applied_member_constraints(r)
+                .iter()
+                .map(|&AppliedMemberConstraint { min_choice, member_constraint_index, .. }| {
+                    let p_c = &self.member_constraints[member_constraint_index];
+                    OutlivesConstraint {
+                        sup: r,
+                        sub: min_choice,
+                        locations: Locations::All(p_c.definition_span),
+                        category: ConstraintCategory::OpaqueType,
+                    }
+                });
+
+            for constraint in outgoing_edges_from_graph.chain(outgoing_edges_from_picks) {
                 debug_assert_eq!(constraint.sup, r);
                 let sub_region = constraint.sub;
                 if let Trace::NotVisited = context[sub_region] {
@@ -225,28 +290,29 @@ impl<'tcx> RegionInferenceContext<'tcx> {
     /// ```
     ///
     /// Here we would be invoked with `fr = 'a` and `outlived_fr = `'b`.
-    pub(super) fn report_error(
-        &self,
-        mir: &Mir<'tcx>,
-        infcx: &InferCtxt<'_, '_, 'tcx>,
+    pub(super) fn report_error<'a>(
+        &'a self,
+        body: &Body<'tcx>,
+        upvars: &[Upvar],
+        infcx: &'a InferCtxt<'a, 'tcx>,
         mir_def_id: DefId,
         fr: RegionVid,
         outlived_fr: RegionVid,
-        errors_buffer: &mut Vec<Diagnostic>,
-    ) {
+        renctx: &mut RegionErrorNamingCtx,
+    ) -> DiagnosticBuilder<'a> {
         debug!("report_error(fr={:?}, outlived_fr={:?})", fr, outlived_fr);
 
-        let (category, _, span) = self.best_blame_constraint(mir, fr, |r| {
+        let (category, _, span) = self.best_blame_constraint(body, fr, |r| {
             self.provides_universal_region(r, fr, outlived_fr)
         });
 
+        debug!("report_error: category={:?} {:?}", category, span);
         // Check if we can use one of the "nice region errors".
         if let (Some(f), Some(o)) = (self.to_error_region(fr), self.to_error_region(outlived_fr)) {
             let tables = infcx.tcx.typeck_tables_of(mir_def_id);
             let nice = NiceRegionError::new_from_span(infcx, span, o, f, Some(tables));
             if let Some(diag) = nice.try_report_from_nll() {
-                diag.buffer(errors_buffer);
-                return;
+                return diag;
             }
         }
 
@@ -259,42 +325,28 @@ impl<'tcx> RegionInferenceContext<'tcx> {
             "report_error: fr_is_local={:?} outlived_fr_is_local={:?} category={:?}",
             fr_is_local, outlived_fr_is_local, category
         );
+
+        let errctx = ErrorReportingCtx {
+            region_infcx: self,
+            infcx,
+            mir_def_id,
+            body,
+            upvars,
+        };
+
+        let errci = ErrorConstraintInfo {
+            fr, outlived_fr, fr_is_local, outlived_fr_is_local, category, span
+        };
+
         match (category, fr_is_local, outlived_fr_is_local) {
             (ConstraintCategory::Return, true, false) if self.is_closure_fn_mut(infcx, fr) => {
-                self.report_fnmut_error(
-                    mir,
-                    infcx,
-                    mir_def_id,
-                    fr,
-                    outlived_fr,
-                    span,
-                    errors_buffer,
-                )
+                self.report_fnmut_error(&errctx, &errci, renctx)
             }
             (ConstraintCategory::Assignment, true, false)
-            | (ConstraintCategory::CallArgument, true, false) => self.report_escaping_data_error(
-                mir,
-                infcx,
-                mir_def_id,
-                fr,
-                outlived_fr,
-                category,
-                span,
-                errors_buffer,
-            ),
-            _ => self.report_general_error(
-                mir,
-                infcx,
-                mir_def_id,
-                fr,
-                fr_is_local,
-                outlived_fr,
-                outlived_fr_is_local,
-                category,
-                span,
-                errors_buffer,
-            ),
-        };
+            | (ConstraintCategory::CallArgument, true, false) =>
+                self.report_escaping_data_error(&errctx, &errci, renctx),
+            _ => self.report_general_error(&errctx, &errci, renctx),
+        }
     }
 
     /// We have a constraint `fr1: fr2` that is not satisfied, where
@@ -342,18 +394,19 @@ impl<'tcx> RegionInferenceContext<'tcx> {
     /// ```
     fn report_fnmut_error(
         &self,
-        mir: &Mir<'tcx>,
-        infcx: &InferCtxt<'_, '_, 'tcx>,
-        mir_def_id: DefId,
-        _fr: RegionVid,
-        outlived_fr: RegionVid,
-        span: Span,
-        errors_buffer: &mut Vec<Diagnostic>,
-    ) {
-        let mut diag = infcx
+        errctx: &ErrorReportingCtx<'_, '_, 'tcx>,
+        errci: &ErrorConstraintInfo,
+        renctx: &mut RegionErrorNamingCtx,
+    ) -> DiagnosticBuilder<'_> {
+        let ErrorConstraintInfo {
+            outlived_fr, span, ..
+        } = errci;
+
+        let mut diag = errctx
+            .infcx
             .tcx
             .sess
-            .struct_span_err(span, "captured variable cannot escape `FnMut` closure body");
+            .struct_span_err(*span, "captured variable cannot escape `FnMut` closure body");
 
         // We should check if the return type of this closure is in fact a closure - in that
         // case, we can special case the error further.
@@ -365,9 +418,9 @@ impl<'tcx> RegionInferenceContext<'tcx> {
             "returns a reference to a captured variable which escapes the closure body"
         };
 
-        diag.span_label(span, message);
+        diag.span_label(*span, message);
 
-        match self.give_region_a_name(infcx, mir, mir_def_id, outlived_fr, &mut 1).unwrap().source {
+        match self.give_region_a_name(errctx, renctx, *outlived_fr).unwrap().source {
             RegionNameSource::NamedEarlyBoundRegion(fr_span)
             | RegionNameSource::NamedFreeRegion(fr_span)
             | RegionNameSource::SynthesizedFreeEnvRegion(fr_span, _)
@@ -387,7 +440,7 @@ impl<'tcx> RegionInferenceContext<'tcx> {
         );
         diag.note("...therefore, they cannot allow references to captured variables to escape");
 
-        diag.buffer(errors_buffer);
+        diag
     }
 
     /// Reports a error specifically for when data is escaping a closure.
@@ -404,18 +457,22 @@ impl<'tcx> RegionInferenceContext<'tcx> {
     /// ```
     fn report_escaping_data_error(
         &self,
-        mir: &Mir<'tcx>,
-        infcx: &InferCtxt<'_, '_, 'tcx>,
-        mir_def_id: DefId,
-        fr: RegionVid,
-        outlived_fr: RegionVid,
-        category: ConstraintCategory,
-        span: Span,
-        errors_buffer: &mut Vec<Diagnostic>,
-    ) {
-        let fr_name_and_span = self.get_var_name_and_span_for_region(infcx.tcx, mir, fr);
+        errctx: &ErrorReportingCtx<'_, '_, 'tcx>,
+        errci: &ErrorConstraintInfo,
+        renctx: &mut RegionErrorNamingCtx,
+    ) -> DiagnosticBuilder<'_> {
+        let ErrorReportingCtx {
+            infcx, body, upvars, ..
+        } = errctx;
+
+        let ErrorConstraintInfo {
+            span, category, ..
+        } = errci;
+
+        let fr_name_and_span =
+            self.get_var_name_and_span_for_region(infcx.tcx, body, upvars, errci.fr);
         let outlived_fr_name_and_span =
-            self.get_var_name_and_span_for_region(infcx.tcx, mir, outlived_fr);
+            self.get_var_name_and_span_for_region(infcx.tcx, body, upvars, errci.outlived_fr);
 
         let escapes_from = match self.universal_regions.defining_ty {
             DefiningTy::Closure(..) => "closure",
@@ -427,26 +484,25 @@ impl<'tcx> RegionInferenceContext<'tcx> {
         // Revert to the normal error in these cases.
         // Assignments aren't "escapes" in function items.
         if (fr_name_and_span.is_none() && outlived_fr_name_and_span.is_none())
-            || (category == ConstraintCategory::Assignment && escapes_from == "function")
+            || (*category == ConstraintCategory::Assignment && escapes_from == "function")
             || escapes_from == "const"
         {
             return self.report_general_error(
-                mir,
-                infcx,
-                mir_def_id,
-                fr,
-                true,
-                outlived_fr,
-                false,
-                category,
-                span,
-                errors_buffer,
+                errctx,
+                &ErrorConstraintInfo {
+                    fr_is_local: true,
+                    outlived_fr_is_local: false,
+                    .. *errci
+                },
+                renctx,
             );
         }
 
-        let mut diag = infcx
-            .tcx
-            .borrowed_data_escapes_closure(span, escapes_from, Origin::Mir);
+        let mut diag = borrowck_errors::borrowed_data_escapes_closure(
+            infcx.tcx,
+            *span,
+            escapes_from,
+        );
 
         if let Some((Some(outlived_fr_name), outlived_fr_span)) = outlived_fr_name_and_span {
             diag.span_label(
@@ -468,12 +524,12 @@ impl<'tcx> RegionInferenceContext<'tcx> {
             );
 
             diag.span_label(
-                span,
+                *span,
                 format!("`{}` escapes the {} body here", fr_name, escapes_from),
             );
         }
 
-        diag.buffer(errors_buffer);
+        diag
     }
 
     /// Reports a region inference error for the general case with named/synthesized lifetimes to
@@ -493,39 +549,37 @@ impl<'tcx> RegionInferenceContext<'tcx> {
     /// ```
     fn report_general_error(
         &self,
-        mir: &Mir<'tcx>,
-        infcx: &InferCtxt<'_, '_, 'tcx>,
-        mir_def_id: DefId,
-        fr: RegionVid,
-        fr_is_local: bool,
-        outlived_fr: RegionVid,
-        outlived_fr_is_local: bool,
-        category: ConstraintCategory,
-        span: Span,
-        errors_buffer: &mut Vec<Diagnostic>,
-    ) {
+        errctx: &ErrorReportingCtx<'_, '_, 'tcx>,
+        errci: &ErrorConstraintInfo,
+        renctx: &mut RegionErrorNamingCtx,
+    ) -> DiagnosticBuilder<'_> {
+        let ErrorReportingCtx {
+            infcx, mir_def_id, ..
+        } = errctx;
+        let ErrorConstraintInfo {
+            fr, fr_is_local, outlived_fr, outlived_fr_is_local, span, category, ..
+        } = errci;
+
         let mut diag = infcx.tcx.sess.struct_span_err(
-            span,
+            *span,
             "lifetime may not live long enough"
         );
 
-        let counter = &mut 1;
-        let fr_name = self.give_region_a_name(infcx, mir, mir_def_id, fr, counter).unwrap();
-        fr_name.highlight_region_name(&mut diag);
-        let outlived_fr_name =
-            self.give_region_a_name(infcx, mir, mir_def_id, outlived_fr, counter).unwrap();
-        outlived_fr_name.highlight_region_name(&mut diag);
-
-        let mir_def_name = if infcx.tcx.is_closure(mir_def_id) {
+        let mir_def_name = if infcx.tcx.is_closure(*mir_def_id) {
             "closure"
         } else {
             "function"
         };
 
+        let fr_name = self.give_region_a_name(errctx, renctx, *fr).unwrap();
+        fr_name.highlight_region_name(&mut diag);
+        let outlived_fr_name = self.give_region_a_name(errctx, renctx, *outlived_fr).unwrap();
+        outlived_fr_name.highlight_region_name(&mut diag);
+
         match (category, outlived_fr_is_local, fr_is_local) {
             (ConstraintCategory::Return, true, _) => {
                 diag.span_label(
-                    span,
+                    *span,
                     format!(
                         "{} was supposed to return data with lifetime `{}` but it is returning \
                          data with lifetime `{}`",
@@ -535,7 +589,7 @@ impl<'tcx> RegionInferenceContext<'tcx> {
             }
             _ => {
                 diag.span_label(
-                    span,
+                    *span,
                     format!(
                         "{}requires that `{}` must outlive `{}`",
                         category.description(),
@@ -546,15 +600,15 @@ impl<'tcx> RegionInferenceContext<'tcx> {
             }
         }
 
-        self.add_static_impl_trait_suggestion(infcx, &mut diag, fr, fr_name, outlived_fr);
+        self.add_static_impl_trait_suggestion(infcx, &mut diag, *fr, fr_name, *outlived_fr);
 
-        diag.buffer(errors_buffer);
+        diag
     }
 
     /// Adds a suggestion to errors where a `impl Trait` is returned.
     ///
     /// ```text
-    /// help: to allow this impl Trait to capture borrowed data with lifetime `'1`, add `'_` as
+    /// help: to allow this `impl Trait` to capture borrowed data with lifetime `'1`, add `'_` as
     ///       a constraint
     ///    |
     /// LL |     fn iter_values_anon(&self) -> impl Iterator<Item=u32> + 'a {
@@ -562,7 +616,7 @@ impl<'tcx> RegionInferenceContext<'tcx> {
     /// ```
     fn add_static_impl_trait_suggestion(
         &self,
-        infcx: &InferCtxt<'_, '_, 'tcx>,
+        infcx: &InferCtxt<'_, 'tcx>,
         diag: &mut DiagnosticBuilder<'_>,
         fr: RegionVid,
         // We need to pass `fr_name` - computing it again will label it twice.
@@ -573,7 +627,7 @@ impl<'tcx> RegionInferenceContext<'tcx> {
             (self.to_error_region(fr), self.to_error_region(outlived_fr))
         {
             if let Some(ty::TyS {
-                sty: ty::TyKind::Opaque(did, substs),
+                sty: ty::Opaque(did, substs),
                 ..
             }) = infcx
                 .tcx
@@ -609,7 +663,7 @@ impl<'tcx> RegionInferenceContext<'tcx> {
                     "add_static_impl_trait_suggestion: has_static_predicate={:?}",
                     has_static_predicate
                 );
-                let static_str = keywords::StaticLifetime.name();
+                let static_str = kw::StaticLifetime;
                 // If there is a static predicate, then the only sensible suggestion is to replace
                 // fr with `'static`.
                 if has_static_predicate {
@@ -630,7 +684,7 @@ impl<'tcx> RegionInferenceContext<'tcx> {
                         diag.span_suggestion(
                             span,
                             &format!(
-                                "to allow this impl Trait to capture borrowed data with lifetime \
+                                "to allow this `impl Trait` to capture borrowed data with lifetime \
                                  `{}`, add `{}` as a constraint",
                                 fr_name, suggestable_fr_name,
                             ),
@@ -645,22 +699,36 @@ impl<'tcx> RegionInferenceContext<'tcx> {
 
     crate fn free_region_constraint_info(
         &self,
-        mir: &Mir<'tcx>,
+        body: &Body<'tcx>,
+        upvars: &[Upvar],
         mir_def_id: DefId,
-        infcx: &InferCtxt<'_, '_, 'tcx>,
+        infcx: &InferCtxt<'_, 'tcx>,
         borrow_region: RegionVid,
         outlived_region: RegionVid,
     ) -> (ConstraintCategory, bool, Span, Option<RegionName>) {
-        let (category, from_closure, span) =
-            self.best_blame_constraint(mir, borrow_region, |r| r == outlived_region);
-        let outlived_fr_name =
-            self.give_region_a_name(infcx, mir, mir_def_id, outlived_region, &mut 1);
+        let (category, from_closure, span) = self.best_blame_constraint(
+            body,
+            borrow_region,
+            |r| self.provides_universal_region(r, borrow_region, outlived_region)
+        );
+
+        let mut renctx = RegionErrorNamingCtx::new();
+        let errctx = ErrorReportingCtx {
+            infcx, body, upvars, mir_def_id,
+            region_infcx: self,
+        };
+        let outlived_fr_name = self.give_region_a_name(&errctx, &mut renctx, outlived_region);
+
         (category, from_closure, span, outlived_fr_name)
     }
 
     // Finds some region R such that `fr1: R` and `R` is live at
     // `elem`.
-    crate fn find_sub_region_live_at(&self, fr1: RegionVid, elem: Location) -> RegionVid {
+    crate fn find_sub_region_live_at(
+        &self,
+        fr1: RegionVid,
+        elem: Location,
+    ) -> RegionVid {
         debug!("find_sub_region_live_at(fr1={:?}, elem={:?})", fr1, elem);
         self.find_constraint_paths_between_regions(fr1, |r| {
             // First look for some `r` such that `fr1: r` and `r` is live at `elem`
@@ -698,18 +766,21 @@ impl<'tcx> RegionInferenceContext<'tcx> {
     // Finds a good span to blame for the fact that `fr1` outlives `fr2`.
     crate fn find_outlives_blame_span(
         &self,
-        mir: &Mir<'tcx>,
+        body: &Body<'tcx>,
         fr1: RegionVid,
         fr2: RegionVid,
     ) -> (ConstraintCategory, Span) {
-        let (category, _, span) =
-            self.best_blame_constraint(mir, fr1, |r| self.provides_universal_region(r, fr1, fr2));
+        let (category, _, span) = self.best_blame_constraint(
+            body,
+            fr1,
+            |r| self.provides_universal_region(r, fr1, fr2),
+        );
         (category, span)
     }
 
     fn retrieve_closure_constraint_info(
         &self,
-        mir: &Mir<'tcx>,
+        body: &Body<'tcx>,
         constraint: &OutlivesConstraint,
     ) -> (ConstraintCategory, bool, Span) {
         let loc = match constraint.locations {
@@ -721,11 +792,11 @@ impl<'tcx> RegionInferenceContext<'tcx> {
             self.closure_bounds_mapping[&loc].get(&(constraint.sup, constraint.sub));
         opt_span_category
             .map(|&(category, span)| (category, true, span))
-            .unwrap_or((constraint.category, false, mir.source_info(loc).span))
+            .unwrap_or((constraint.category, false, body.source_info(loc).span))
     }
 
     /// Returns `true` if a closure is inferred to be an `FnMut` closure.
-    crate fn is_closure_fn_mut(&self, infcx: &InferCtxt<'_, '_, 'tcx>, fr: RegionVid) -> bool {
+    crate fn is_closure_fn_mut(&self, infcx: &InferCtxt<'_, 'tcx>, fr: RegionVid) -> bool {
         if let Some(ty::ReFree(free_region)) = self.to_error_region(fr) {
             if let ty::BoundRegion::BrEnv = free_region.bound_region {
                 if let DefiningTy::Closure(def_id, substs) = self.universal_regions.defining_ty {

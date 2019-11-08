@@ -1,10 +1,10 @@
-use error::Error as StdError;
-use ffi::{OsStr, OsString};
-use fmt;
-use io;
-use iter;
-use path::{self, PathBuf};
-use sys::{unsupported, Void};
+use crate::error::Error as StdError;
+use crate::ffi::{OsStr, OsString};
+use crate::fmt;
+use crate::io;
+use crate::iter;
+use crate::path::{self, PathBuf};
+use crate::sys::{unsupported, Void};
 
 pub fn getcwd() -> io::Result<PathBuf> {
     unsupported()
@@ -34,7 +34,7 @@ pub fn unsetenv(_: &OsStr) -> io::Result<()> {
 
 pub struct SplitPaths<'a>(&'a Void);
 
-pub fn split_paths(_unparsed: &OsStr) -> SplitPaths {
+pub fn split_paths(_unparsed: &OsStr) -> SplitPaths<'_> {
     panic!("unsupported")
 }
 
@@ -57,7 +57,7 @@ where
 }
 
 impl fmt::Display for JoinPathsError {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         "not supported on CloudABI yet".fmt(f)
     }
 }

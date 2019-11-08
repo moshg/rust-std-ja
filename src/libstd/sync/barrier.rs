@@ -1,5 +1,5 @@
-use fmt;
-use sync::{Mutex, Condvar};
+use crate::fmt;
+use crate::sync::{Mutex, Condvar};
 
 /// A barrier enables multiple threads to synchronize the beginning
 /// of some computation.
@@ -59,7 +59,7 @@ pub struct BarrierWaitResult(bool);
 
 #[stable(feature = "std_debug", since = "1.16.0")]
 impl fmt::Debug for Barrier {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.pad("Barrier { .. }")
     }
 }
@@ -151,7 +151,7 @@ impl Barrier {
 
 #[stable(feature = "std_debug", since = "1.16.0")]
 impl fmt::Debug for BarrierWaitResult {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("BarrierWaitResult")
             .field("is_leader", &self.is_leader())
             .finish()
@@ -181,9 +181,9 @@ impl BarrierWaitResult {
 
 #[cfg(test)]
 mod tests {
-    use sync::{Arc, Barrier};
-    use sync::mpsc::{channel, TryRecvError};
-    use thread;
+    use crate::sync::{Arc, Barrier};
+    use crate::sync::mpsc::{channel, TryRecvError};
+    use crate::thread;
 
     #[test]
     #[cfg_attr(target_os = "emscripten", ignore)]

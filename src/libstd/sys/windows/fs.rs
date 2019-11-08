@@ -1,17 +1,17 @@
-use os::windows::prelude::*;
+use crate::os::windows::prelude::*;
 
-use ffi::OsString;
-use fmt;
-use io::{self, Error, SeekFrom};
-use mem;
-use path::{Path, PathBuf};
-use ptr;
-use slice;
-use sync::Arc;
-use sys::handle::Handle;
-use sys::time::SystemTime;
-use sys::{c, cvt};
-use sys_common::FromInner;
+use crate::ffi::OsString;
+use crate::fmt;
+use crate::io::{self, Error, SeekFrom, IoSlice, IoSliceMut};
+use crate::mem;
+use crate::path::{Path, PathBuf};
+use crate::ptr;
+use crate::slice;
+use crate::sync::Arc;
+use crate::sys::handle::Handle;
+use crate::sys::time::SystemTime;
+use crate::sys::{c, cvt};
+use crate::sys_common::FromInner;
 
 use super::to_u16s;
 
@@ -25,6 +25,9 @@ pub struct FileAttr {
     last_write_time: c::FILETIME,
     file_size: u64,
     reparse_tag: c::DWORD,
+    volume_serial_number: Option<u32>,
+    number_of_links: Option<u32>,
+    file_index: Option<u64>,
 }
 
 #[derive(Copy, Clone, PartialEq, Eq, Hash, Debug)]
@@ -74,7 +77,7 @@ pub struct FilePermissions { attrs: c::DWORD }
 pub struct DirBuilder;
 
 impl fmt::Debug for ReadDir {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         // This will only be called from std::fs::ReadDir, which will add a "ReadDir()" frame.
         // Thus the result will be e g 'ReadDir("C:\")'
         fmt::Debug::fmt(&*self.root, f)
@@ -156,6 +159,9 @@ impl DirEntry {
                 } else {
                     0
                 },
+            volume_serial_number: None,
+            number_of_links: None,
+            file_index: None,
         })
     }
 }
@@ -191,7 +197,11 @@ impl OpenOptions {
     pub fn access_mode(&mut self, access_mode: u32) { self.access_mode = Some(access_mode); }
     pub fn share_mode(&mut self, share_mode: u32) { self.share_mode = share_mode; }
     pub fn attributes(&mut self, attrs: u32) { self.attributes = attrs; }
-    pub fn security_qos_flags(&mut self, flags: u32) { self.security_qos_flags = flags; }
+    pub fn security_qos_flags(&mut self, flags: u32) {
+        // We have to set `SECURITY_SQOS_PRESENT` here, because one of the valid flags we can
+        // receive is `SECURITY_ANONYMOUS = 0x0`, which we can't check for later on.
+        self.security_qos_flags = flags | c::SECURITY_SQOS_PRESENT;
+    }
     pub fn security_attributes(&mut self, attrs: c::LPSECURITY_ATTRIBUTES) {
         self.security_attributes = attrs as usize;
     }
@@ -239,7 +249,6 @@ impl OpenOptions {
         self.custom_flags |
         self.attributes |
         self.security_qos_flags |
-        if self.security_qos_flags != 0 { c::SECURITY_SQOS_PRESENT } else { 0 } |
         if self.create_new { c::FILE_FLAG_OPEN_REPARSE_POINT } else { 0 }
     }
 }
@@ -284,20 +293,71 @@ impl File {
         Ok(())
     }
 
+    #[cfg(not(target_vendor = "uwp"))]
     pub fn file_attr(&self) -> io::Result<FileAttr> {
         unsafe {
             let mut info: c::BY_HANDLE_FILE_INFORMATION = mem::zeroed();
-            cvt(c::GetFileInformationByHandle(self.handle.raw(),
-                                              &mut info))?;
-            let mut attr = FileAttr {
+            cvt(c::GetFileInformationByHandle(self.handle.raw(), &mut info))?;
+            let mut reparse_tag = 0;
+            if info.dwFileAttributes & c::FILE_ATTRIBUTE_REPARSE_POINT != 0 {
+                let mut b = [0; c::MAXIMUM_REPARSE_DATA_BUFFER_SIZE];
+                if let Ok((_, buf)) = self.reparse_point(&mut b) {
+                    reparse_tag = buf.ReparseTag;
+                }
+            }
+            Ok(FileAttr {
                 attributes: info.dwFileAttributes,
                 creation_time: info.ftCreationTime,
                 last_access_time: info.ftLastAccessTime,
                 last_write_time: info.ftLastWriteTime,
-                file_size: ((info.nFileSizeHigh as u64) << 32) | (info.nFileSizeLow as u64),
+                file_size: (info.nFileSizeLow as u64) | ((info.nFileSizeHigh as u64) << 32),
+                reparse_tag,
+                volume_serial_number: Some(info.dwVolumeSerialNumber),
+                number_of_links: Some(info.nNumberOfLinks),
+                file_index: Some((info.nFileIndexLow as u64) |
+                                 ((info.nFileIndexHigh as u64) << 32)),
+            })
+        }
+    }
+
+    #[cfg(target_vendor = "uwp")]
+    pub fn file_attr(&self) -> io::Result<FileAttr> {
+        unsafe {
+            let mut info: c::FILE_BASIC_INFO = mem::zeroed();
+            let size = mem::size_of_val(&info);
+            cvt(c::GetFileInformationByHandleEx(self.handle.raw(),
+                                              c::FileBasicInfo,
+                                              &mut info as *mut _ as *mut libc::c_void,
+                                              size as c::DWORD))?;
+            let mut attr = FileAttr {
+                attributes: info.FileAttributes,
+                creation_time: c::FILETIME {
+                    dwLowDateTime: info.CreationTime as c::DWORD,
+                    dwHighDateTime: (info.CreationTime >> 32) as c::DWORD,
+                },
+                last_access_time: c::FILETIME {
+                    dwLowDateTime: info.LastAccessTime as c::DWORD,
+                    dwHighDateTime: (info.LastAccessTime >> 32) as c::DWORD,
+                },
+                last_write_time: c::FILETIME {
+                    dwLowDateTime: info.LastWriteTime as c::DWORD,
+                    dwHighDateTime: (info.LastWriteTime >> 32) as c::DWORD,
+                },
+                file_size: 0,
                 reparse_tag: 0,
+                volume_serial_number: None,
+                number_of_links: None,
+                file_index: None,
             };
-            if attr.is_reparse_point() {
+            let mut info: c::FILE_STANDARD_INFO = mem::zeroed();
+            let size = mem::size_of_val(&info);
+            cvt(c::GetFileInformationByHandleEx(self.handle.raw(),
+                                                c::FileStandardInfo,
+                                                &mut info as *mut _ as *mut libc::c_void,
+                                                size as c::DWORD))?;
+            attr.file_size = info.AllocationSize as u64;
+            attr.number_of_links = Some(info.NumberOfLinks);
+            if attr.file_type().is_reparse_point() {
                 let mut b = [0; c::MAXIMUM_REPARSE_DATA_BUFFER_SIZE];
                 if let Ok((_, buf)) = self.reparse_point(&mut b) {
                     attr.reparse_tag = buf.ReparseTag;
@@ -311,12 +371,20 @@ impl File {
         self.handle.read(buf)
     }
 
+    pub fn read_vectored(&self, bufs: &mut [IoSliceMut<'_>]) -> io::Result<usize> {
+        self.handle.read_vectored(bufs)
+    }
+
     pub fn read_at(&self, buf: &mut [u8], offset: u64) -> io::Result<usize> {
         self.handle.read_at(buf, offset)
     }
 
     pub fn write(&self, buf: &[u8]) -> io::Result<usize> {
         self.handle.write(buf)
+    }
+
+    pub fn write_vectored(&self, bufs: &[IoSlice<'_>]) -> io::Result<usize> {
+        self.handle.write_vectored(bufs)
     }
 
     pub fn write_at(&self, buf: &[u8], offset: u64) -> io::Result<usize> {
@@ -432,7 +500,7 @@ impl FromInner<c::HANDLE> for File {
 }
 
 impl fmt::Debug for File {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         // FIXME(#24570): add more info here (e.g., mode)
         let mut b = f.debug_struct("File");
         b.field("handle", &self.handle.raw());
@@ -452,7 +520,9 @@ impl FileAttr {
         FilePermissions { attrs: self.attributes }
     }
 
-    pub fn attrs(&self) -> u32 { self.attributes as u32 }
+    pub fn attrs(&self) -> u32 {
+        self.attributes
+    }
 
     pub fn file_type(&self) -> FileType {
         FileType::new(self.attributes, self.reparse_tag)
@@ -482,8 +552,16 @@ impl FileAttr {
         to_u64(&self.creation_time)
     }
 
-    fn is_reparse_point(&self) -> bool {
-        self.attributes & c::FILE_ATTRIBUTE_REPARSE_POINT != 0
+    pub fn volume_serial_number(&self) -> Option<u32> {
+        self.volume_serial_number
+    }
+
+    pub fn number_of_links(&self) -> Option<u32> {
+        self.number_of_links
+    }
+
+    pub fn file_index(&self) -> Option<u64> {
+        self.file_index
     }
 }
 
@@ -659,6 +737,7 @@ pub fn symlink_inner(src: &Path, dst: &Path, dir: bool) -> io::Result<()> {
     Ok(())
 }
 
+#[cfg(not(target_vendor = "uwp"))]
 pub fn link(src: &Path, dst: &Path) -> io::Result<()> {
     let src = to_u16s(src)?;
     let dst = to_u16s(dst)?;
@@ -666,6 +745,12 @@ pub fn link(src: &Path, dst: &Path) -> io::Result<()> {
         c::CreateHardLinkW(dst.as_ptr(), src.as_ptr(), ptr::null_mut())
     })?;
     Ok(())
+}
+
+#[cfg(target_vendor = "uwp")]
+pub fn link(_src: &Path, _dst: &Path) -> io::Result<()> {
+    return Err(io::Error::new(io::ErrorKind::Other,
+                            "hard link are not supported on UWP"));
 }
 
 pub fn stat(path: &Path) -> io::Result<FileAttr> {

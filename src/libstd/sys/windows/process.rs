@@ -1,27 +1,28 @@
 #![unstable(feature = "process_internals", issue = "0")]
 
-use collections::BTreeMap;
-use env::split_paths;
-use env;
-use ffi::{OsString, OsStr};
-use fmt;
-use fs;
-use io::{self, Error, ErrorKind};
+use crate::collections::BTreeMap;
+use crate::env::split_paths;
+use crate::env;
+use crate::ffi::{OsString, OsStr};
+use crate::fmt;
+use crate::fs;
+use crate::io::{self, Error, ErrorKind};
+use crate::mem;
+use crate::os::windows::ffi::OsStrExt;
+use crate::path::Path;
+use crate::ptr;
+use crate::sys::mutex::Mutex;
+use crate::sys::c;
+use crate::sys::fs::{OpenOptions, File};
+use crate::sys::handle::Handle;
+use crate::sys::pipe::{self, AnonPipe};
+use crate::sys::stdio;
+use crate::sys::cvt;
+use crate::sys_common::{AsInner, FromInner, IntoInner};
+use crate::sys_common::process::CommandEnv;
+use crate::borrow::Borrow;
+
 use libc::{c_void, EXIT_SUCCESS, EXIT_FAILURE};
-use mem;
-use os::windows::ffi::OsStrExt;
-use path::Path;
-use ptr;
-use sys::mutex::Mutex;
-use sys::c;
-use sys::fs::{OpenOptions, File};
-use sys::handle::Handle;
-use sys::pipe::{self, AnonPipe};
-use sys::stdio;
-use sys::cvt;
-use sys_common::{AsInner, FromInner, IntoInner};
-use sys_common::process::{CommandEnv, EnvKey};
-use borrow::Borrow;
 
 ////////////////////////////////////////////////////////////////////////////////
 // Command
@@ -29,29 +30,27 @@ use borrow::Borrow;
 
 #[derive(Clone, Debug, Eq, PartialEq, Ord, PartialOrd)]
 #[doc(hidden)]
-pub struct WindowsEnvKey(OsString);
+pub struct EnvKey(OsString);
 
-impl From<OsString> for WindowsEnvKey {
+impl From<OsString> for EnvKey {
     fn from(k: OsString) -> Self {
         let mut buf = k.into_inner().into_inner();
         buf.make_ascii_uppercase();
-        WindowsEnvKey(FromInner::from_inner(FromInner::from_inner(buf)))
+        EnvKey(FromInner::from_inner(FromInner::from_inner(buf)))
     }
 }
 
-impl From<WindowsEnvKey> for OsString {
-    fn from(k: WindowsEnvKey) -> Self { k.0 }
+impl From<EnvKey> for OsString {
+    fn from(k: EnvKey) -> Self { k.0 }
 }
 
-impl Borrow<OsStr> for WindowsEnvKey {
+impl Borrow<OsStr> for EnvKey {
     fn borrow(&self) -> &OsStr { &self.0 }
 }
 
-impl AsRef<OsStr> for WindowsEnvKey {
+impl AsRef<OsStr> for EnvKey {
     fn as_ref(&self) -> &OsStr { &self.0 }
 }
-
-impl EnvKey for WindowsEnvKey {}
 
 
 fn ensure_no_nuls<T: AsRef<OsStr>>(str: T) -> io::Result<T> {
@@ -65,7 +64,7 @@ fn ensure_no_nuls<T: AsRef<OsStr>>(str: T) -> io::Result<T> {
 pub struct Command {
     program: OsString,
     args: Vec<OsString>,
-    env: CommandEnv<WindowsEnvKey>,
+    env: CommandEnv,
     cwd: Option<OsString>,
     flags: u32,
     detach: bool, // not currently exposed in std::process
@@ -109,7 +108,7 @@ impl Command {
     pub fn arg(&mut self, arg: &OsStr) {
         self.args.push(arg.to_os_string())
     }
-    pub fn env_mut(&mut self) -> &mut CommandEnv<WindowsEnvKey> {
+    pub fn env_mut(&mut self) -> &mut CommandEnv {
         &mut self.env
     }
     pub fn cwd(&mut self, dir: &OsStr) {
@@ -218,7 +217,7 @@ impl Command {
 }
 
 impl fmt::Debug for Command {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{:?}", self.program)?;
         for arg in &self.args {
             write!(f, " {:?}", arg)?;
@@ -266,13 +265,8 @@ impl Stdio {
 
             Stdio::MakePipe => {
                 let ours_readable = stdio_id != c::STD_INPUT_HANDLE;
-                let pipes = pipe::anon_pipe(ours_readable)?;
+                let pipes = pipe::anon_pipe(ours_readable, true)?;
                 *pipe = Some(pipes.ours);
-                cvt(unsafe {
-                    c::SetHandleInformation(pipes.theirs.handle().raw(),
-                                            c::HANDLE_FLAG_INHERIT,
-                                            c::HANDLE_FLAG_INHERIT)
-                })?;
                 Ok(pipes.theirs.into_handle())
             }
 
@@ -392,7 +386,7 @@ impl From<c::DWORD> for ExitStatus {
 }
 
 impl fmt::Display for ExitStatus {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         // Windows exit codes with the high bit set typically mean some form of
         // unhandled exception or warning. In this scenario printing the exit
         // code in decimal doesn't always make sense because it's a very large
@@ -502,7 +496,7 @@ fn make_command_line(prog: &OsStr, args: &[OsString]) -> io::Result<Vec<u16>> {
     }
 }
 
-fn make_envp(maybe_env: Option<BTreeMap<WindowsEnvKey, OsString>>)
+fn make_envp(maybe_env: Option<BTreeMap<EnvKey, OsString>>)
              -> io::Result<(*mut c_void, Vec<u16>)> {
     // On Windows we pass an "environment block" which is not a char**, but
     // rather a concatenation of null-terminated k=v\0 sequences, with a final
@@ -537,7 +531,7 @@ fn make_dirp(d: Option<&OsString>) -> io::Result<(*const u16, Vec<u16>)> {
 
 #[cfg(test)]
 mod tests {
-    use ffi::{OsStr, OsString};
+    use crate::ffi::{OsStr, OsString};
     use super::make_command_line;
 
     #[test]

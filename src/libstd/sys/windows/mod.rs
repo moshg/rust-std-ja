@@ -1,11 +1,11 @@
 #![allow(missing_docs, nonstandard_style)]
 
-use ptr;
-use ffi::{OsStr, OsString};
-use io::ErrorKind;
-use os::windows::ffi::{OsStrExt, OsStringExt};
-use path::PathBuf;
-use time::Duration;
+use crate::ptr;
+use crate::ffi::{OsStr, OsString};
+use crate::io::ErrorKind;
+use crate::os::windows::ffi::{OsStrExt, OsStringExt};
+use crate::path::PathBuf;
+use crate::time::Duration;
 
 pub use libc::strlen;
 pub use self::rand::hashmap_random_keys;
@@ -14,13 +14,9 @@ pub use self::rand::hashmap_random_keys;
 
 pub mod alloc;
 pub mod args;
-#[cfg(feature = "backtrace")]
-pub mod backtrace;
 pub mod c;
 pub mod cmath;
 pub mod condvar;
-#[cfg(feature = "backtrace")]
-pub mod dynamic_lib;
 pub mod env;
 pub mod ext;
 pub mod fast_thread_local;
@@ -37,11 +33,20 @@ pub mod pipe;
 pub mod process;
 pub mod rand;
 pub mod rwlock;
-pub mod stack_overflow;
 pub mod thread;
 pub mod thread_local;
 pub mod time;
-pub mod stdio;
+cfg_if::cfg_if! {
+    if #[cfg(not(target_vendor = "uwp"))] {
+        pub mod stdio;
+        pub mod stack_overflow;
+    } else {
+        pub mod stdio_uwp;
+        pub mod stack_overflow_uwp;
+        pub use self::stdio_uwp as stdio;
+        pub use self::stack_overflow_uwp as stack_overflow;
+    }
+}
 
 #[cfg(not(test))]
 pub fn init() {
@@ -76,11 +81,11 @@ pub fn decode_error_kind(errno: i32) -> ErrorKind {
     }
 }
 
-pub fn to_u16s<S: AsRef<OsStr>>(s: S) -> ::io::Result<Vec<u16>> {
-    fn inner(s: &OsStr) -> ::io::Result<Vec<u16>> {
+pub fn to_u16s<S: AsRef<OsStr>>(s: S) -> crate::io::Result<Vec<u16>> {
+    fn inner(s: &OsStr) -> crate::io::Result<Vec<u16>> {
         let mut maybe_result: Vec<u16> = s.encode_wide().collect();
         if maybe_result.iter().any(|&u| u == 0) {
-            return Err(::io::Error::new(::io::ErrorKind::InvalidInput,
+            return Err(crate::io::Error::new(ErrorKind::InvalidInput,
                                         "strings passed to WinAPI cannot contain NULs"));
         }
         maybe_result.push(0);
@@ -103,7 +108,7 @@ pub fn to_u16s<S: AsRef<OsStr>>(s: S) -> ::io::Result<Vec<u16>> {
 // Once the syscall has completed (errors bail out early) the second closure is
 // yielded the data which has been read from the syscall. The return value
 // from this closure is then the return value of the function.
-fn fill_utf16_buf<F1, F2, T>(mut f1: F1, f2: F2) -> ::io::Result<T>
+fn fill_utf16_buf<F1, F2, T>(mut f1: F1, f2: F2) -> crate::io::Result<T>
     where F1: FnMut(*mut u16, c::DWORD) -> c::DWORD,
           F2: FnOnce(&[u16]) -> T
 {
@@ -135,7 +140,7 @@ fn fill_utf16_buf<F1, F2, T>(mut f1: F1, f2: F2) -> ::io::Result<T>
             c::SetLastError(0);
             let k = match f1(buf.as_mut_ptr(), n as c::DWORD) {
                 0 if c::GetLastError() == 0 => 0,
-                0 => return Err(::io::Error::last_os_error()),
+                0 => return Err(crate::io::Error::last_os_error()),
                 n => n,
             } as usize;
             if k == n && c::GetLastError() == c::ERROR_INSUFFICIENT_BUFFER {
@@ -158,7 +163,7 @@ fn wide_char_to_multi_byte(code_page: u32,
                            flags: u32,
                            s: &[u16],
                            no_default_char: bool)
-                           -> ::io::Result<Vec<i8>> {
+                           -> crate::io::Result<Vec<i8>> {
     unsafe {
         let mut size = c::WideCharToMultiByte(code_page,
                                               flags,
@@ -169,7 +174,7 @@ fn wide_char_to_multi_byte(code_page: u32,
                                               ptr::null(),
                                               ptr::null_mut());
         if size == 0 {
-            return Err(::io::Error::last_os_error());
+            return Err(crate::io::Error::last_os_error());
         }
 
         let mut buf = Vec::with_capacity(size as usize);
@@ -186,10 +191,10 @@ fn wide_char_to_multi_byte(code_page: u32,
                                       if no_default_char { &mut used_default_char }
                                       else { ptr::null_mut() });
         if size == 0 {
-            return Err(::io::Error::last_os_error());
+            return Err(crate::io::Error::last_os_error());
         }
         if no_default_char && used_default_char == c::TRUE {
-            return Err(::io::Error::new(::io::ErrorKind::InvalidData,
+            return Err(crate::io::Error::new(crate::io::ErrorKind::InvalidData,
                                       "string cannot be converted to requested code page"));
         }
 
@@ -199,7 +204,7 @@ fn wide_char_to_multi_byte(code_page: u32,
     }
 }
 
-pub fn truncate_utf16_at_nul<'a>(v: &'a [u16]) -> &'a [u16] {
+pub fn truncate_utf16_at_nul(v: &[u16]) -> &[u16] {
     match v.iter().position(|c| *c == 0) {
         // don't include the 0
         Some(i) => &v[..i],
@@ -221,9 +226,9 @@ macro_rules! impl_is_zero {
 
 impl_is_zero! { i8 i16 i32 i64 isize u8 u16 u32 u64 usize }
 
-pub fn cvt<I: IsZero>(i: I) -> ::io::Result<I> {
+pub fn cvt<I: IsZero>(i: I) -> crate::io::Result<I> {
     if i.is_zero() {
-        Err(::io::Error::last_os_error())
+        Err(crate::io::Error::last_os_error())
     } else {
         Ok(i)
     }
@@ -263,7 +268,7 @@ pub unsafe fn abort_internal() -> ! {
     #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
     {
         asm!("int $$0x29" :: "{ecx}"(7) ::: volatile); // 7 is FAST_FAIL_FATAL_APP_EXIT
-        ::intrinsics::unreachable();
+        crate::intrinsics::unreachable();
     }
-    ::intrinsics::abort();
+    crate::intrinsics::abort();
 }

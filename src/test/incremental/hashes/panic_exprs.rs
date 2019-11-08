@@ -8,7 +8,7 @@
 // and make sure that the hash has changed, then change nothing between rev2 and
 // rev3 and make sure that the hash has not changed.
 
-// compile-pass
+// build-pass (FIXME(62277): could be check-pass?)
 // revisions: cfail1 cfail2 cfail3
 // compile-flags: -Z query-dep-graph -C debug-assertions
 
@@ -17,8 +17,8 @@
 #![crate_type="rlib"]
 
 
-// Indexing expression ---------------------------------------------------------
-#[rustc_clean(cfg="cfail2", except="HirBody,MirBuilt,MirOptimized")]
+// Indexing expression
+#[rustc_clean(cfg="cfail2", except="HirBody,mir_built,optimized_mir")]
 #[rustc_clean(cfg="cfail3")]
 pub fn indexing(slice: &[u8]) -> u8 {
     #[cfg(cfail1)]
@@ -32,8 +32,8 @@ pub fn indexing(slice: &[u8]) -> u8 {
 }
 
 
-// Arithmetic overflow plus ----------------------------------------------------
-#[rustc_clean(cfg="cfail2", except="HirBody,MirBuilt,MirOptimized")]
+// Arithmetic overflow plus
+#[rustc_clean(cfg="cfail2", except="HirBody,mir_built,optimized_mir")]
 #[rustc_clean(cfg="cfail3")]
 pub fn arithmetic_overflow_plus(val: i32) -> i32 {
     #[cfg(cfail1)]
@@ -47,8 +47,8 @@ pub fn arithmetic_overflow_plus(val: i32) -> i32 {
 }
 
 
-// Arithmetic overflow minus ----------------------------------------------------
-#[rustc_clean(cfg="cfail2", except="HirBody,MirBuilt,MirOptimized")]
+// Arithmetic overflow minus
+#[rustc_clean(cfg="cfail2", except="HirBody,mir_built,optimized_mir")]
 #[rustc_clean(cfg="cfail3")]
 pub fn arithmetic_overflow_minus(val: i32) -> i32 {
     #[cfg(cfail1)]
@@ -62,8 +62,8 @@ pub fn arithmetic_overflow_minus(val: i32) -> i32 {
 }
 
 
-// Arithmetic overflow mult ----------------------------------------------------
-#[rustc_clean(cfg="cfail2", except="HirBody,MirBuilt,MirOptimized")]
+// Arithmetic overflow mult
+#[rustc_clean(cfg="cfail2", except="HirBody,mir_built,optimized_mir")]
 #[rustc_clean(cfg="cfail3")]
 pub fn arithmetic_overflow_mult(val: i32) -> i32 {
     #[cfg(cfail1)]
@@ -77,8 +77,8 @@ pub fn arithmetic_overflow_mult(val: i32) -> i32 {
 }
 
 
-// Arithmetic overflow negation ------------------------------------------------
-#[rustc_clean(cfg="cfail2", except="HirBody,MirBuilt,MirOptimized")]
+// Arithmetic overflow negation
+#[rustc_clean(cfg="cfail2", except="HirBody,mir_built,optimized_mir")]
 #[rustc_clean(cfg="cfail3")]
 pub fn arithmetic_overflow_negation(val: i32) -> i32 {
     #[cfg(cfail1)]
@@ -92,8 +92,8 @@ pub fn arithmetic_overflow_negation(val: i32) -> i32 {
 }
 
 
-// Division by zero ------------------------------------------------------------
-#[rustc_clean(cfg="cfail2", except="HirBody,MirBuilt,MirOptimized")]
+// Division by zero
+#[rustc_clean(cfg="cfail2", except="HirBody,mir_built,optimized_mir")]
 #[rustc_clean(cfg="cfail3")]
 pub fn division_by_zero(val: i32) -> i32 {
     #[cfg(cfail1)]
@@ -106,8 +106,8 @@ pub fn division_by_zero(val: i32) -> i32 {
     }
 }
 
-// Division by zero ------------------------------------------------------------
-#[rustc_clean(cfg="cfail2", except="HirBody,MirBuilt,MirOptimized")]
+// Division by zero
+#[rustc_clean(cfg="cfail2", except="HirBody,mir_built,optimized_mir")]
 #[rustc_clean(cfg="cfail3")]
 pub fn mod_by_zero(val: i32) -> i32 {
     #[cfg(cfail1)]
@@ -121,8 +121,8 @@ pub fn mod_by_zero(val: i32) -> i32 {
 }
 
 
-// shift left ------------------------------------------------------------------
-#[rustc_clean(cfg="cfail2", except="HirBody,MirBuilt,MirOptimized")]
+// shift left
+#[rustc_clean(cfg="cfail2", except="HirBody,mir_built,optimized_mir")]
 #[rustc_clean(cfg="cfail3")]
 pub fn shift_left(val: i32, shift: usize) -> i32 {
     #[cfg(cfail1)]
@@ -136,8 +136,8 @@ pub fn shift_left(val: i32, shift: usize) -> i32 {
 }
 
 
-// shift right ------------------------------------------------------------------
-#[rustc_clean(cfg="cfail2", except="HirBody,MirBuilt,MirOptimized")]
+// shift right
+#[rustc_clean(cfg="cfail2", except="HirBody,mir_built,optimized_mir")]
 #[rustc_clean(cfg="cfail3")]
 pub fn shift_right(val: i32, shift: usize) -> i32 {
     #[cfg(cfail1)]

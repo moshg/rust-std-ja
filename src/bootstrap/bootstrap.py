@@ -177,7 +177,6 @@ def default_build_triple():
     # The goal here is to come up with the same triple as LLVM would,
     # at least for the subset of platforms we're willing to target.
     ostype_mapper = {
-        'Bitrig': 'unknown-bitrig',
         'Darwin': 'apple-darwin',
         'DragonFly': 'unknown-dragonfly',
         'FreeBSD': 'unknown-freebsd',
@@ -262,6 +261,10 @@ def default_build_triple():
         cputype = 'arm'
         if ostype == 'linux-android':
             ostype = 'linux-androideabi'
+        elif ostype == 'unknown-freebsd':
+            cputype = subprocess.check_output(
+                ['uname', '-p']).strip().decode(default_encoding)
+            ostype = 'unknown-freebsd'
     elif cputype == 'armv6l':
         cputype = 'arm'
         if ostype == 'linux-android':
@@ -317,7 +320,7 @@ class RustBuild(object):
     def __init__(self):
         self.cargo_channel = ''
         self.date = ''
-        self._download_url = 'https://static.rust-lang.org'
+        self._download_url = ''
         self.rustc_channel = ''
         self.build = ''
         self.build_dir = os.path.join(os.getcwd(), "build")
@@ -520,6 +523,10 @@ class RustBuild(object):
         'value2'
         >>> rb.get_toml('key', 'c') is None
         True
+
+        >>> rb.config_toml = 'key1 = true'
+        >>> rb.get_toml("key1")
+        'true'
         """
 
         cur_section = None
@@ -568,6 +575,12 @@ class RustBuild(object):
 
         >>> RustBuild.get_string('    "devel"   ')
         'devel'
+        >>> RustBuild.get_string("    'devel'   ")
+        'devel'
+        >>> RustBuild.get_string('devel') is None
+        True
+        >>> RustBuild.get_string('    "devel   ')
+        ''
         """
         start = line.find('"')
         if start != -1:
@@ -628,6 +641,9 @@ class RustBuild(object):
         target_linker = self.get_toml("linker", build_section)
         if target_linker is not None:
             env["RUSTFLAGS"] += "-C linker=" + target_linker + " "
+        env["RUSTFLAGS"] += " -Wrust_2018_idioms -Wunused_lifetimes "
+        if self.get_toml("deny-warnings", "rust") != "false":
+            env["RUSTFLAGS"] += "-Dwarnings "
 
         env["PATH"] = os.path.join(self.bin_root(), "bin") + \
             os.pathsep + env["PATH"]
@@ -663,7 +679,7 @@ class RustBuild(object):
     def update_submodule(self, module, checked_out, recorded_submodules):
         module_path = os.path.join(self.rust_root, module)
 
-        if checked_out != None:
+        if checked_out is not None:
             default_encoding = sys.getdefaultencoding()
             checked_out = checked_out.communicate()[0].decode(default_encoding).strip()
             if recorded_submodules[module] == checked_out:
@@ -673,9 +689,15 @@ class RustBuild(object):
 
         run(["git", "submodule", "-q", "sync", module],
             cwd=self.rust_root, verbose=self.verbose)
-        run(["git", "submodule", "update",
-            "--init", "--recursive", "--progress", module],
-            cwd=self.rust_root, verbose=self.verbose)
+        try:
+            run(["git", "submodule", "update",
+                 "--init", "--recursive", "--progress", module],
+                cwd=self.rust_root, verbose=self.verbose, exception=True)
+        except RuntimeError:
+            # Some versions of git don't support --progress.
+            run(["git", "submodule", "update",
+                 "--init", "--recursive", module],
+                cwd=self.rust_root, verbose=self.verbose)
         run(["git", "reset", "-q", "--hard"],
             cwd=module_path, verbose=self.verbose)
         run(["git", "clean", "-qdfx"],
@@ -686,6 +708,14 @@ class RustBuild(object):
         if (not os.path.exists(os.path.join(self.rust_root, ".git"))) or \
                 self.get_toml('submodules') == "false":
             return
+
+        # check the existence of 'git' command
+        try:
+            subprocess.check_output(['git', '--version'])
+        except (subprocess.CalledProcessError, OSError):
+            print("error: `git` is not found, please make sure it's installed and in the path.")
+            sys.exit(1)
+
         slow_submodules = self.get_toml('fast-submodules') == "false"
         start_time = time()
         if slow_submodules:
@@ -722,9 +752,60 @@ class RustBuild(object):
             self.update_submodule(module[0], module[1], recorded_submodules)
         print("Submodules updated in %.2f seconds" % (time() - start_time))
 
+    def set_normal_environment(self):
+        """Set download URL for normal environment"""
+        if 'RUSTUP_DIST_SERVER' in os.environ:
+            self._download_url = os.environ['RUSTUP_DIST_SERVER']
+        else:
+            self._download_url = 'https://static.rust-lang.org'
+
     def set_dev_environment(self):
         """Set download URL for development environment"""
-        self._download_url = 'https://dev-static.rust-lang.org'
+        if 'RUSTUP_DEV_DIST_SERVER' in os.environ:
+            self._download_url = os.environ['RUSTUP_DEV_DIST_SERVER']
+        else:
+            self._download_url = 'https://dev-static.rust-lang.org'
+
+    def check_vendored_status(self):
+        """Check that vendoring is configured properly"""
+        vendor_dir = os.path.join(self.rust_root, 'vendor')
+        if 'SUDO_USER' in os.environ and not self.use_vendored_sources:
+            if os.environ.get('USER') != os.environ['SUDO_USER']:
+                self.use_vendored_sources = True
+                print('info: looks like you are running this command under `sudo`')
+                print('      and so in order to preserve your $HOME this will now')
+                print('      use vendored sources by default.')
+                if not os.path.exists(vendor_dir):
+                    print('error: vendoring required, but vendor directory does not exist.')
+                    print('       Run `cargo vendor` without sudo to initialize the '
+                        'vendor directory.')
+                    raise Exception("{} not found".format(vendor_dir))
+
+        if self.use_vendored_sources:
+            if not os.path.exists('.cargo'):
+                os.makedirs('.cargo')
+            with output('.cargo/config') as cargo_config:
+                cargo_config.write(
+                    "[source.crates-io]\n"
+                    "replace-with = 'vendored-sources'\n"
+                    "registry = 'https://example.com'\n"
+                    "\n"
+                    "[source.vendored-sources]\n"
+                    "directory = '{}/vendor'\n"
+                .format(self.rust_root))
+        else:
+            if os.path.exists('.cargo'):
+                shutil.rmtree('.cargo')
+
+    def ensure_vendored(self):
+        """Ensure that the vendored sources are available if needed"""
+        vendor_dir = os.path.join(self.rust_root, 'vendor')
+        # Note that this does not handle updating the vendored dependencies if
+        # the rust git repository is updated. Normal development usually does
+        # not use vendoring, so hopefully this isn't too much of a problem.
+        if self.use_vendored_sources and not os.path.exists(vendor_dir):
+            run([self.cargo(), "vendor"],
+                verbose=self.verbose, cwd=self.rust_root)
 
 
 def bootstrap(help_triggered):
@@ -759,38 +840,15 @@ def bootstrap(help_triggered):
     except (OSError, IOError):
         pass
 
-    match = re.search(r'\nverbose = (\d+)', build.config_toml)
-    if match is not None:
-        build.verbose = max(build.verbose, int(match.group(1)))
+    config_verbose = build.get_toml('verbose', 'build')
+    if config_verbose is not None:
+        build.verbose = max(build.verbose, int(config_verbose))
 
-    build.use_vendored_sources = '\nvendor = true' in build.config_toml
+    build.use_vendored_sources = build.get_toml('vendor', 'build') == 'true'
 
-    build.use_locked_deps = '\nlocked-deps = true' in build.config_toml
+    build.use_locked_deps = build.get_toml('locked-deps', 'build') == 'true'
 
-    if 'SUDO_USER' in os.environ and not build.use_vendored_sources:
-        if os.environ.get('USER') != os.environ['SUDO_USER']:
-            build.use_vendored_sources = True
-            print('info: looks like you are running this command under `sudo`')
-            print('      and so in order to preserve your $HOME this will now')
-            print('      use vendored sources by default. Note that if this')
-            print('      does not work you should run a normal build first')
-            print('      before running a command like `sudo ./x.py install`')
-
-    if build.use_vendored_sources:
-        if not os.path.exists('.cargo'):
-            os.makedirs('.cargo')
-        with output('.cargo/config') as cargo_config:
-            cargo_config.write("""
-                [source.crates-io]
-                replace-with = 'vendored-sources'
-                registry = 'https://example.com'
-
-                [source.vendored-sources]
-                directory = '{}/vendor'
-            """.format(build.rust_root))
-    else:
-        if os.path.exists('.cargo'):
-            shutil.rmtree('.cargo')
+    build.check_vendored_status()
 
     data = stage0_data(build.rust_root)
     build.date = data['date']
@@ -799,6 +857,8 @@ def bootstrap(help_triggered):
 
     if 'dev' in data:
         build.set_dev_environment()
+    else:
+        build.set_normal_environment()
 
     build.update_submodules()
 
@@ -806,6 +866,7 @@ def bootstrap(help_triggered):
     build.build = args.build or build.build_triple()
     build.download_stage0()
     sys.stdout.flush()
+    build.ensure_vendored()
     build.build_bootstrap()
     sys.stdout.flush()
 
@@ -830,7 +891,7 @@ def main():
 
     # x.py help <cmd> ...
     if len(sys.argv) > 1 and sys.argv[1] == 'help':
-        sys.argv = sys.argv[:1] + [sys.argv[2], '-h'] + sys.argv[3:]
+        sys.argv = [sys.argv[0], '-h'] + sys.argv[2:]
 
     help_triggered = (
         '-h' in sys.argv) or ('--help' in sys.argv) or (len(sys.argv) == 1)

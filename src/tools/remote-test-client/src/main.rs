@@ -1,9 +1,11 @@
-/// This is a small client program intended to pair with `remote-test-server` in
-/// this repository. This client connects to the server over TCP and is used to
-/// push artifacts and run tests on the server instead of locally.
-///
-/// Here is also where we bake in the support to spawn the QEMU emulator as
-/// well.
+//! This is a small client program intended to pair with `remote-test-server` in
+//! this repository. This client connects to the server over TCP and is used to
+//! push artifacts and run tests on the server instead of locally.
+//!
+//! Here is also where we bake in the support to spawn the QEMU emulator as
+//! well.
+
+#![deny(warnings)]
 
 use std::env;
 use std::fs::{self, File};
@@ -15,7 +17,7 @@ use std::process::{Command, Stdio};
 use std::thread;
 use std::time::Duration;
 
-const REMOTE_ADDR_ENV: &'static str = "TEST_DEVICE_ADDR";
+const REMOTE_ADDR_ENV: &str = "TEST_DEVICE_ADDR";
 
 macro_rules! t {
     ($e:expr) => (match $e {

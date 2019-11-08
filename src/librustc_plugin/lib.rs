@@ -16,11 +16,11 @@
 //! #![feature(plugin_registrar)]
 //! #![feature(rustc_private)]
 //!
-//! extern crate rustc_plugin;
+//! extern crate rustc_driver;
 //! extern crate syntax;
 //! extern crate syntax_pos;
 //!
-//! use rustc_plugin::Registry;
+//! use rustc_driver::plugin::Registry;
 //! use syntax::ext::base::{ExtCtxt, MacResult};
 //! use syntax_pos::Span;
 //! use syntax::tokenstream::TokenTree;
@@ -47,23 +47,19 @@
 //! #![plugin(myplugin)]
 //! ```
 //!
-//! See the [`plugin` feature](../unstable-book/language-features/plugin.html) of
-//! the Unstable Book for more examples.
+//! See the [`plugin`
+//! feature](https://doc.rust-lang.org/nightly/unstable-book/language-features/plugin.html)
+//! of the Unstable Book for more examples.
 
 #![doc(html_root_url = "https://doc.rust-lang.org/nightly/")]
 
 #![feature(nll)]
-#![feature(rustc_diagnostic_macros)]
 
 #![recursion_limit="256"]
 
-#![deny(rust_2018_idioms)]
-
 pub use registry::Registry;
 
-mod diagnostics;
+pub mod error_codes;
 pub mod registry;
 pub mod load;
 pub mod build;
-
-__build_diagnostic_array! { librustc_plugin, DIAGNOSTICS }

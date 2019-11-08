@@ -13,17 +13,19 @@
 // coherence challenge (e.g., specialization, neg impls, etc) we can
 // reconsider what crate these items belong in.
 
-use alloc::{AllocErr, LayoutErr, CannotReallocInPlace};
-use any::TypeId;
-use borrow::Cow;
-use cell;
-use char;
 use core::array;
-use fmt::{self, Debug, Display};
-use mem::transmute;
-use num;
-use str;
-use string;
+
+use crate::alloc::{AllocErr, LayoutErr, CannotReallocInPlace};
+use crate::any::TypeId;
+use crate::backtrace::Backtrace;
+use crate::borrow::Cow;
+use crate::cell;
+use crate::char;
+use crate::fmt::{self, Debug, Display};
+use crate::mem::transmute;
+use crate::num;
+use crate::str;
+use crate::string;
 
 /// `Error` is a trait representing the basic expectations for error values,
 /// i.e., values of type `E` in [`Result<T, E>`]. Errors must describe
@@ -83,7 +85,7 @@ pub trait Error: Debug + Display {
     /// }
     ///
     /// impl fmt::Display for SuperError {
-    ///     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    ///     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
     ///         write!(f, "SuperError is here!")
     ///     }
     /// }
@@ -93,7 +95,7 @@ pub trait Error: Debug + Display {
     ///         "I'm the superhero of errors"
     ///     }
     ///
-    ///     fn cause(&self) -> Option<&Error> {
+    ///     fn cause(&self) -> Option<&dyn Error> {
     ///         Some(&self.side)
     ///     }
     /// }
@@ -102,7 +104,7 @@ pub trait Error: Debug + Display {
     /// struct SuperErrorSideKick;
     ///
     /// impl fmt::Display for SuperErrorSideKick {
-    ///     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    ///     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
     ///         write!(f, "SuperErrorSideKick is here!")
     ///     }
     /// }
@@ -148,7 +150,7 @@ pub trait Error: Debug + Display {
     /// }
     ///
     /// impl fmt::Display for SuperError {
-    ///     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    ///     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
     ///         write!(f, "SuperError is here!")
     ///     }
     /// }
@@ -167,7 +169,7 @@ pub trait Error: Debug + Display {
     /// struct SuperErrorSideKick;
     ///
     /// impl fmt::Display for SuperErrorSideKick {
-    ///     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    ///     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
     ///         write!(f, "SuperErrorSideKick is here!")
     ///     }
     /// }
@@ -195,16 +197,43 @@ pub trait Error: Debug + Display {
     #[stable(feature = "error_source", since = "1.30.0")]
     fn source(&self) -> Option<&(dyn Error + 'static)> { None }
 
-    /// Gets the `TypeId` of `self`
-    #[stable(feature = "error_type_id", since = "1.34.0")]
-    fn type_id(&self) -> TypeId where Self: 'static {
+    /// Gets the `TypeId` of `self`.
+    #[doc(hidden)]
+    #[unstable(feature = "error_type_id",
+               reason = "this is memory-unsafe to override in user code",
+               issue = "60784")]
+    fn type_id(&self, _: private::Internal) -> TypeId where Self: 'static {
         TypeId::of::<Self>()
     }
+
+    /// Returns a stack backtrace, if available, of where this error ocurred.
+    ///
+    /// This function allows inspecting the location, in code, of where an error
+    /// happened. The returned `Backtrace` contains information about the stack
+    /// trace of the OS thread of execution of where the error originated from.
+    ///
+    /// Note that not all errors contain a `Backtrace`. Also note that a
+    /// `Backtrace` may actually be empty. For more information consult the
+    /// `Backtrace` type itself.
+    #[unstable(feature = "backtrace", issue = "53487")]
+    fn backtrace(&self) -> Option<&Backtrace> {
+        None
+    }
+}
+
+mod private {
+    // This is a hack to prevent `type_id` from being overridden by `Error`
+    // implementations, since that can enable unsound downcasting.
+    #[unstable(feature = "error_type_id", issue = "60784")]
+    #[derive(Debug)]
+    pub struct Internal;
 }
 
 #[stable(feature = "rust1", since = "1.0.0")]
 impl<'a, E: Error + 'a> From<E> for Box<dyn Error + 'a> {
     /// Converts a type of [`Error`] into a box of dyn [`Error`].
+    ///
+    /// [`Error`]: ../error/trait.Error.html
     ///
     /// # Examples
     ///
@@ -217,7 +246,7 @@ impl<'a, E: Error + 'a> From<E> for Box<dyn Error + 'a> {
     /// struct AnError;
     ///
     /// impl fmt::Display for AnError {
-    ///     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    ///     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
     ///         write!(f , "An error")
     ///     }
     /// }
@@ -230,7 +259,7 @@ impl<'a, E: Error + 'a> From<E> for Box<dyn Error + 'a> {
     ///
     /// let an_error = AnError;
     /// assert!(0 == mem::size_of_val(&an_error));
-    /// let a_boxed_error = Box::<Error>::from(an_error);
+    /// let a_boxed_error = Box::<dyn Error>::from(an_error);
     /// assert!(mem::size_of::<Box<dyn Error>>() == mem::size_of_val(&a_boxed_error))
     /// ```
     fn from(err: E) -> Box<dyn Error + 'a> {
@@ -240,8 +269,10 @@ impl<'a, E: Error + 'a> From<E> for Box<dyn Error + 'a> {
 
 #[stable(feature = "rust1", since = "1.0.0")]
 impl<'a, E: Error + Send + Sync + 'a> From<E> for Box<dyn Error + Send + Sync + 'a> {
-    /// Converts a type of [`Error`] + [`Send`] + [`Sync`] into a box of dyn [`Error`] +
-    /// [`Send`] + [`Sync`].
+    /// Converts a type of [`Error`] + [`trait@Send`] + [`trait@Sync`] into a box of
+    /// dyn [`Error`] + [`trait@Send`] + [`trait@Sync`].
+    ///
+    /// [`Error`]: ../error/trait.Error.html
     ///
     /// # Examples
     ///
@@ -254,7 +285,7 @@ impl<'a, E: Error + Send + Sync + 'a> From<E> for Box<dyn Error + Send + Sync + 
     /// struct AnError;
     ///
     /// impl fmt::Display for AnError {
-    ///     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    ///     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
     ///         write!(f , "An error")
     ///     }
     /// }
@@ -271,7 +302,7 @@ impl<'a, E: Error + Send + Sync + 'a> From<E> for Box<dyn Error + Send + Sync + 
     ///
     /// let an_error = AnError;
     /// assert!(0 == mem::size_of_val(&an_error));
-    /// let a_boxed_error = Box::<Error + Send + Sync>::from(an_error);
+    /// let a_boxed_error = Box::<dyn Error + Send + Sync>::from(an_error);
     /// assert!(
     ///     mem::size_of::<Box<dyn Error + Send + Sync>>() == mem::size_of_val(&a_boxed_error))
     /// ```
@@ -282,7 +313,9 @@ impl<'a, E: Error + Send + Sync + 'a> From<E> for Box<dyn Error + Send + Sync + 
 
 #[stable(feature = "rust1", since = "1.0.0")]
 impl From<String> for Box<dyn Error + Send + Sync> {
-    /// Converts a [`String`] into a box of dyn [`Error`] + [`Send`] + [`Sync`].
+    /// Converts a [`String`] into a box of dyn [`Error`] + [`trait@Send`] + [`trait@Sync`].
+    ///
+    /// [`Error`]: ../error/trait.Error.html
     ///
     /// # Examples
     ///
@@ -291,12 +324,11 @@ impl From<String> for Box<dyn Error + Send + Sync> {
     /// use std::mem;
     ///
     /// let a_string_error = "a string error".to_string();
-    /// let a_boxed_error = Box::<Error + Send + Sync>::from(a_string_error);
+    /// let a_boxed_error = Box::<dyn Error + Send + Sync>::from(a_string_error);
     /// assert!(
     ///     mem::size_of::<Box<dyn Error + Send + Sync>>() == mem::size_of_val(&a_boxed_error))
     /// ```
     fn from(err: String) -> Box<dyn Error + Send + Sync> {
-        #[derive(Debug)]
         struct StringError(String);
 
         impl Error for StringError {
@@ -304,8 +336,15 @@ impl From<String> for Box<dyn Error + Send + Sync> {
         }
 
         impl Display for StringError {
-            fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+            fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
                 Display::fmt(&self.0, f)
+            }
+        }
+
+        // Purposefully skip printing "StringError(..)"
+        impl Debug for StringError {
+            fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+                Debug::fmt(&self.0, f)
             }
         }
 
@@ -317,6 +356,8 @@ impl From<String> for Box<dyn Error + Send + Sync> {
 impl From<String> for Box<dyn Error> {
     /// Converts a [`String`] into a box of dyn [`Error`].
     ///
+    /// [`Error`]: ../error/trait.Error.html
+    ///
     /// # Examples
     ///
     /// ```
@@ -324,7 +365,7 @@ impl From<String> for Box<dyn Error> {
     /// use std::mem;
     ///
     /// let a_string_error = "a string error".to_string();
-    /// let a_boxed_error = Box::<Error>::from(a_string_error);
+    /// let a_boxed_error = Box::<dyn Error>::from(a_string_error);
     /// assert!(mem::size_of::<Box<dyn Error>>() == mem::size_of_val(&a_boxed_error))
     /// ```
     fn from(str_err: String) -> Box<dyn Error> {
@@ -335,8 +376,10 @@ impl From<String> for Box<dyn Error> {
 }
 
 #[stable(feature = "rust1", since = "1.0.0")]
-impl<'a, 'b> From<&'b str> for Box<dyn Error + Send + Sync + 'a> {
-    /// Converts a [`str`] into a box of dyn [`Error`] + [`Send`] + [`Sync`].
+impl<'a> From<&str> for Box<dyn Error + Send + Sync + 'a> {
+    /// Converts a [`str`] into a box of dyn [`Error`] + [`trait@Send`] + [`trait@Sync`].
+    ///
+    /// [`Error`]: ../error/trait.Error.html
     ///
     /// # Examples
     ///
@@ -345,18 +388,20 @@ impl<'a, 'b> From<&'b str> for Box<dyn Error + Send + Sync + 'a> {
     /// use std::mem;
     ///
     /// let a_str_error = "a str error";
-    /// let a_boxed_error = Box::<Error + Send + Sync>::from(a_str_error);
+    /// let a_boxed_error = Box::<dyn Error + Send + Sync>::from(a_str_error);
     /// assert!(
     ///     mem::size_of::<Box<dyn Error + Send + Sync>>() == mem::size_of_val(&a_boxed_error))
     /// ```
-    fn from(err: &'b str) -> Box<dyn Error + Send + Sync + 'a> {
+    fn from(err: &str) -> Box<dyn Error + Send + Sync + 'a> {
         From::from(String::from(err))
     }
 }
 
 #[stable(feature = "string_box_error", since = "1.6.0")]
-impl<'a> From<&'a str> for Box<dyn Error> {
+impl From<&str> for Box<dyn Error> {
     /// Converts a [`str`] into a box of dyn [`Error`].
+    ///
+    /// [`Error`]: ../error/trait.Error.html
     ///
     /// # Examples
     ///
@@ -365,17 +410,20 @@ impl<'a> From<&'a str> for Box<dyn Error> {
     /// use std::mem;
     ///
     /// let a_str_error = "a str error";
-    /// let a_boxed_error = Box::<Error>::from(a_str_error);
+    /// let a_boxed_error = Box::<dyn Error>::from(a_str_error);
     /// assert!(mem::size_of::<Box<dyn Error>>() == mem::size_of_val(&a_boxed_error))
     /// ```
-    fn from(err: &'a str) -> Box<dyn Error> {
+    fn from(err: &str) -> Box<dyn Error> {
         From::from(String::from(err))
     }
 }
 
 #[stable(feature = "cow_box_error", since = "1.22.0")]
 impl<'a, 'b> From<Cow<'b, str>> for Box<dyn Error + Send + Sync + 'a> {
-    /// Converts a [`Cow`] into a box of dyn [`Error`] + [`Send`] + [`Sync`].
+    /// Converts a [`Cow`] into a box of dyn [`Error`] + [`trait@Send`] + [`trait@Sync`].
+    ///
+    /// [`Cow`]: ../borrow/enum.Cow.html
+    /// [`Error`]: ../error/trait.Error.html
     ///
     /// # Examples
     ///
@@ -385,7 +433,7 @@ impl<'a, 'b> From<Cow<'b, str>> for Box<dyn Error + Send + Sync + 'a> {
     /// use std::borrow::Cow;
     ///
     /// let a_cow_str_error = Cow::from("a str error");
-    /// let a_boxed_error = Box::<Error + Send + Sync>::from(a_cow_str_error);
+    /// let a_boxed_error = Box::<dyn Error + Send + Sync>::from(a_cow_str_error);
     /// assert!(
     ///     mem::size_of::<Box<dyn Error + Send + Sync>>() == mem::size_of_val(&a_boxed_error))
     /// ```
@@ -398,6 +446,9 @@ impl<'a, 'b> From<Cow<'b, str>> for Box<dyn Error + Send + Sync + 'a> {
 impl<'a> From<Cow<'a, str>> for Box<dyn Error> {
     /// Converts a [`Cow`] into a box of dyn [`Error`].
     ///
+    /// [`Cow`]: ../borrow/enum.Cow.html
+    /// [`Error`]: ../error/trait.Error.html
+    ///
     /// # Examples
     ///
     /// ```
@@ -406,7 +457,7 @@ impl<'a> From<Cow<'a, str>> for Box<dyn Error> {
     /// use std::borrow::Cow;
     ///
     /// let a_cow_str_error = Cow::from("a str error");
-    /// let a_boxed_error = Box::<Error>::from(a_cow_str_error);
+    /// let a_boxed_error = Box::<dyn Error>::from(a_cow_str_error);
     /// assert!(mem::size_of::<Box<dyn Error>>() == mem::size_of_val(&a_boxed_error))
     /// ```
     fn from(err: Cow<'a, str>) -> Box<dyn Error> {
@@ -524,6 +575,10 @@ impl<T: Error> Error for Box<T> {
     fn cause(&self) -> Option<&dyn Error> {
         Error::cause(&**self)
     }
+
+    fn source(&self) -> Option<&(dyn Error + 'static)> {
+        Error::source(&**self)
+    }
 }
 
 #[stable(feature = "fmt_error", since = "1.11.0")]
@@ -561,19 +616,19 @@ impl Error for char::ParseCharError {
     }
 }
 
-// copied from any.rs
+// Copied from `any.rs`.
 impl dyn Error + 'static {
     /// Returns `true` if the boxed type is the same as `T`
     #[stable(feature = "error_downcast", since = "1.3.0")]
     #[inline]
     pub fn is<T: Error + 'static>(&self) -> bool {
-        // Get TypeId of the type this function is instantiated with
+        // Get `TypeId` of the type this function is instantiated with.
         let t = TypeId::of::<T>();
 
-        // Get TypeId of the type in the trait object
-        let boxed = self.type_id();
+        // Get `TypeId` of the type in the trait object.
+        let boxed = self.type_id(private::Internal);
 
-        // Compare both TypeIds on equality
+        // Compare both `TypeId`s on equality.
         t == boxed
     }
 
@@ -607,21 +662,21 @@ impl dyn Error + 'static {
 }
 
 impl dyn Error + 'static + Send {
-    /// Forwards to the method defined on the type `Any`.
+    /// Forwards to the method defined on the type `dyn Error`.
     #[stable(feature = "error_downcast", since = "1.3.0")]
     #[inline]
     pub fn is<T: Error + 'static>(&self) -> bool {
         <dyn Error + 'static>::is::<T>(self)
     }
 
-    /// Forwards to the method defined on the type `Any`.
+    /// Forwards to the method defined on the type `dyn Error`.
     #[stable(feature = "error_downcast", since = "1.3.0")]
     #[inline]
     pub fn downcast_ref<T: Error + 'static>(&self) -> Option<&T> {
         <dyn Error + 'static>::downcast_ref::<T>(self)
     }
 
-    /// Forwards to the method defined on the type `Any`.
+    /// Forwards to the method defined on the type `dyn Error`.
     #[stable(feature = "error_downcast", since = "1.3.0")]
     #[inline]
     pub fn downcast_mut<T: Error + 'static>(&mut self) -> Option<&mut T> {
@@ -630,21 +685,21 @@ impl dyn Error + 'static + Send {
 }
 
 impl dyn Error + 'static + Send + Sync {
-    /// Forwards to the method defined on the type `Any`.
+    /// Forwards to the method defined on the type `dyn Error`.
     #[stable(feature = "error_downcast", since = "1.3.0")]
     #[inline]
     pub fn is<T: Error + 'static>(&self) -> bool {
         <dyn Error + 'static>::is::<T>(self)
     }
 
-    /// Forwards to the method defined on the type `Any`.
+    /// Forwards to the method defined on the type `dyn Error`.
     #[stable(feature = "error_downcast", since = "1.3.0")]
     #[inline]
     pub fn downcast_ref<T: Error + 'static>(&self) -> Option<&T> {
         <dyn Error + 'static>::downcast_ref::<T>(self)
     }
 
-    /// Forwards to the method defined on the type `Any`.
+    /// Forwards to the method defined on the type `dyn Error`.
     #[stable(feature = "error_downcast", since = "1.3.0")]
     #[inline]
     pub fn downcast_mut<T: Error + 'static>(&mut self) -> Option<&mut T> {
@@ -655,7 +710,7 @@ impl dyn Error + 'static + Send + Sync {
 impl dyn Error {
     #[inline]
     #[stable(feature = "error_downcast", since = "1.3.0")]
-    /// Attempt to downcast the box to a concrete type.
+    /// Attempts to downcast the box to a concrete type.
     pub fn downcast<T: Error + 'static>(self: Box<Self>) -> Result<Box<T>, Box<dyn Error>> {
         if self.is::<T>() {
             unsafe {
@@ -684,13 +739,13 @@ impl dyn Error {
     /// struct B(Option<Box<dyn Error + 'static>>);
     ///
     /// impl fmt::Display for A {
-    ///     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    ///     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
     ///         write!(f, "A")
     ///     }
     /// }
     ///
     /// impl fmt::Display for B {
-    ///     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    ///     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
     ///         write!(f, "B")
     ///     }
     /// }
@@ -719,7 +774,7 @@ impl dyn Error {
     /// [`source`]: trait.Error.html#method.source
     #[unstable(feature = "error_iter", issue = "58520")]
     #[inline]
-    pub fn iter_chain(&self) -> ErrorIter {
+    pub fn iter_chain(&self) -> ErrorIter<'_> {
         ErrorIter {
             current: Some(self),
         }
@@ -745,19 +800,19 @@ impl dyn Error {
     /// struct C(Option<Box<dyn Error + 'static>>);
     ///
     /// impl fmt::Display for A {
-    ///     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    ///     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
     ///         write!(f, "A")
     ///     }
     /// }
     ///
     /// impl fmt::Display for B {
-    ///     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    ///     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
     ///         write!(f, "B")
     ///     }
     /// }
     ///
     /// impl fmt::Display for C {
-    ///     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    ///     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
     ///         write!(f, "C")
     ///     }
     /// }
@@ -793,7 +848,7 @@ impl dyn Error {
     /// [`source`]: trait.Error.html#method.source
     #[inline]
     #[unstable(feature = "error_iter", issue = "58520")]
-    pub fn iter_sources(&self) -> ErrorIter {
+    pub fn iter_sources(&self) -> ErrorIter<'_> {
         ErrorIter {
             current: self.source(),
         }
@@ -823,12 +878,12 @@ impl<'a> Iterator for ErrorIter<'a> {
 impl dyn Error + Send {
     #[inline]
     #[stable(feature = "error_downcast", since = "1.3.0")]
-    /// Attempt to downcast the box to a concrete type.
+    /// Attempts to downcast the box to a concrete type.
     pub fn downcast<T: Error + 'static>(self: Box<Self>)
                                         -> Result<Box<T>, Box<dyn Error + Send>> {
         let err: Box<dyn Error> = self;
         <dyn Error>::downcast(err).map_err(|s| unsafe {
-            // reapply the Send marker
+            // Reapply the `Send` marker.
             transmute::<Box<dyn Error>, Box<dyn Error + Send>>(s)
         })
     }
@@ -837,12 +892,12 @@ impl dyn Error + Send {
 impl dyn Error + Send + Sync {
     #[inline]
     #[stable(feature = "error_downcast", since = "1.3.0")]
-    /// Attempt to downcast the box to a concrete type.
+    /// Attempts to downcast the box to a concrete type.
     pub fn downcast<T: Error + 'static>(self: Box<Self>)
                                         -> Result<Box<T>, Box<Self>> {
         let err: Box<dyn Error> = self;
         <dyn Error>::downcast(err).map_err(|s| unsafe {
-            // reapply the Send+Sync marker
+            // Reapply the `Send + Sync` marker.
             transmute::<Box<dyn Error>, Box<dyn Error + Send + Sync>>(s)
         })
     }
@@ -851,7 +906,7 @@ impl dyn Error + Send + Sync {
 #[cfg(test)]
 mod tests {
     use super::Error;
-    use fmt;
+    use crate::fmt;
 
     #[derive(Debug, PartialEq)]
     struct A;
@@ -859,12 +914,12 @@ mod tests {
     struct B;
 
     impl fmt::Display for A {
-        fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
             write!(f, "A")
         }
     }
     impl fmt::Display for B {
-        fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
             write!(f, "B")
         }
     }

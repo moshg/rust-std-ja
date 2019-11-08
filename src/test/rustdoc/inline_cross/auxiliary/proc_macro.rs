@@ -1,5 +1,6 @@
 // force-host
 // no-prefer-dynamic
+// compile-flags: --crate-type proc-macro
 
 #![crate_type="proc-macro"]
 #![crate_name="some_macros"]
@@ -26,3 +27,8 @@ pub fn some_derive(_item: TokenStream) -> TokenStream {
     TokenStream::new()
 }
 
+/// Doc comment from the original crate
+#[proc_macro]
+pub fn reexported_macro(_input: TokenStream) -> TokenStream {
+    TokenStream::new()
+}

@@ -1,13 +1,13 @@
-use boxed::FnBox;
-use io;
-use ffi::CStr;
-use mem;
+use crate::io;
+use crate::ffi::CStr;
+use crate::mem;
+use crate::ptr;
+use crate::sys::c;
+use crate::sys::handle::Handle;
+use crate::sys_common::thread::*;
+use crate::time::Duration;
+
 use libc::c_void;
-use ptr;
-use sys::c;
-use sys::handle::Handle;
-use sys_common::thread::*;
-use time::Duration;
 
 use super::to_u16s;
 
@@ -19,7 +19,7 @@ pub struct Thread {
 
 impl Thread {
     // unsafe: see thread::Builder::spawn_unchecked for safety requirements
-    pub unsafe fn new(stack: usize, p: Box<dyn FnBox()>)
+    pub unsafe fn new(stack: usize, p: Box<dyn FnOnce()>)
                           -> io::Result<Thread> {
         let p = box p;
 

@@ -28,6 +28,9 @@ pub use crate::cstore_impl::{provide, provide_extern};
 pub type CrateNumMap = IndexVec<CrateNum, CrateNum>;
 
 pub use rustc_data_structures::sync::MetadataRef;
+use crate::creader::Library;
+use syntax_pos::Span;
+use proc_macro::bridge::client::ProcMacro;
 
 pub struct MetadataBlob(pub MetadataRef);
 
@@ -64,21 +67,32 @@ pub struct CrateMetadata {
     /// Used for decoding interpret::AllocIds in a cached & thread-safe manner.
     pub alloc_decoding_state: AllocDecodingState,
 
-    pub root: schema::CrateRoot,
+    // NOTE(eddyb) we pass `'static` to a `'tcx` parameter because this
+    // lifetime is only used behind `Lazy`, and therefore acts like an
+    // universal (`for<'tcx>`), that is paired up with whichever `TyCtxt`
+    // is being used to decode those values.
+    pub root: schema::CrateRoot<'static>,
 
-    /// For each public item in this crate, we encode a key. When the
+    /// For each definition in this crate, we encode a key. When the
     /// crate is loaded, we read all the keys and put them in this
     /// hashmap, which gives the reverse mapping. This allows us to
     /// quickly retrace a `DefPath`, which is needed for incremental
     /// compilation support.
     pub def_path_table: Lrc<DefPathTable>,
 
-    pub trait_impls: FxHashMap<(u32, DefIndex), schema::LazySeq<DefIndex>>,
+    pub trait_impls: FxHashMap<(u32, DefIndex), schema::Lazy<[DefIndex]>>,
 
     pub dep_kind: Lock<DepKind>,
     pub source: CrateSource,
 
-    pub proc_macros: Option<Vec<(ast::Name, Lrc<SyntaxExtension>)>>,
+    /// Whether or not this crate should be consider a private dependency
+    /// for purposes of the 'exported_private_dependencies' lint
+    pub private_dep: bool,
+
+    pub host_lib: Option<Library>,
+    pub span: Span,
+
+    pub raw_proc_macros: Option<&'static [ProcMacro]>,
 }
 
 pub struct CStore {
@@ -90,7 +104,7 @@ pub struct CStore {
 
 pub enum LoadedMacro {
     MacroDef(ast::Item),
-    ProcMacro(Lrc<SyntaxExtension>),
+    ProcMacro(SyntaxExtension),
 }
 
 impl CStore {
@@ -114,7 +128,8 @@ impl CStore {
     }
 
     pub(super) fn get_crate_data(&self, cnum: CrateNum) -> Lrc<CrateMetadata> {
-        self.metas.borrow()[cnum].clone().unwrap()
+        self.metas.borrow()[cnum].clone()
+            .unwrap_or_else(|| panic!("Failed to get crate data for {:?}", cnum))
     }
 
     pub(super) fn set_crate_data(&self, cnum: CrateNum, data: Lrc<CrateMetadata>) {

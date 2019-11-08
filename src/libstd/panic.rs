@@ -2,21 +2,22 @@
 
 #![stable(feature = "std_panic", since = "1.9.0")]
 
-use any::Any;
-use cell::UnsafeCell;
-use fmt;
-use future::Future;
-use pin::Pin;
-use ops::{Deref, DerefMut};
-use panicking;
-use ptr::{Unique, NonNull};
-use rc::Rc;
-use sync::{Arc, Mutex, RwLock, atomic};
-use task::{Waker, Poll};
-use thread::Result;
+use crate::any::Any;
+use crate::cell::UnsafeCell;
+use crate::collections;
+use crate::fmt;
+use crate::future::Future;
+use crate::pin::Pin;
+use crate::ops::{Deref, DerefMut};
+use crate::panicking;
+use crate::ptr::{Unique, NonNull};
+use crate::rc::Rc;
+use crate::sync::{Arc, Mutex, RwLock, atomic};
+use crate::task::{Context, Poll};
+use crate::thread::Result;
 
 #[stable(feature = "panic_hooks", since = "1.10.0")]
-pub use panicking::{take_hook, set_hook};
+pub use crate::panicking::{take_hook, set_hook};
 
 #[stable(feature = "panic_hooks", since = "1.10.0")]
 pub use core::panic::{PanicInfo, Location};
@@ -285,6 +286,11 @@ impl RefUnwindSafe for atomic::AtomicBool {}
 #[stable(feature = "unwind_safe_atomic_refs", since = "1.14.0")]
 impl<T> RefUnwindSafe for atomic::AtomicPtr<T> {}
 
+// https://github.com/rust-lang/rust/issues/62301
+#[stable(feature = "hashbrown", since = "1.36.0")]
+impl<K, V, S> UnwindSafe for collections::HashMap<K, V, S>
+    where K: UnwindSafe, V: UnwindSafe, S: UnwindSafe {}
+
 #[stable(feature = "catch_unwind", since = "1.9.0")]
 impl<T> Deref for AssertUnwindSafe<T> {
     type Target = T;
@@ -312,20 +318,20 @@ impl<R, F: FnOnce() -> R> FnOnce<()> for AssertUnwindSafe<F> {
 
 #[stable(feature = "std_debug", since = "1.16.0")]
 impl<T: fmt::Debug> fmt::Debug for AssertUnwindSafe<T> {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_tuple("AssertUnwindSafe")
             .field(&self.0)
             .finish()
     }
 }
 
-#[unstable(feature = "futures_api", issue = "50547")]
+#[stable(feature = "futures_api", since = "1.36.0")]
 impl<F: Future> Future for AssertUnwindSafe<F> {
     type Output = F::Output;
 
-    fn poll(self: Pin<&mut Self>, waker: &Waker) -> Poll<Self::Output> {
+    fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
         let pinned_field = unsafe { Pin::map_unchecked_mut(self, |x| &mut x.0) };
-        F::poll(pinned_field, waker)
+        F::poll(pinned_field, cx)
     }
 }
 
@@ -385,7 +391,7 @@ impl<F: Future> Future for AssertUnwindSafe<F> {
 #[stable(feature = "catch_unwind", since = "1.9.0")]
 pub fn catch_unwind<F: FnOnce() -> R + UnwindSafe, R>(f: F) -> Result<R> {
     unsafe {
-        panicking::try(f)
+        panicking::r#try(f)
     }
 }
 

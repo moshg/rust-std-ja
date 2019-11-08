@@ -1,7 +1,8 @@
-use cell::UnsafeCell;
-use mem;
-use sync::atomic::{AtomicU32, Ordering};
-use sys::cloudabi::abi;
+use crate::cell::UnsafeCell;
+use crate::mem;
+use crate::mem::MaybeUninit;
+use crate::sync::atomic::{AtomicU32, Ordering};
+use crate::sys::cloudabi::abi;
 
 extern "C" {
     #[thread_local]
@@ -73,10 +74,11 @@ impl RWLock {
                 },
                 ..mem::zeroed()
             };
-            let mut event: abi::event = mem::uninitialized();
-            let mut nevents: usize = mem::uninitialized();
-            let ret = abi::poll(&subscription, &mut event, 1, &mut nevents);
+            let mut event = MaybeUninit::<abi::event>::uninit();
+            let mut nevents = MaybeUninit::<usize>::uninit();
+            let ret = abi::poll(&subscription, event.as_mut_ptr(), 1, nevents.as_mut_ptr());
             assert_eq!(ret, abi::errno::SUCCESS, "Failed to acquire read lock");
+            let event = event.assume_init();
             assert_eq!(
                 event.error,
                 abi::errno::SUCCESS,
@@ -182,10 +184,11 @@ impl RWLock {
                 },
                 ..mem::zeroed()
             };
-            let mut event: abi::event = mem::uninitialized();
-            let mut nevents: usize = mem::uninitialized();
-            let ret = abi::poll(&subscription, &mut event, 1, &mut nevents);
+            let mut event = MaybeUninit::<abi::event>::uninit();
+            let mut nevents = MaybeUninit::<usize>::uninit();
+            let ret = abi::poll(&subscription, event.as_mut_ptr(), 1, nevents.as_mut_ptr());
             assert_eq!(ret, abi::errno::SUCCESS, "Failed to acquire write lock");
+            let event = event.assume_init();
             assert_eq!(
                 event.error,
                 abi::errno::SUCCESS,

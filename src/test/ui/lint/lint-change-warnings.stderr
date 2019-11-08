@@ -1,7 +1,7 @@
 error: denote infinite loops with `loop { ... }`
   --> $DIR/lint-change-warnings.rs:5:5
    |
-LL |     while true {} //~ ERROR: infinite
+LL |     while true {}
    |     ^^^^^^^^^^ help: use `loop`
    |
 note: lint level defined here
@@ -9,20 +9,20 @@ note: lint level defined here
    |
 LL | #![deny(warnings)]
    |         ^^^^^^^^
-   = note: #[deny(while_true)] implied by #[deny(warnings)]
+   = note: `#[deny(while_true)]` implied by `#[deny(warnings)]`
 
 warning: denote infinite loops with `loop { ... }`
   --> $DIR/lint-change-warnings.rs:15:5
    |
-LL |     while true {} //~ WARNING: infinite
+LL |     while true {}
    |     ^^^^^^^^^^ help: use `loop`
    |
-   = note: #[warn(while_true)] on by default
+   = note: `#[warn(while_true)]` on by default
 
 error: denote infinite loops with `loop { ... }`
   --> $DIR/lint-change-warnings.rs:20:5
    |
-LL |     while true {} //~ ERROR: infinite
+LL |     while true {}
    |     ^^^^^^^^^^ help: use `loop`
    |
 note: lint level defined here
@@ -30,7 +30,7 @@ note: lint level defined here
    |
 LL | #[forbid(warnings)]
    |          ^^^^^^^^
-   = note: #[forbid(while_true)] implied by #[forbid(warnings)]
+   = note: `#[forbid(while_true)]` implied by `#[forbid(warnings)]`
 
 error: aborting due to 2 previous errors
 

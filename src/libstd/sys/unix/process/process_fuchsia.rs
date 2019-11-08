@@ -1,10 +1,11 @@
-use io;
-use libc::{self, size_t};
-use mem;
-use ptr;
+use crate::io;
+use crate::mem;
+use crate::ptr;
 
-use sys::process::zircon::{Handle, zx_handle_t};
-use sys::process::process_common::*;
+use crate::sys::process::zircon::{Handle, zx_handle_t};
+use crate::sys::process::process_common::*;
+
+use libc::size_t;
 
 ////////////////////////////////////////////////////////////////////////////////
 // Command
@@ -44,33 +45,54 @@ impl Command {
 
     unsafe fn do_exec(&mut self, stdio: ChildPipes, maybe_envp: Option<&CStringArray>)
                       -> io::Result<zx_handle_t> {
-        use sys::process::zircon::*;
+        use crate::sys::process::zircon::*;
 
         let envp = match maybe_envp {
-            Some(envp) => envp.as_ptr(),
+            // None means to clone the current environment, which is done in the
+            // flags below.
             None => ptr::null(),
+            Some(envp) => envp.as_ptr(),
         };
 
-        let transfer_or_clone = |opt_fd, target_fd| if let Some(local_fd) = opt_fd {
-            fdio_spawn_action_t {
-                action: FDIO_SPAWN_ACTION_TRANSFER_FD,
-                local_fd,
-                target_fd,
-                ..Default::default()
-            }
-        } else {
-            fdio_spawn_action_t {
-                action: FDIO_SPAWN_ACTION_CLONE_FD,
-                local_fd: target_fd,
-                target_fd,
-                ..Default::default()
+        let make_action = |local_io: &ChildStdio, target_fd| -> io::Result<fdio_spawn_action_t> {
+            if let Some(local_fd) = local_io.fd() {
+                Ok(fdio_spawn_action_t {
+                    action: FDIO_SPAWN_ACTION_TRANSFER_FD,
+                    local_fd,
+                    target_fd,
+                    ..Default::default()
+                })
+            } else {
+                if let ChildStdio::Null = local_io {
+                    // acts as no-op
+                    return Ok(Default::default());
+                }
+
+                let mut handle = ZX_HANDLE_INVALID;
+                let status = fdio_fd_clone(target_fd, &mut handle);
+                if status == ERR_INVALID_ARGS || status == ERR_NOT_SUPPORTED {
+                    // This descriptor is closed; skip it rather than generating an
+                    // error.
+                    return Ok(Default::default());
+                }
+                zx_cvt(status)?;
+
+                let mut cloned_fd = 0;
+                zx_cvt(fdio_fd_create(handle, &mut cloned_fd))?;
+
+                Ok(fdio_spawn_action_t {
+                    action: FDIO_SPAWN_ACTION_TRANSFER_FD,
+                    local_fd: cloned_fd as i32,
+                    target_fd,
+                    ..Default::default()
+                })
             }
         };
 
         // Clone stdin, stdout, and stderr
-        let action1 = transfer_or_clone(stdio.stdin.fd(), 0);
-        let action2 = transfer_or_clone(stdio.stdout.fd(), 1);
-        let action3 = transfer_or_clone(stdio.stderr.fd(), 2);
+        let action1 = make_action(&stdio.stdin, 0)?;
+        let action2 = make_action(&stdio.stdout, 1)?;
+        let action3 = make_action(&stdio.stderr, 2)?;
         let actions = [action1, action2, action3];
 
         // We don't want FileDesc::drop to be called on any stdio. fdio_spawn_etc
@@ -83,9 +105,11 @@ impl Command {
 
         let mut process_handle: zx_handle_t = 0;
         zx_cvt(fdio_spawn_etc(
-            0,
-            FDIO_SPAWN_CLONE_JOB | FDIO_SPAWN_CLONE_LDSVC | FDIO_SPAWN_CLONE_NAMESPACE,
-            self.get_argv()[0], self.get_argv().as_ptr(), envp, 3, actions.as_ptr(),
+            ZX_HANDLE_INVALID,
+            FDIO_SPAWN_CLONE_JOB | FDIO_SPAWN_CLONE_LDSVC | FDIO_SPAWN_CLONE_NAMESPACE
+            | FDIO_SPAWN_CLONE_ENVIRON,  // this is ignored when envp is non-null
+            self.get_argv()[0], self.get_argv().as_ptr(), envp,
+            actions.len() as size_t, actions.as_ptr(),
             &mut process_handle,
             ptr::null_mut(),
         ))?;
@@ -109,7 +133,7 @@ impl Process {
     }
 
     pub fn kill(&mut self) -> io::Result<()> {
-        use sys::process::zircon::*;
+        use crate::sys::process::zircon::*;
 
         unsafe { zx_cvt(zx_task_kill(self.handle.raw()))?; }
 
@@ -117,8 +141,8 @@ impl Process {
     }
 
     pub fn wait(&mut self) -> io::Result<ExitStatus> {
-        use default::Default;
-        use sys::process::zircon::*;
+        use crate::default::Default;
+        use crate::sys::process::zircon::*;
 
         let mut proc_info: zx_info_process_t = Default::default();
         let mut actual: size_t = 0;
@@ -140,8 +164,8 @@ impl Process {
     }
 
     pub fn try_wait(&mut self) -> io::Result<Option<ExitStatus>> {
-        use default::Default;
-        use sys::process::zircon::*;
+        use crate::default::Default;
+        use crate::sys::process::zircon::*;
 
         let mut proc_info: zx_info_process_t = Default::default();
         let mut actual: size_t = 0;

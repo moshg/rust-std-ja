@@ -1,13 +1,13 @@
-use borrow::{Borrow, Cow};
-use fmt;
-use ops;
-use cmp;
-use hash::{Hash, Hasher};
-use rc::Rc;
-use sync::Arc;
+use crate::borrow::{Borrow, Cow};
+use crate::fmt;
+use crate::ops;
+use crate::cmp;
+use crate::hash::{Hash, Hasher};
+use crate::rc::Rc;
+use crate::sync::Arc;
 
-use sys::os_str::{Buf, Slice};
-use sys_common::{AsInner, IntoInner, FromInner};
+use crate::sys::os_str::{Buf, Slice};
+use crate::sys_common::{AsInner, IntoInner, FromInner};
 
 /// A type that can represent owned, mutable platform-native strings, but is
 /// cheaply inter-convertible with Rust strings.
@@ -32,7 +32,7 @@ use sys_common::{AsInner, IntoInner, FromInner};
 /// in each pair are owned strings; the latter are borrowed
 /// references.
 ///
-/// Note, `OsString` and `OsStr` internally do not necessarily hold strings in
+/// Note, `OsString` and [`OsStr`] internally do not necessarily hold strings in
 /// the form native to the platform; While on Unix, strings are stored as a
 /// sequence of 8-bit values, on Windows, where strings are 16-bit value based
 /// as just discussed, strings are also actually stored as a sequence of 8-bit
@@ -97,6 +97,12 @@ pub struct OsString {
 /// [`String`]: ../string/struct.String.html
 /// [conversions]: index.html#conversions
 #[stable(feature = "rust1", since = "1.0.0")]
+// FIXME:
+// `OsStr::from_inner` current implementation relies
+// on `OsStr` being layout-compatible with `Slice`.
+// When attribute privacy is implemented, `OsStr` should be annotated as `#[repr(transparent)]`.
+// Anyway, `OsStr` representation and layout are considered implementation detail, are
+// not documented and must not be relied upon.
 pub struct OsStr {
     inner: Slice
 }
@@ -227,7 +233,7 @@ impl OsString {
     /// ```
     /// use std::ffi::OsString;
     ///
-    /// let mut os_string = OsString::with_capacity(10);
+    /// let os_string = OsString::with_capacity(10);
     /// assert!(os_string.capacity() >= 10);
     /// ```
     #[stable(feature = "osstring_simple_functions", since = "1.9.0")]
@@ -351,14 +357,16 @@ impl From<String> for OsString {
     /// Converts a [`String`] into a [`OsString`].
     ///
     /// The conversion copies the data, and includes an allocation on the heap.
+    ///
+    /// [`OsString`]: ../../std/ffi/struct.OsString.html
     fn from(s: String) -> OsString {
         OsString { inner: Buf::from_string(s) }
     }
 }
 
 #[stable(feature = "rust1", since = "1.0.0")]
-impl<'a, T: ?Sized + AsRef<OsStr>> From<&'a T> for OsString {
-    fn from(s: &'a T) -> OsString {
+impl<T: ?Sized + AsRef<OsStr>> From<&T> for OsString {
+    fn from(s: &T) -> OsString {
         s.as_ref().to_os_string()
     }
 }
@@ -394,7 +402,7 @@ impl Default for OsString {
 
 #[stable(feature = "rust1", since = "1.0.0")]
 impl fmt::Debug for OsString {
-    fn fmt(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         fmt::Debug::fmt(&**self, formatter)
     }
 }
@@ -421,8 +429,8 @@ impl PartialEq<OsString> for str {
 }
 
 #[stable(feature = "os_str_str_ref_eq", since = "1.29.0")]
-impl<'a> PartialEq<&'a str> for OsString {
-    fn eq(&self, other: &&'a str) -> bool {
+impl PartialEq<&str> for OsString {
+    fn eq(&self, other: &&str) -> bool {
         **self == **other
     }
 }
@@ -563,7 +571,7 @@ impl OsStr {
     /// }
     /// ```
     #[stable(feature = "rust1", since = "1.0.0")]
-    pub fn to_string_lossy(&self) -> Cow<str> {
+    pub fn to_string_lossy(&self) -> Cow<'_, str> {
         self.inner.to_string_lossy()
     }
 
@@ -608,7 +616,7 @@ impl OsStr {
     /// Note that this does **not** return the number of bytes in the string in
     /// OS string form.
     ///
-    /// The length returned is that of the underlying storage used by `OsStr`;
+    /// The length returned is that of the underlying storage used by `OsStr`.
     /// As discussed in the [`OsString`] introduction, [`OsString`] and `OsStr`
     /// store strings in a form best suited for cheap inter-conversion between
     /// native-platform and Rust string forms, which may differ significantly
@@ -656,8 +664,8 @@ impl OsStr {
 }
 
 #[stable(feature = "box_from_os_str", since = "1.17.0")]
-impl<'a> From<&'a OsStr> for Box<OsStr> {
-    fn from(s: &'a OsStr) -> Box<OsStr> {
+impl From<&OsStr> for Box<OsStr> {
+    fn from(s: &OsStr) -> Box<OsStr> {
         let rw = Box::into_raw(s.inner.into_box()) as *mut OsStr;
         unsafe { Box::from_raw(rw) }
     }
@@ -665,10 +673,11 @@ impl<'a> From<&'a OsStr> for Box<OsStr> {
 
 #[stable(feature = "os_string_from_box", since = "1.18.0")]
 impl From<Box<OsStr>> for OsString {
-    /// Converts a `Box<OsStr>` into a `OsString` without copying or allocating.
+    /// Converts a [`Box`]`<`[`OsStr`]`>` into a `OsString` without copying or
+    /// allocating.
     ///
     /// [`Box`]: ../boxed/struct.Box.html
-    /// [`OsString`]: ../ffi/struct.OsString.html
+    /// [`OsStr`]: ../ffi/struct.OsStr.html
     fn from(boxed: Box<OsStr>) -> OsString {
         boxed.into_os_string()
     }
@@ -707,7 +716,7 @@ impl From<OsString> for Arc<OsStr> {
 }
 
 #[stable(feature = "shared_from_slice2", since = "1.24.0")]
-impl<'a> From<&'a OsStr> for Arc<OsStr> {
+impl From<&OsStr> for Arc<OsStr> {
     #[inline]
     fn from(s: &OsStr) -> Arc<OsStr> {
         let arc = s.inner.into_arc();
@@ -729,7 +738,7 @@ impl From<OsString> for Rc<OsStr> {
 }
 
 #[stable(feature = "shared_from_slice2", since = "1.24.0")]
-impl<'a> From<&'a OsStr> for Rc<OsStr> {
+impl From<&OsStr> for Rc<OsStr> {
     #[inline]
     fn from(s: &OsStr) -> Rc<OsStr> {
         let rc = s.inner.into_rc();
@@ -891,13 +900,13 @@ impl Hash for OsStr {
 
 #[stable(feature = "rust1", since = "1.0.0")]
 impl fmt::Debug for OsStr {
-    fn fmt(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         fmt::Debug::fmt(&self.inner, formatter)
     }
 }
 
 impl OsStr {
-    pub(crate) fn display(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+    pub(crate) fn display(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         fmt::Display::fmt(&self.inner, formatter)
     }
 }
@@ -960,6 +969,7 @@ impl IntoInner<Buf> for OsString {
 }
 
 impl AsInner<Slice> for OsStr {
+    #[inline]
     fn as_inner(&self) -> &Slice {
         &self.inner
     }
@@ -968,10 +978,10 @@ impl AsInner<Slice> for OsStr {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use sys_common::{AsInner, IntoInner};
+    use crate::sys_common::{AsInner, IntoInner};
 
-    use rc::Rc;
-    use sync::Arc;
+    use crate::rc::Rc;
+    use crate::sync::Arc;
 
     #[test]
     fn test_os_string_with_capacity() {

@@ -1,10 +1,10 @@
 error: invalid `crate_type` value
   --> $DIR/invalid-crate-type.rs:2:15
    |
-LL | #![crate_type="foo"]    //~ ERROR invalid `crate_type` value
+LL | #![crate_type="foo"]
    |               ^^^^^
    |
-   = note: #[deny(unknown_crate_types)] on by default
+   = note: `#[deny(unknown_crate_types)]` on by default
 
 error: invalid `crate_type` value
   --> $DIR/invalid-crate-type.rs:6:15

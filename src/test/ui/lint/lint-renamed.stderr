@@ -4,12 +4,12 @@ warning: lint `bare_trait_object` has been renamed to `bare_trait_objects`
 LL | #[deny(bare_trait_object)]
    |        ^^^^^^^^^^^^^^^^^ help: use the new name: `bare_trait_objects`
    |
-   = note: #[warn(renamed_and_removed_lints)] on by default
+   = note: `#[warn(renamed_and_removed_lints)]` on by default
 
 error: unused variable: `unused`
   --> $DIR/lint-renamed.rs:4:17
    |
-LL | fn main() { let unused = (); } //~ ERROR unused
+LL | fn main() { let unused = (); }
    |                 ^^^^^^ help: consider prefixing with an underscore: `_unused`
    |
 note: lint level defined here
@@ -17,7 +17,7 @@ note: lint level defined here
    |
 LL | #[deny(unused)]
    |        ^^^^^^
-   = note: #[deny(unused_variables)] implied by #[deny(unused)]
+   = note: `#[deny(unused_variables)]` implied by `#[deny(unused)]`
 
 error: aborting due to previous error
 

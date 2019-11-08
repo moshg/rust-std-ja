@@ -1,19 +1,21 @@
 //! Error Reporting for Anonymous Region Lifetime Errors
 //! where one region is named and the other is anonymous.
 use crate::infer::error_reporting::nice_region_error::NiceRegionError;
+use crate::hir::{FunctionRetTy, TyKind};
 use crate::ty;
 use errors::{Applicability, DiagnosticBuilder};
 
-impl<'a, 'gcx, 'tcx> NiceRegionError<'a, 'gcx, 'tcx> {
-    /// When given a `ConcreteFailure` for a function with arguments containing a named region and
+impl<'a, 'tcx> NiceRegionError<'a, 'tcx> {
+    /// When given a `ConcreteFailure` for a function with parameters containing a named region and
     /// an anonymous region, emit an descriptive diagnostic error.
     pub(super) fn try_report_named_anon_conflict(&self) -> Option<DiagnosticBuilder<'a>> {
         let (span, sub, sup) = self.get_regions();
 
         debug!(
-            "try_report_named_anon_conflict(sub={:?}, sup={:?})",
+            "try_report_named_anon_conflict(sub={:?}, sup={:?}, error={:?})",
             sub,
-            sup
+            sup,
+            self.error,
         );
 
         // Determine whether the sub and sup consist of one named region ('a)
@@ -22,23 +24,23 @@ impl<'a, 'gcx, 'tcx> NiceRegionError<'a, 'gcx, 'tcx> {
         // only introduced anonymous regions in parameters) as well as a
         // version new_ty of its type where the anonymous region is replaced
         // with the named one.//scope_def_id
-        let (named, anon, anon_arg_info, region_info) = if self.is_named_region(sub)
+        let (named, anon, anon_param_info, region_info) = if self.is_named_region(sub)
             && self.tcx().is_suitable_region(sup).is_some()
-            && self.find_arg_with_region(sup, sub).is_some()
+            && self.find_param_with_region(sup, sub).is_some()
         {
             (
                 sub,
                 sup,
-                self.find_arg_with_region(sup, sub).unwrap(),
+                self.find_param_with_region(sup, sub).unwrap(),
                 self.tcx().is_suitable_region(sup).unwrap(),
             )
         } else if self.is_named_region(sup) && self.tcx().is_suitable_region(sub).is_some()
-            && self.find_arg_with_region(sub, sup).is_some()
+            && self.find_param_with_region(sub, sup).is_some()
         {
             (
                 sup,
                 sub,
-                self.find_arg_with_region(sub, sup).unwrap(),
+                self.find_param_with_region(sub, sup).unwrap(),
                 self.tcx().is_suitable_region(sub).unwrap(),
             )
         } else {
@@ -47,20 +49,20 @@ impl<'a, 'gcx, 'tcx> NiceRegionError<'a, 'gcx, 'tcx> {
 
         debug!("try_report_named_anon_conflict: named = {:?}", named);
         debug!(
-            "try_report_named_anon_conflict: anon_arg_info = {:?}",
-            anon_arg_info
+            "try_report_named_anon_conflict: anon_param_info = {:?}",
+            anon_param_info
         );
         debug!(
             "try_report_named_anon_conflict: region_info = {:?}",
             region_info
         );
 
-        let (arg, new_ty, new_ty_span, br, is_first, scope_def_id, is_impl_item) = (
-            anon_arg_info.arg,
-            anon_arg_info.arg_ty,
-            anon_arg_info.arg_ty_span,
-            anon_arg_info.bound_region,
-            anon_arg_info.is_first,
+        let (param, new_ty, new_ty_span, br, is_first, scope_def_id, is_impl_item) = (
+            anon_param_info.param,
+            anon_param_info.param_ty,
+            anon_param_info.param_ty_span,
+            anon_param_info.bound_region,
+            anon_param_info.is_first,
             region_info.def_id,
             region_info.is_impl_item,
         );
@@ -84,15 +86,21 @@ impl<'a, 'gcx, 'tcx> NiceRegionError<'a, 'gcx, 'tcx> {
             {
                 return None;
             }
+            if let FunctionRetTy::Return(ty) = &fndecl.output {
+                if let (TyKind::Def(_, _), ty::ReStatic) = (&ty.node, sub) {
+                    // This is an impl Trait return that evaluates de need of 'static.
+                    // We handle this case better in `static_impl_trait`.
+                    return None;
+                }
+            }
         }
 
-        let (error_var, span_label_var) = if let Some(simple_ident) = arg.pat.simple_ident() {
-            (
+        let (error_var, span_label_var) = match param.pat.simple_ident() {
+            Some(simple_ident) => (
                 format!("the type of `{}`", simple_ident),
                 format!("the type of `{}`", simple_ident),
-            )
-        } else {
-            ("parameter type".to_owned(), "type".to_owned())
+            ),
+            None => ("parameter type".to_owned(), "type".to_owned()),
         };
 
         let mut diag = struct_span_err!(
@@ -103,13 +111,13 @@ impl<'a, 'gcx, 'tcx> NiceRegionError<'a, 'gcx, 'tcx> {
             error_var
         );
 
+        diag.span_label(span, format!("lifetime `{}` required", named));
         diag.span_suggestion(
-                new_ty_span,
-                &format!("add explicit lifetime `{}` to {}", named, span_label_var),
-                new_ty.to_string(),
-                Applicability::Unspecified,
-            )
-            .span_label(span, format!("lifetime `{}` required", named));
+            new_ty_span,
+            &format!("add explicit lifetime `{}` to {}", named, span_label_var),
+            new_ty.to_string(),
+            Applicability::Unspecified,
+        );
 
         Some(diag)
     }

@@ -15,10 +15,7 @@
 //! switching compilers for the bootstrap and for build scripts will probably
 //! never get replaced.
 
-#![deny(warnings)]
-
 use std::env;
-use std::ffi::OsString;
 use std::io;
 use std::path::PathBuf;
 use std::process::Command;
@@ -26,35 +23,7 @@ use std::str::FromStr;
 use std::time::Instant;
 
 fn main() {
-    let mut args = env::args_os().skip(1).collect::<Vec<_>>();
-
-    // Append metadata suffix for internal crates. See the corresponding entry
-    // in bootstrap/lib.rs for details.
-    if let Ok(s) = env::var("RUSTC_METADATA_SUFFIX") {
-        for i in 1..args.len() {
-            // Dirty code for borrowing issues
-            let mut new = None;
-            if let Some(current_as_str) = args[i].to_str() {
-                if (&*args[i - 1] == "-C" && current_as_str.starts_with("metadata")) ||
-                   current_as_str.starts_with("-Cmetadata") {
-                    new = Some(format!("{}-{}", current_as_str, s));
-                }
-            }
-            if let Some(new) = new { args[i] = new.into(); }
-        }
-    }
-
-    // Drop `--error-format json` because despite our desire for json messages
-    // from Cargo we don't want any from rustc itself.
-    if let Some(n) = args.iter().position(|n| n == "--error-format") {
-        args.remove(n);
-        args.remove(n);
-    }
-
-    if let Some(s) = env::var_os("RUSTC_ERROR_FORMAT") {
-        args.push("--error-format".into());
-        args.push(s);
-    }
+    let args = env::args_os().skip(1).collect::<Vec<_>>();
 
     // Detect whether or not we're a build script depending on whether --target
     // is passed (a bit janky...)
@@ -89,52 +58,36 @@ fn main() {
 
     let mut cmd = Command::new(rustc);
     cmd.args(&args)
-        .arg("--cfg")
-        .arg(format!("stage{}", stage))
         .env(bootstrap::util::dylib_path_var(),
              env::join_paths(&dylib_path).unwrap());
-    let mut maybe_crate = None;
+
+    // Get the name of the crate we're compiling, if any.
+    let crate_name = args.windows(2)
+        .find(|args| args[0] == "--crate-name")
+        .and_then(|args| args[1].to_str());
+
+    if let Some(crate_name) = crate_name {
+        if let Some(target) = env::var_os("RUSTC_TIME") {
+            if target == "all" ||
+                target.into_string().unwrap().split(",").any(|c| c.trim() == crate_name)
+            {
+                cmd.arg("-Ztime");
+            }
+        }
+    }
 
     // Print backtrace in case of ICE
     if env::var("RUSTC_BACKTRACE_ON_ICE").is_ok() && env::var("RUST_BACKTRACE").is_err() {
         cmd.env("RUST_BACKTRACE", "1");
     }
 
-    cmd.env("RUSTC_BREAK_ON_ICE", "1");
-
-    if let Some(target) = target {
+    if target.is_some() {
         // The stage0 compiler has a special sysroot distinct from what we
-        // actually downloaded, so we just always pass the `--sysroot` option.
-        cmd.arg("--sysroot").arg(&sysroot);
-
-        // When we build Rust dylibs they're all intended for intermediate
-        // usage, so make sure we pass the -Cprefer-dynamic flag instead of
-        // linking all deps statically into the dylib.
-        if env::var_os("RUSTC_NO_PREFER_DYNAMIC").is_none() {
-            cmd.arg("-Cprefer-dynamic");
+        // actually downloaded, so we just always pass the `--sysroot` option,
+        // unless one is already set.
+        if !args.iter().any(|arg| arg == "--sysroot") {
+            cmd.arg("--sysroot").arg(&sysroot);
         }
-
-        // Help the libc crate compile by assisting it in finding the MUSL
-        // native libraries.
-        if let Some(s) = env::var_os("MUSL_ROOT") {
-            if target.contains("musl") {
-                let mut root = OsString::from("native=");
-                root.push(&s);
-                root.push("/lib");
-                cmd.arg("-L").arg(&root);
-            }
-        }
-
-        // Override linker if necessary.
-        if let Ok(target_linker) = env::var("RUSTC_TARGET_LINKER") {
-            cmd.arg(format!("-Clinker={}", target_linker));
-        }
-
-        let crate_name = args.windows(2)
-            .find(|a| &*a[0] == "--crate-name")
-            .unwrap();
-        let crate_name = &*crate_name[1];
-        maybe_crate = Some(crate_name);
 
         // If we're compiling specifically the `panic_abort` crate then we pass
         // the `-C panic=abort` option. Note that we do not do this for any
@@ -148,18 +101,13 @@ fn main() {
         // `compiler_builtins` are unconditionally compiled with panic=abort to
         // workaround undefined references to `rust_eh_unwind_resume` generated
         // otherwise, see issue https://github.com/rust-lang/rust/issues/43095.
-        if crate_name == "panic_abort" ||
-           crate_name == "compiler_builtins" && stage != "0" {
+        if crate_name == Some("panic_abort") ||
+           crate_name == Some("compiler_builtins") && stage != "0" {
             cmd.arg("-C").arg("panic=abort");
         }
 
         // Set various options from config.toml to configure how we're building
         // code.
-        if env::var("RUSTC_DEBUGINFO") == Ok("true".to_string()) {
-            cmd.arg("-g");
-        } else if env::var("RUSTC_DEBUGINFO_LINES") == Ok("true".to_string()) {
-            cmd.arg("-Cdebuginfo=1");
-        }
         let debug_assertions = match env::var("RUSTC_DEBUG_ASSERTIONS") {
             Ok(s) => if s == "true" { "y" } else { "n" },
             Err(..) => "n",
@@ -167,106 +115,18 @@ fn main() {
 
         // The compiler builtins are pretty sensitive to symbols referenced in
         // libcore and such, so we never compile them with debug assertions.
-        if crate_name == "compiler_builtins" {
+        //
+        // FIXME(rust-lang/cargo#7253) we should be doing this in `builder.rs`
+        // with env vars instead of doing it here in this script.
+        if crate_name == Some("compiler_builtins") {
             cmd.arg("-C").arg("debug-assertions=no");
         } else {
             cmd.arg("-C").arg(format!("debug-assertions={}", debug_assertions));
         }
-
-        if let Ok(s) = env::var("RUSTC_CODEGEN_UNITS") {
-            cmd.arg("-C").arg(format!("codegen-units={}", s));
-        }
-
-        // Emit save-analysis info.
-        if env::var("RUSTC_SAVE_ANALYSIS") == Ok("api".to_string()) {
-            cmd.arg("-Zsave-analysis");
-            cmd.env("RUST_SAVE_ANALYSIS_CONFIG",
-                    "{\"output_file\": null,\"full_docs\": false,\
-                     \"pub_only\": true,\"reachable_only\": false,\
-                     \"distro_crate\": true,\"signatures\": false,\"borrow_data\": false}");
-        }
-
-        // Dealing with rpath here is a little special, so let's go into some
-        // detail. First off, `-rpath` is a linker option on Unix platforms
-        // which adds to the runtime dynamic loader path when looking for
-        // dynamic libraries. We use this by default on Unix platforms to ensure
-        // that our nightlies behave the same on Windows, that is they work out
-        // of the box. This can be disabled, of course, but basically that's why
-        // we're gated on RUSTC_RPATH here.
-        //
-        // Ok, so the astute might be wondering "why isn't `-C rpath` used
-        // here?" and that is indeed a good question to task. This codegen
-        // option is the compiler's current interface to generating an rpath.
-        // Unfortunately it doesn't quite suffice for us. The flag currently
-        // takes no value as an argument, so the compiler calculates what it
-        // should pass to the linker as `-rpath`. This unfortunately is based on
-        // the **compile time** directory structure which when building with
-        // Cargo will be very different than the runtime directory structure.
-        //
-        // All that's a really long winded way of saying that if we use
-        // `-Crpath` then the executables generated have the wrong rpath of
-        // something like `$ORIGIN/deps` when in fact the way we distribute
-        // rustc requires the rpath to be `$ORIGIN/../lib`.
-        //
-        // So, all in all, to set up the correct rpath we pass the linker
-        // argument manually via `-C link-args=-Wl,-rpath,...`. Plus isn't it
-        // fun to pass a flag to a tool to pass a flag to pass a flag to a tool
-        // to change a flag in a binary?
-        if env::var("RUSTC_RPATH") == Ok("true".to_string()) {
-            let rpath = if target.contains("apple") {
-
-                // Note that we need to take one extra step on macOS to also pass
-                // `-Wl,-instal_name,@rpath/...` to get things to work right. To
-                // do that we pass a weird flag to the compiler to get it to do
-                // so. Note that this is definitely a hack, and we should likely
-                // flesh out rpath support more fully in the future.
-                cmd.arg("-Z").arg("osx-rpath-install-name");
-                Some("-Wl,-rpath,@loader_path/../lib")
-            } else if !target.contains("windows") &&
-                      !target.contains("wasm32") &&
-                      !target.contains("fuchsia") {
-                Some("-Wl,-rpath,$ORIGIN/../lib")
-            } else {
-                None
-            };
-            if let Some(rpath) = rpath {
-                cmd.arg("-C").arg(format!("link-args={}", rpath));
-            }
-        }
-
-        if let Ok(s) = env::var("RUSTC_CRT_STATIC") {
-            if s == "true" {
-                cmd.arg("-C").arg("target-feature=+crt-static");
-            }
-            if s == "false" {
-                cmd.arg("-C").arg("target-feature=-crt-static");
-            }
-        }
-
-        // When running miri tests, we need to generate MIR for all libraries
-        if env::var("TEST_MIRI").ok().map_or(false, |val| val == "true") {
-            // The flags here should be kept in sync with `add_miri_default_args`
-            // in miri's `src/lib.rs`.
-            cmd.arg("-Zalways-encode-mir");
-            // These options are preferred by miri, to be able to perform better validation,
-            // but the bootstrap compiler might not understand them.
-            if stage != "0" {
-                cmd.arg("-Zmir-emit-retag");
-                cmd.arg("-Zmir-opt-level=0");
-            }
-        }
-
-        // Force all crates compiled by this compiler to (a) be unstable and (b)
-        // allow the `rustc_private` feature to link to other unstable crates
-        // also in the sysroot.
-        if env::var_os("RUSTC_FORCE_UNSTABLE").is_some() {
-            cmd.arg("-Z").arg("force-unstable-if-unmarked");
-        }
-
-        if let Ok(map) = env::var("RUSTC_DEBUGINFO_MAP") {
-            cmd.arg("--remap-path-prefix").arg(&map);
-        }
     } else {
+        // FIXME(rust-lang/cargo#5754) we shouldn't be using special env vars
+        // here, but rather Cargo should know what flags to pass rustc itself.
+
         // Override linker if necessary.
         if let Ok(host_linker) = env::var("RUSTC_HOST_LINKER") {
             cmd.arg(format!("-Clinker={}", host_linker));
@@ -282,14 +142,16 @@ fn main() {
         }
     }
 
-    if env::var_os("RUSTC_PARALLEL_COMPILER").is_some() {
-        cmd.arg("--cfg").arg("parallel_compiler");
+    if let Ok(map) = env::var("RUSTC_DEBUGINFO_MAP") {
+        cmd.arg("--remap-path-prefix").arg(&map);
     }
 
-    if env::var_os("RUSTC_DENY_WARNINGS").is_some() && env::var_os("RUSTC_EXTERNAL_TOOL").is_none()
-    {
-        cmd.arg("-Dwarnings");
-        cmd.arg("-Dbare_trait_objects");
+    // Force all crates compiled by this compiler to (a) be unstable and (b)
+    // allow the `rustc_private` feature to link to other unstable crates
+    // also in the sysroot. We also do this for host crates, since those
+    // may be proc macros, in which case we might ship them.
+    if env::var_os("RUSTC_FORCE_UNSTABLE").is_some() && (stage != "0" || target.is_some()) {
+        cmd.arg("-Z").arg("force-unstable-if-unmarked");
     }
 
     if verbose > 1 {
@@ -314,7 +176,7 @@ fn main() {
     }
 
     if env::var_os("RUSTC_PRINT_STEP_TIMINGS").is_some() {
-        if let Some(krate) = maybe_crate {
+        if let Some(crate_name) = crate_name {
             let start = Instant::now();
             let status = cmd
                 .status()
@@ -323,7 +185,7 @@ fn main() {
 
             let is_test = args.iter().any(|a| a == "--test");
             eprintln!("[RUSTC-TIMING] {} test:{} {}.{:03}",
-                      krate.to_string_lossy(),
+                      crate_name,
                       is_test,
                       dur.as_secs(),
                       dur.subsec_nanos() / 1_000_000);

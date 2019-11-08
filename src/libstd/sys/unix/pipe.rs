@@ -1,9 +1,10 @@
-use io;
-use libc::{self, c_int};
-use mem;
-use sync::atomic::{AtomicBool, Ordering};
-use sys::fd::FileDesc;
-use sys::{cvt, cvt_r};
+use crate::io::{self, IoSlice, IoSliceMut};
+use crate::mem;
+use crate::sync::atomic::{AtomicBool, Ordering};
+use crate::sys::fd::FileDesc;
+use crate::sys::{cvt, cvt_r};
+
+use libc::c_int;
 
 ////////////////////////////////////////////////////////////////////////////////
 // Anonymous pipes
@@ -25,7 +26,8 @@ pub fn anon_pipe() -> io::Result<(AnonPipe, AnonPipe)> {
                 target_os = "freebsd",
                 target_os = "linux",
                 target_os = "netbsd",
-                target_os = "openbsd")) &&
+                target_os = "openbsd",
+                target_os = "redox")) &&
        !INVALID.load(Ordering::SeqCst)
     {
 
@@ -59,8 +61,16 @@ impl AnonPipe {
         self.0.read(buf)
     }
 
+    pub fn read_vectored(&self, bufs: &mut [IoSliceMut<'_>]) -> io::Result<usize> {
+        self.0.read_vectored(bufs)
+    }
+
     pub fn write(&self, buf: &[u8]) -> io::Result<usize> {
         self.0.write(buf)
+    }
+
+    pub fn write_vectored(&self, bufs: &[IoSlice<'_>]) -> io::Result<usize> {
+        self.0.write_vectored(bufs)
     }
 
     pub fn fd(&self) -> &FileDesc { &self.0 }

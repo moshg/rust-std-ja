@@ -1,6 +1,6 @@
-use path::Prefix;
-use ffi::OsStr;
-use mem;
+use crate::path::Prefix;
+use crate::ffi::OsStr;
+use crate::mem;
 
 fn os_str_as_u8_slice(s: &OsStr) -> &[u8] {
     unsafe { mem::transmute(s) }
@@ -19,8 +19,8 @@ pub fn is_verbatim_sep(b: u8) -> bool {
     b == b'\\'
 }
 
-pub fn parse_prefix<'a>(path: &'a OsStr) -> Option<Prefix> {
-    use path::Prefix::*;
+pub fn parse_prefix(path: &OsStr) -> Option<Prefix<'_>> {
+    use crate::path::Prefix::*;
     unsafe {
         // The unsafety here stems from converting between &OsStr and &[u8]
         // and back. This is safe to do because (1) we only look at ASCII

@@ -1,5 +1,3 @@
-#![feature(nll)]
-
 #[derive(Clone)]
 enum Either {
     One(X),
@@ -35,30 +33,30 @@ pub fn main() {
     let vs = &vx;
     let vsm = &mut vec![X(Y)];
 
-    // -------- move from Either/X place --------
+    // move from Either/X place
 
     let X(_t) = *s;
     //~^ ERROR cannot move
-    //~| HELP consider removing the `*`
+    //~| HELP consider borrowing here
     //~| SUGGESTION s
     if let Either::One(_t) = *r { }
     //~^ ERROR cannot move
-    //~| HELP consider removing the `*`
+    //~| HELP consider borrowing here
     //~| SUGGESTION r
     while let Either::One(_t) = *r { }
     //~^ ERROR cannot move
-    //~| HELP consider removing the `*`
+    //~| HELP consider borrowing here
     //~| SUGGESTION r
     match *r {
         //~^ ERROR cannot move
-        //~| HELP consider removing the `*`
+        //~| HELP consider borrowing here
         //~| SUGGESTION r
         Either::One(_t)
         | Either::Two(_t) => (),
     }
     match *r {
         //~^ ERROR cannot move
-        //~| HELP consider removing the `*`
+        //~| HELP consider borrowing here
         //~| SUGGESTION r
         Either::One(_t) => (),
         Either::Two(ref _t) => (),
@@ -67,26 +65,26 @@ pub fn main() {
 
     let X(_t) = *sm;
     //~^ ERROR cannot move
-    //~| HELP consider removing the `*`
+    //~| HELP consider borrowing here
     //~| SUGGESTION sm
     if let Either::One(_t) = *rm { }
     //~^ ERROR cannot move
-    //~| HELP consider removing the `*`
+    //~| HELP consider borrowing here
     //~| SUGGESTION rm
     while let Either::One(_t) = *rm { }
     //~^ ERROR cannot move
-    //~| HELP consider removing the `*`
+    //~| HELP consider borrowing here
     //~| SUGGESTION rm
     match *rm {
         //~^ ERROR cannot move
-        //~| HELP consider removing the `*`
+        //~| HELP consider borrowing here
         //~| SUGGESTION rm
         Either::One(_t)
         | Either::Two(_t) => (),
     }
     match *rm {
         //~^ ERROR cannot move
-        //~| HELP consider removing the `*`
+        //~| HELP consider borrowing here
         //~| SUGGESTION rm
         Either::One(_t) => (),
         Either::Two(ref _t) => (),
@@ -94,7 +92,7 @@ pub fn main() {
     }
     match *rm {
         //~^ ERROR cannot move
-        //~| HELP consider removing the `*`
+        //~| HELP consider borrowing here
         //~| SUGGESTION rm
         Either::One(_t) => (),
         Either::Two(ref mut _t) => (),
@@ -165,7 +163,7 @@ pub fn main() {
         // FIXME: should suggest removing `ref` too
     }
 
-    // -------- move from &Either/&X place --------
+    // move from &Either/&X place
 
     let &X(_t) = s;
     //~^ ERROR cannot move
@@ -253,7 +251,7 @@ pub fn main() {
     //~| HELP consider removing the `&mut`
     //~| SUGGESTION X(_t)
 
-    // -------- move from tuple of &Either/&X --------
+    // move from tuple of &Either/&X
 
     // FIXME: These should have suggestions.
 
@@ -285,7 +283,7 @@ pub fn main() {
     fn f4((&mut X(_t),): (&mut X,)) { }
     //~^ ERROR cannot move
 
-    // -------- move from &Either/&X value --------
+    // move from &Either/&X value
 
     let &X(_t) = &x;
     //~^ ERROR cannot move

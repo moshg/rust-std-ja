@@ -1,18 +1,16 @@
 use rustc::hir::def_id::DefId;
 use rustc::hir;
 use rustc::mir::*;
-use rustc::ty::{self, Predicate, TyCtxt};
+use rustc::ty::{self, Predicate, Ty, TyCtxt, adjustment::{PointerCast}};
 use rustc_target::spec::abi;
 use std::borrow::Cow;
 use syntax_pos::Span;
+use syntax::symbol::{sym, Symbol};
+use syntax::attr;
 
 type McfResult = Result<(), (Span, Cow<'static, str>)>;
 
-pub fn is_min_const_fn(
-    tcx: TyCtxt<'a, 'tcx, 'tcx>,
-    def_id: DefId,
-    mir: &'a Mir<'tcx>,
-) -> McfResult {
+pub fn is_min_const_fn(tcx: TyCtxt<'tcx>, def_id: DefId, body: &'a Body<'tcx>) -> McfResult {
     let mut current = def_id;
     loop {
         let predicates = tcx.predicates_of(current);
@@ -59,30 +57,27 @@ pub fn is_min_const_fn(
         }
     }
 
-    for local in &mir.local_decls {
-        check_ty(tcx, local.ty, local.source_info.span)?;
+    for local in &body.local_decls {
+        check_ty(tcx, local.ty, local.source_info.span, def_id)?;
     }
     // impl trait is gone in MIR, so check the return type manually
     check_ty(
         tcx,
         tcx.fn_sig(def_id).output().skip_binder(),
-        mir.local_decls.iter().next().unwrap().source_info.span,
+        body.local_decls.iter().next().unwrap().source_info.span,
+        def_id,
     )?;
 
-    for bb in mir.basic_blocks() {
-        check_terminator(tcx, mir, bb.terminator())?;
+    for bb in body.basic_blocks() {
+        check_terminator(tcx, body, def_id, bb.terminator())?;
         for stmt in &bb.statements {
-            check_statement(tcx, mir, stmt)?;
+            check_statement(tcx, body, def_id, stmt)?;
         }
     }
     Ok(())
 }
 
-fn check_ty(
-    tcx: TyCtxt<'a, 'tcx, 'tcx>,
-    ty: ty::Ty<'tcx>,
-    span: Span,
-) -> McfResult {
+fn check_ty(tcx: TyCtxt<'tcx>, ty: Ty<'tcx>, span: Span, fn_def_id: DefId) -> McfResult {
     for ty in ty.walk() {
         match ty.sty {
             ty::Ref(_, _, hir::Mutability::MutMutable) => return Err((
@@ -91,7 +86,9 @@ fn check_ty(
             )),
             ty::Opaque(..) => return Err((span, "`impl Trait` in const fn is unstable".into())),
             ty::FnPtr(..) => {
-                return Err((span, "function pointers in const fn are unstable".into()))
+                if !tcx.const_fn_is_allowed_fn_ptr(fn_def_id) {
+                    return Err((span, "function pointers in const fn are unstable".into()))
+                }
             }
             ty::Dynamic(preds, _) => {
                 for pred in preds.iter() {
@@ -125,21 +122,22 @@ fn check_ty(
 }
 
 fn check_rvalue(
-    tcx: TyCtxt<'a, 'tcx, 'tcx>,
-    mir: &'a Mir<'tcx>,
+    tcx: TyCtxt<'tcx>,
+    body: &Body<'tcx>,
+    def_id: DefId,
     rvalue: &Rvalue<'tcx>,
     span: Span,
 ) -> McfResult {
     match rvalue {
         Rvalue::Repeat(operand, _) | Rvalue::Use(operand) => {
-            check_operand(tcx, mir, operand, span)
+            check_operand(tcx, operand, span, def_id, body)
         }
         Rvalue::Len(place) | Rvalue::Discriminant(place) | Rvalue::Ref(_, _, place) => {
-            check_place(tcx, mir, place, span)
+            check_place(tcx, place, span, def_id, body)
         }
         Rvalue::Cast(CastKind::Misc, operand, cast_ty) => {
             use rustc::ty::cast::CastTy;
-            let cast_in = CastTy::from_ty(operand.ty(mir, tcx)).expect("bad input type for cast");
+            let cast_in = CastTy::from_ty(operand.ty(body, tcx)).expect("bad input type for cast");
             let cast_out = CastTy::from_ty(cast_ty).expect("bad output type for cast");
             match (cast_in, cast_out) {
                 (CastTy::Ptr(_), CastTy::Int(_)) | (CastTy::FnPtr, CastTy::Int(_)) => Err((
@@ -149,24 +147,27 @@ fn check_rvalue(
                 (CastTy::RPtr(_), CastTy::Float) => bug!(),
                 (CastTy::RPtr(_), CastTy::Int(_)) => bug!(),
                 (CastTy::Ptr(_), CastTy::RPtr(_)) => bug!(),
-                _ => check_operand(tcx, mir, operand, span),
+                _ => check_operand(tcx, operand, span, def_id, body),
             }
         }
-        Rvalue::Cast(CastKind::UnsafeFnPointer, _, _) |
-        Rvalue::Cast(CastKind::ClosureFnPointer, _, _) |
-        Rvalue::Cast(CastKind::ReifyFnPointer, _, _) => Err((
+        Rvalue::Cast(CastKind::Pointer(PointerCast::MutToConstPointer), operand, _) => {
+            check_operand(tcx, operand, span, def_id, body)
+        }
+        Rvalue::Cast(CastKind::Pointer(PointerCast::UnsafeFnPointer), _, _) |
+        Rvalue::Cast(CastKind::Pointer(PointerCast::ClosureFnPointer(_)), _, _) |
+        Rvalue::Cast(CastKind::Pointer(PointerCast::ReifyFnPointer), _, _) => Err((
             span,
             "function pointer casts are not allowed in const fn".into(),
         )),
-        Rvalue::Cast(CastKind::Unsize, _, _) => Err((
+        Rvalue::Cast(CastKind::Pointer(PointerCast::Unsize), _, _) => Err((
             span,
             "unsizing casts are not allowed in const fn".into(),
         )),
         // binops are fine on integers
         Rvalue::BinaryOp(_, lhs, rhs) | Rvalue::CheckedBinaryOp(_, lhs, rhs) => {
-            check_operand(tcx, mir, lhs, span)?;
-            check_operand(tcx, mir, rhs, span)?;
-            let ty = lhs.ty(mir, tcx);
+            check_operand(tcx, lhs, span, def_id, body)?;
+            check_operand(tcx, rhs, span, def_id, body)?;
+            let ty = lhs.ty(body, tcx);
             if ty.is_integral() || ty.is_bool() || ty.is_char() {
                 Ok(())
             } else {
@@ -182,9 +183,9 @@ fn check_rvalue(
             "heap allocations are not allowed in const fn".into(),
         )),
         Rvalue::UnaryOp(_, operand) => {
-            let ty = operand.ty(mir, tcx);
+            let ty = operand.ty(body, tcx);
             if ty.is_integral() || ty.is_bool() {
-                check_operand(tcx, mir, operand, span)
+                check_operand(tcx, operand, span, def_id, body)
             } else {
                 Err((
                     span,
@@ -194,7 +195,7 @@ fn check_rvalue(
         }
         Rvalue::Aggregate(_, operands) => {
             for operand in operands {
-                check_operand(tcx, mir, operand, span)?;
+                check_operand(tcx, operand, span, def_id, body)?;
             }
             Ok(())
         }
@@ -202,18 +203,23 @@ fn check_rvalue(
 }
 
 fn check_statement(
-    tcx: TyCtxt<'a, 'tcx, 'tcx>,
-    mir: &'a Mir<'tcx>,
+    tcx: TyCtxt<'tcx>,
+    body: &Body<'tcx>,
+    def_id: DefId,
     statement: &Statement<'tcx>,
 ) -> McfResult {
     let span = statement.source_info.span;
     match &statement.kind {
-        StatementKind::Assign(place, rval) => {
-            check_place(tcx, mir, place, span)?;
-            check_rvalue(tcx, mir, rval, span)
+        StatementKind::Assign(box(place, rval)) => {
+            check_place(tcx, place, span, def_id, body)?;
+            check_rvalue(tcx, body, def_id, rval, span)
         }
 
-        StatementKind::FakeRead(_, place) => check_place(tcx, mir, place, span),
+        StatementKind::FakeRead(FakeReadCause::ForMatchedPlace, _) => {
+            Err((span, "loops and conditional expressions are not stable in const fn".into()))
+        }
+
+        StatementKind::FakeRead(_, place) => check_place(tcx, place, span, def_id, body),
 
         // just an assignment
         StatementKind::SetDiscriminant { .. } => Ok(()),
@@ -232,47 +238,75 @@ fn check_statement(
 }
 
 fn check_operand(
-    tcx: TyCtxt<'a, 'tcx, 'tcx>,
-    mir: &'a Mir<'tcx>,
+    tcx: TyCtxt<'tcx>,
     operand: &Operand<'tcx>,
     span: Span,
+    def_id: DefId,
+    body: &Body<'tcx>
 ) -> McfResult {
     match operand {
         Operand::Move(place) | Operand::Copy(place) => {
-            check_place(tcx, mir, place, span)
+            check_place(tcx, place, span, def_id, body)
         }
         Operand::Constant(_) => Ok(()),
     }
 }
 
 fn check_place(
-    tcx: TyCtxt<'a, 'tcx, 'tcx>,
-    mir: &'a Mir<'tcx>,
+    tcx: TyCtxt<'tcx>,
     place: &Place<'tcx>,
     span: Span,
+    def_id: DefId,
+    body: &Body<'tcx>
 ) -> McfResult {
-    match place {
-        Place::Local(_) => Ok(()),
-        // promoteds are always fine, they are essentially constants
-        Place::Promoted(_) => Ok(()),
-        Place::Static(_) => Err((span, "cannot access `static` items in const fn".into())),
-        Place::Projection(proj) => {
-            match proj.elem {
-                | ProjectionElem::ConstantIndex { .. } | ProjectionElem::Subslice { .. }
-                | ProjectionElem::Deref | ProjectionElem::Field(..) | ProjectionElem::Index(_) => {
-                    check_place(tcx, mir, &proj.base, span)
-                }
-                | ProjectionElem::Downcast(..) => {
-                    Err((span, "`match` or `if let` in `const fn` is unstable".into()))
+    let mut cursor = &*place.projection;
+    while let [proj_base @ .., elem] = cursor {
+        cursor = proj_base;
+        match elem {
+            ProjectionElem::Downcast(..) => {
+                return Err((span, "`match` or `if let` in `const fn` is unstable".into()));
+            }
+            ProjectionElem::Field(..) => {
+                let base_ty = Place::ty_from(&place.base, &proj_base, body, tcx).ty;
+                if let Some(def) = base_ty.ty_adt_def() {
+                    // No union field accesses in `const fn`
+                    if def.is_union() {
+                        if !feature_allowed(tcx, def_id, sym::const_fn_union) {
+                            return Err((span, "accessing union fields is unstable".into()));
+                        }
+                    }
                 }
             }
+            ProjectionElem::ConstantIndex { .. }
+            | ProjectionElem::Subslice { .. }
+            | ProjectionElem::Deref
+            | ProjectionElem::Index(_) => {}
         }
+    }
+
+    match place.base {
+        PlaceBase::Static(box Static { kind: StaticKind::Static, .. }) => {
+            Err((span, "cannot access `static` items in const fn".into()))
+        }
+        PlaceBase::Local(_)
+        | PlaceBase::Static(box Static { kind: StaticKind::Promoted(_, _), .. }) => Ok(()),
     }
 }
 
+/// Returns whether `allow_internal_unstable(..., <feature_gate>, ...)` is present.
+fn feature_allowed(
+    tcx: TyCtxt<'tcx>,
+    def_id: DefId,
+    feature_gate: Symbol,
+) -> bool {
+    attr::allow_internal_unstable(&tcx.get_attrs(def_id), &tcx.sess.diagnostic())
+        .map_or(false, |mut features| features.any(|name| name == feature_gate))
+}
+
 fn check_terminator(
-    tcx: TyCtxt<'a, 'tcx, 'tcx>,
-    mir: &'a Mir<'tcx>,
+    tcx: TyCtxt<'tcx>,
+    body: &'a Body<'tcx>,
+    def_id: DefId,
     terminator: &Terminator<'tcx>,
 ) -> McfResult {
     let span = terminator.source_info.span;
@@ -282,16 +316,16 @@ fn check_terminator(
         | TerminatorKind::Resume => Ok(()),
 
         TerminatorKind::Drop { location, .. } => {
-            check_place(tcx, mir, location, span)
+            check_place(tcx, location, span, def_id, body)
         }
         TerminatorKind::DropAndReplace { location, value, .. } => {
-            check_place(tcx, mir, location, span)?;
-            check_operand(tcx, mir, value, span)
+            check_place(tcx, location, span, def_id, body)?;
+            check_operand(tcx, value, span, def_id, body)
         },
 
         TerminatorKind::FalseEdges { .. } | TerminatorKind::SwitchInt { .. } => Err((
             span,
-            "`if`, `match`, `&&` and `||` are not stable in const fn".into(),
+            "loops and conditional expressions are not stable in const fn".into(),
         )),
         | TerminatorKind::Abort | TerminatorKind::Unreachable => {
             Err((span, "const fn with unreachable code is not stable".into()))
@@ -307,7 +341,7 @@ fn check_terminator(
             destination: _,
             cleanup: _,
         } => {
-            let fn_ty = func.ty(mir, tcx);
+            let fn_ty = func.ty(body, tcx);
             if let ty::FnDef(def_id, _) = fn_ty.sty {
 
                 // some intrinsics are waved through if called inside the
@@ -322,7 +356,12 @@ fn check_terminator(
                     abi::Abi::Rust if tcx.is_min_const_fn(def_id) => {},
                     abi::Abi::Rust => return Err((
                         span,
-                        "can only call other `min_const_fn` within a `min_const_fn`".into(),
+                        format!(
+                            "can only call other `const fn` within a `const fn`, \
+                             but `{:?}` is not stable as `const fn`",
+                            func,
+                        )
+                        .into(),
                     )),
                     abi => return Err((
                         span,
@@ -333,10 +372,10 @@ fn check_terminator(
                     )),
                 }
 
-                check_operand(tcx, mir, func, span)?;
+                check_operand(tcx, func, span, def_id, body)?;
 
                 for arg in args {
-                    check_operand(tcx, mir, arg, span)?;
+                    check_operand(tcx, arg, span, def_id, body)?;
                 }
                 Ok(())
             } else {
@@ -350,7 +389,7 @@ fn check_terminator(
             msg: _,
             target: _,
             cleanup: _,
-        } => check_operand(tcx, mir, cond, span),
+        } => check_operand(tcx, cond, span, def_id, body),
 
         TerminatorKind::FalseUnwind { .. } => {
             Err((span, "loops are not allowed in const fn".into()))
@@ -362,7 +401,7 @@ fn check_terminator(
 /// for being called from stable `const fn`s (`min_const_fn`).
 ///
 /// Adding more intrinsics requires sign-off from @rust-lang/lang.
-fn is_intrinsic_whitelisted(tcx: TyCtxt<'a, 'tcx, 'tcx>, def_id: DefId) -> bool {
+fn is_intrinsic_whitelisted(tcx: TyCtxt<'tcx>, def_id: DefId) -> bool {
     match &tcx.item_name(def_id).as_str()[..] {
         | "size_of"
         | "min_align_of"
@@ -371,9 +410,9 @@ fn is_intrinsic_whitelisted(tcx: TyCtxt<'a, 'tcx, 'tcx>, def_id: DefId) -> bool 
         | "add_with_overflow" // ~> .overflowing_add
         | "sub_with_overflow" // ~> .overflowing_sub
         | "mul_with_overflow" // ~> .overflowing_mul
-        | "overflowing_add" // ~> .wrapping_add
-        | "overflowing_sub" // ~> .wrapping_sub
-        | "overflowing_mul" // ~> .wrapping_mul
+        | "wrapping_add" // ~> .wrapping_add
+        | "wrapping_sub" // ~> .wrapping_sub
+        | "wrapping_mul" // ~> .wrapping_mul
         | "saturating_add" // ~> .saturating_add
         | "saturating_sub" // ~> .saturating_sub
         | "unchecked_shl" // ~> .wrapping_shl

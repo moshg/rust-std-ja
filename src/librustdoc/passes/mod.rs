@@ -6,13 +6,11 @@ use rustc::lint as lint;
 use rustc::middle::privacy::AccessLevels;
 use rustc::util::nodemap::DefIdSet;
 use std::mem;
-use std::fmt;
-use syntax::ast::NodeId;
-use syntax_pos::{DUMMY_SP, Span};
+use syntax_pos::{DUMMY_SP, InnerSpan, Span};
 use std::ops::Range;
 
 use crate::clean::{self, GetDefId, Item};
-use crate::core::{DocContext, DocAccessLevels};
+use crate::core::DocContext;
 use crate::fold::{DocFolder, StripItem};
 use crate::html::markdown::{find_testable_code, ErrorCodes, LangString};
 
@@ -46,88 +44,22 @@ pub use self::collect_trait_impls::COLLECT_TRAIT_IMPLS;
 mod check_code_block_syntax;
 pub use self::check_code_block_syntax::CHECK_CODE_BLOCK_SYNTAX;
 
-/// Represents a single pass.
+mod calculate_doc_coverage;
+pub use self::calculate_doc_coverage::CALCULATE_DOC_COVERAGE;
+
+/// A single pass over the cleaned documentation.
+///
+/// Runs in the compiler context, so it has access to types and traits and the like.
 #[derive(Copy, Clone)]
-pub enum Pass {
-    /// An "early pass" is run in the compiler context, and can gather information about types and
-    /// traits and the like.
-    EarlyPass {
-        name: &'static str,
-        pass: fn(clean::Crate, &DocContext<'_, '_, '_>) -> clean::Crate,
-        description: &'static str,
-    },
-    /// A "late pass" is run between crate cleaning and page generation.
-    LatePass {
-        name: &'static str,
-        pass: fn(clean::Crate) -> clean::Crate,
-        description: &'static str,
-    },
+pub struct Pass {
+    pub name: &'static str,
+    pub pass: fn(clean::Crate, &DocContext<'_>) -> clean::Crate,
+    pub description: &'static str,
 }
 
-impl fmt::Debug for Pass {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let mut dbg = match *self {
-            Pass::EarlyPass { .. } => f.debug_struct("EarlyPass"),
-            Pass::LatePass { .. } => f.debug_struct("LatePass"),
-        };
-
-        dbg.field("name", &self.name())
-           .field("pass", &"...")
-           .field("description", &self.description())
-           .finish()
-    }
-}
-
-impl Pass {
-    /// Constructs a new early pass.
-    pub const fn early(name: &'static str,
-                       pass: fn(clean::Crate, &DocContext<'_, '_, '_>) -> clean::Crate,
-                       description: &'static str) -> Pass {
-        Pass::EarlyPass { name, pass, description }
-    }
-
-    /// Constructs a new late pass.
-    pub const fn late(name: &'static str,
-                      pass: fn(clean::Crate) -> clean::Crate,
-                      description: &'static str) -> Pass {
-        Pass::LatePass { name, pass, description }
-    }
-
-    /// Returns the name of this pass.
-    pub fn name(self) -> &'static str {
-        match self {
-            Pass::EarlyPass { name, .. } |
-                Pass::LatePass { name, .. } => name,
-        }
-    }
-
-    /// Returns the description of this pass.
-    pub fn description(self) -> &'static str {
-        match self {
-            Pass::EarlyPass { description, .. } |
-                Pass::LatePass { description, .. } => description,
-        }
-    }
-
-    /// If this pass is an early pass, returns the pointer to its function.
-    pub fn early_fn(self) -> Option<fn(clean::Crate, &DocContext<'_, '_, '_>) -> clean::Crate> {
-        match self {
-            Pass::EarlyPass { pass, .. } => Some(pass),
-            _ => None,
-        }
-    }
-
-    /// If this pass is a late pass, returns the pointer to its function.
-    pub fn late_fn(self) -> Option<fn(clean::Crate) -> clean::Crate> {
-        match self {
-            Pass::LatePass { pass, .. } => Some(pass),
-            _ => None,
-        }
-    }
-}
 
 /// The full list of passes.
-pub const PASSES: &'static [Pass] = &[
+pub const PASSES: &[Pass] = &[
     CHECK_PRIVATE_ITEMS_DOC_TESTS,
     STRIP_HIDDEN,
     UNINDENT_COMMENTS,
@@ -138,31 +70,47 @@ pub const PASSES: &'static [Pass] = &[
     COLLECT_INTRA_DOC_LINKS,
     CHECK_CODE_BLOCK_SYNTAX,
     COLLECT_TRAIT_IMPLS,
+    CALCULATE_DOC_COVERAGE,
 ];
 
 /// The list of passes run by default.
-pub const DEFAULT_PASSES: &'static [&'static str] = &[
-    "collect-trait-impls",
-    "check-private-items-doc-tests",
-    "strip-hidden",
-    "strip-private",
-    "collect-intra-doc-links",
-    "check-code-block-syntax",
-    "collapse-docs",
-    "unindent-comments",
-    "propagate-doc-cfg",
+pub const DEFAULT_PASSES: &[Pass] = &[
+    COLLECT_TRAIT_IMPLS,
+    COLLAPSE_DOCS,
+    UNINDENT_COMMENTS,
+    CHECK_PRIVATE_ITEMS_DOC_TESTS,
+    STRIP_HIDDEN,
+    STRIP_PRIVATE,
+    COLLECT_INTRA_DOC_LINKS,
+    CHECK_CODE_BLOCK_SYNTAX,
+    PROPAGATE_DOC_CFG,
 ];
 
 /// The list of default passes run with `--document-private-items` is passed to rustdoc.
-pub const DEFAULT_PRIVATE_PASSES: &'static [&'static str] = &[
-    "collect-trait-impls",
-    "check-private-items-doc-tests",
-    "strip-priv-imports",
-    "collect-intra-doc-links",
-    "check-code-block-syntax",
-    "collapse-docs",
-    "unindent-comments",
-    "propagate-doc-cfg",
+pub const DEFAULT_PRIVATE_PASSES: &[Pass] = &[
+    COLLECT_TRAIT_IMPLS,
+    COLLAPSE_DOCS,
+    UNINDENT_COMMENTS,
+    CHECK_PRIVATE_ITEMS_DOC_TESTS,
+    STRIP_PRIV_IMPORTS,
+    COLLECT_INTRA_DOC_LINKS,
+    CHECK_CODE_BLOCK_SYNTAX,
+    PROPAGATE_DOC_CFG,
+];
+
+/// The list of default passes run when `--doc-coverage` is passed to rustdoc.
+pub const DEFAULT_COVERAGE_PASSES: &[Pass] = &[
+    COLLECT_TRAIT_IMPLS,
+    STRIP_HIDDEN,
+    STRIP_PRIVATE,
+    CALCULATE_DOC_COVERAGE,
+];
+
+/// The list of default passes run when `--doc-coverage --document-private-items` is passed to
+/// rustdoc.
+pub const PRIVATE_COVERAGE_PASSES: &[Pass] = &[
+    COLLECT_TRAIT_IMPLS,
+    CALCULATE_DOC_COVERAGE,
 ];
 
 /// A shorthand way to refer to which set of passes to use, based on the presence of
@@ -171,21 +119,25 @@ pub const DEFAULT_PRIVATE_PASSES: &'static [&'static str] = &[
 pub enum DefaultPassOption {
     Default,
     Private,
+    Coverage,
+    PrivateCoverage,
     None,
 }
 
 /// Returns the given default set of passes.
-pub fn defaults(default_set: DefaultPassOption) -> &'static [&'static str] {
+pub fn defaults(default_set: DefaultPassOption) -> &'static [Pass] {
     match default_set {
         DefaultPassOption::Default => DEFAULT_PASSES,
         DefaultPassOption::Private => DEFAULT_PRIVATE_PASSES,
+        DefaultPassOption::Coverage => DEFAULT_COVERAGE_PASSES,
+        DefaultPassOption::PrivateCoverage => PRIVATE_COVERAGE_PASSES,
         DefaultPassOption::None => &[],
     }
 }
 
 /// If the given name matches a known pass, returns its information.
-pub fn find_pass(pass_name: &str) -> Option<Pass> {
-    PASSES.iter().find(|p| p.name() == pass_name).cloned()
+pub fn find_pass(pass_name: &str) -> Option<&'static Pass> {
+    PASSES.iter().find(|p| p.name == pass_name)
 }
 
 struct Stripper<'a> {
@@ -208,7 +160,7 @@ impl<'a> DocFolder for Stripper<'a> {
                 return ret;
             }
             // These items can all get re-exported
-            clean::ExistentialItem(..)
+            clean::OpaqueTyItem(..)
             | clean::TypedefItem(..)
             | clean::StaticItem(..)
             | clean::StructItem(..)
@@ -221,7 +173,7 @@ impl<'a> DocFolder for Stripper<'a> {
             | clean::ForeignStaticItem(..)
             | clean::ConstantItem(..)
             | clean::UnionItem(..)
-            | clean::AssociatedConstItem(..)
+            | clean::AssocConstItem(..)
             | clean::TraitAliasItem(..)
             | clean::ForeignTypeItem => {
                 if i.def_id.is_local() {
@@ -263,7 +215,7 @@ impl<'a> DocFolder for Stripper<'a> {
             clean::PrimitiveItem(..) => {}
 
             // Associated types are never stripped
-            clean::AssociatedTypeItem(..) => {}
+            clean::AssocTypeItem(..) => {}
 
             // Keywords are never stripped
             clean::KeywordItem(..) => {}
@@ -356,16 +308,19 @@ impl DocFolder for ImportStripper {
     }
 }
 
-pub fn look_for_tests<'a, 'tcx: 'a, 'rcx: 'a>(
-    cx: &'a DocContext<'a, 'tcx, 'rcx>,
+pub fn look_for_tests<'tcx>(
+    cx: &DocContext<'tcx>,
     dox: &str,
     item: &Item,
     check_missing_code: bool,
 ) {
-    if cx.as_local_node_id(item.def_id).is_none() {
-        // If non-local, no need to check anything.
-        return;
-    }
+    let hir_id = match cx.as_local_hir_id(item.def_id) {
+        Some(hir_id) => hir_id,
+        None => {
+            // If non-local, no need to check anything.
+            return;
+        }
+    };
 
     struct Tests {
         found_tests: usize,
@@ -381,35 +336,39 @@ pub fn look_for_tests<'a, 'tcx: 'a, 'rcx: 'a>(
         found_tests: 0,
     };
 
-    if find_testable_code(&dox, &mut tests, ErrorCodes::No).is_ok() {
-        if check_missing_code == true && tests.found_tests == 0 {
-            let mut diag = cx.tcx.struct_span_lint_node(
-                lint::builtin::MISSING_DOC_CODE_EXAMPLES,
-                NodeId::from_u32(0),
-                span_of_attrs(&item.attrs),
-                "Missing code example in this documentation");
-            diag.emit();
-        } else if check_missing_code == false &&
-                  tests.found_tests > 0 &&
-                  !cx.renderinfo.borrow().access_levels.is_doc_reachable(item.def_id) {
-            let mut diag = cx.tcx.struct_span_lint_node(
-                lint::builtin::PRIVATE_DOC_TESTS,
-                NodeId::from_u32(0),
-                span_of_attrs(&item.attrs),
-                "Documentation test in private item");
-            diag.emit();
-        }
+    find_testable_code(&dox, &mut tests, ErrorCodes::No, false);
+
+    if check_missing_code == true && tests.found_tests == 0 {
+        let sp = span_of_attrs(&item.attrs).unwrap_or(item.source.span());
+        let mut diag = cx.tcx.struct_span_lint_hir(
+            lint::builtin::MISSING_DOC_CODE_EXAMPLES,
+            hir_id,
+            sp,
+            "Missing code example in this documentation");
+        diag.emit();
+    } else if check_missing_code == false &&
+              tests.found_tests > 0 &&
+              !cx.renderinfo.borrow().access_levels.is_public(item.def_id) {
+        let mut diag = cx.tcx.struct_span_lint_hir(
+            lint::builtin::PRIVATE_DOC_TESTS,
+            hir_id,
+            span_of_attrs(&item.attrs).unwrap_or(item.source.span()),
+            "Documentation test in private item");
+        diag.emit();
     }
 }
 
 /// Returns a span encompassing all the given attributes.
-crate fn span_of_attrs(attrs: &clean::Attributes) -> Span {
+crate fn span_of_attrs(attrs: &clean::Attributes) -> Option<Span> {
     if attrs.doc_strings.is_empty() {
-        return DUMMY_SP;
+        return None;
     }
     let start = attrs.doc_strings[0].span();
+    if start == DUMMY_SP {
+        return None;
+    }
     let end = attrs.doc_strings.last().expect("No doc strings provided").span();
-    start.to(end)
+    Some(start.to(end))
 }
 
 /// Attempts to match a range of bytes from parsed markdown to a `Span` in the source code.
@@ -418,7 +377,7 @@ crate fn span_of_attrs(attrs: &clean::Attributes) -> Span {
 /// attributes are not all sugared doc comments. It's difficult to calculate the correct span in
 /// that case due to escaping and other source features.
 crate fn source_span_for_markdown_range(
-    cx: &DocContext<'_, '_, '_>,
+    cx: &DocContext<'_>,
     markdown: &str,
     md_range: &Range<usize>,
     attrs: &clean::Attributes,
@@ -435,14 +394,14 @@ crate fn source_span_for_markdown_range(
     let snippet = cx
         .sess()
         .source_map()
-        .span_to_snippet(span_of_attrs(attrs))
+        .span_to_snippet(span_of_attrs(attrs)?)
         .ok()?;
 
-    let starting_line = markdown[..md_range.start].lines().count() - 1;
-    let ending_line = markdown[..md_range.end].lines().count() - 1;
+    let starting_line = markdown[..md_range.start].matches('\n').count();
+    let ending_line = starting_line + markdown[md_range.start..md_range.end].matches('\n').count();
 
-    // We use `split_terminator('\n')` instead of `lines()` when counting bytes so that we only
-    // we can treat CRLF and LF line endings the same way.
+    // We use `split_terminator('\n')` instead of `lines()` when counting bytes so that we treat
+    // CRLF and LF line endings the same way.
     let mut src_lines = snippet.split_terminator('\n');
     let md_lines = markdown.split_terminator('\n');
 
@@ -485,10 +444,8 @@ crate fn source_span_for_markdown_range(
         }
     }
 
-    let sp = span_of_attrs(attrs).from_inner_byte_pos(
+    Some(span_of_attrs(attrs)?.from_inner(InnerSpan::new(
         md_range.start + start_bytes,
         md_range.end + start_bytes + end_bytes,
-    );
-
-    Some(sp)
+    )))
 }

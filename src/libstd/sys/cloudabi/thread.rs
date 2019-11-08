@@ -1,14 +1,12 @@
-use boxed::FnBox;
-use cmp;
-use ffi::CStr;
-use io;
-use libc;
-use mem;
-use ptr;
-use sys::cloudabi::abi;
-use sys::time::checked_dur2intervals;
-use sys_common::thread::*;
-use time::Duration;
+use crate::cmp;
+use crate::ffi::CStr;
+use crate::io;
+use crate::mem;
+use crate::ptr;
+use crate::sys::cloudabi::abi;
+use crate::sys::time::checked_dur2intervals;
+use crate::sys_common::thread::*;
+use crate::time::Duration;
 
 pub const DEFAULT_MIN_STACK_SIZE: usize = 2 * 1024 * 1024;
 
@@ -23,7 +21,7 @@ unsafe impl Sync for Thread {}
 
 impl Thread {
     // unsafe: see thread::Builder::spawn_unchecked for safety requirements
-    pub unsafe fn new(stack: usize, p: Box<dyn FnBox()>) -> io::Result<Thread> {
+    pub unsafe fn new(stack: usize, p: Box<dyn FnOnce()>) -> io::Result<Thread> {
         let p = box p;
         let mut native: libc::pthread_t = mem::zeroed();
         let mut attr: libc::pthread_attr_t = mem::zeroed();
@@ -74,10 +72,11 @@ impl Thread {
                 },
                 ..mem::zeroed()
             };
-            let mut event: abi::event = mem::uninitialized();
-            let mut nevents: usize = mem::uninitialized();
-            let ret = abi::poll(&subscription, &mut event, 1, &mut nevents);
+            let mut event = mem::MaybeUninit::<abi::event>::uninit();
+            let mut nevents = mem::MaybeUninit::<usize>::uninit();
+            let ret = abi::poll(&subscription, event.as_mut_ptr(), 1, nevents.as_mut_ptr());
             assert_eq!(ret, abi::errno::SUCCESS);
+            let event = event.assume_init();
             assert_eq!(event.error, abi::errno::SUCCESS);
         }
     }

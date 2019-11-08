@@ -1,14 +1,12 @@
-use boxed::FnBox;
-use cmp;
-use ffi::CStr;
-use io;
-use libc;
-use mem;
-use ptr;
-use sys::os;
-use time::Duration;
+use crate::cmp;
+use crate::ffi::CStr;
+use crate::io;
+use crate::mem;
+use crate::ptr;
+use crate::sys::os;
+use crate::time::Duration;
 
-use sys_common::thread::*;
+use crate::sys_common::thread::*;
 
 #[cfg(not(target_os = "l4re"))]
 pub const DEFAULT_MIN_STACK_SIZE: usize = 2 * 1024 * 1024;
@@ -40,7 +38,7 @@ unsafe fn pthread_attr_setstacksize(_attr: *mut libc::pthread_attr_t,
 
 impl Thread {
     // unsafe: see thread::Builder::spawn_unchecked for safety requirements
-    pub unsafe fn new(stack: usize, p: Box<dyn FnBox()>)
+    pub unsafe fn new(stack: usize, p: Box<dyn FnOnce()>)
                           -> io::Result<Thread> {
         let p = box p;
         let mut native: libc::pthread_t = mem::zeroed();
@@ -101,7 +99,6 @@ impl Thread {
 
     #[cfg(any(target_os = "freebsd",
               target_os = "dragonfly",
-              target_os = "bitrig",
               target_os = "openbsd"))]
     pub fn set_name(name: &CStr) {
         unsafe {
@@ -118,19 +115,33 @@ impl Thread {
 
     #[cfg(target_os = "netbsd")]
     pub fn set_name(name: &CStr) {
-        use ffi::CString;
+        use crate::ffi::CString;
         let cname = CString::new(&b"%s"[..]).unwrap();
         unsafe {
             libc::pthread_setname_np(libc::pthread_self(), cname.as_ptr(),
                                      name.as_ptr() as *mut libc::c_void);
         }
     }
+
+    #[cfg(target_os = "solaris")]
+    pub fn set_name(name: &CStr) {
+        weak! {
+            fn pthread_setname_np(
+                libc::pthread_t, *const libc::c_char
+            ) -> libc::c_int
+        }
+
+        if let Some(f) = pthread_setname_np.get() {
+            unsafe { f(libc::pthread_self(), name.as_ptr()); }
+        }
+    }
+
     #[cfg(any(target_env = "newlib",
-              target_os = "solaris",
               target_os = "haiku",
               target_os = "l4re",
               target_os = "emscripten",
-              target_os = "hermit"))]
+              target_os = "hermit",
+              target_os = "redox"))]
     pub fn set_name(_name: &CStr) {
         // Newlib, Illumos, Haiku, and Emscripten have no way to set a thread name.
     }
@@ -191,13 +202,12 @@ impl Drop for Thread {
 #[cfg(all(not(all(target_os = "linux", not(target_env = "musl"))),
           not(target_os = "freebsd"),
           not(target_os = "macos"),
-          not(target_os = "bitrig"),
           not(all(target_os = "netbsd", not(target_vendor = "rumprun"))),
           not(target_os = "openbsd"),
           not(target_os = "solaris")))]
 #[cfg_attr(test, allow(dead_code))]
 pub mod guard {
-    use ops::Range;
+    use crate::ops::Range;
     pub type Guard = Range<usize>;
     pub unsafe fn current() -> Option<Guard> { None }
     pub unsafe fn init() -> Option<Guard> { None }
@@ -207,17 +217,16 @@ pub mod guard {
 #[cfg(any(all(target_os = "linux", not(target_env = "musl")),
           target_os = "freebsd",
           target_os = "macos",
-          target_os = "bitrig",
           all(target_os = "netbsd", not(target_vendor = "rumprun")),
           target_os = "openbsd",
           target_os = "solaris"))]
 #[cfg_attr(test, allow(dead_code))]
 pub mod guard {
-    use libc;
     use libc::{mmap, mprotect};
     use libc::{PROT_NONE, PROT_READ, PROT_WRITE, MAP_PRIVATE, MAP_ANON, MAP_FAILED, MAP_FIXED};
-    use ops::Range;
-    use sys::os;
+
+    use crate::ops::Range;
+    use crate::sys::os;
 
     // This is initialized in init() and only read from after
     static mut PAGE_SIZE: usize = 0;
@@ -226,7 +235,7 @@ pub mod guard {
 
     #[cfg(target_os = "solaris")]
     unsafe fn get_stack_start() -> Option<*mut libc::c_void> {
-        let mut current_stack: libc::stack_t = ::mem::zeroed();
+        let mut current_stack: libc::stack_t = crate::mem::zeroed();
         assert_eq!(libc::stack_getbounds(&mut current_stack), 0);
         Some(current_stack.ss_sp)
     }
@@ -238,16 +247,15 @@ pub mod guard {
         Some(stackaddr as *mut libc::c_void)
     }
 
-    #[cfg(any(target_os = "openbsd", target_os = "bitrig"))]
+    #[cfg(target_os = "openbsd")]
     unsafe fn get_stack_start() -> Option<*mut libc::c_void> {
-        let mut current_stack: libc::stack_t = ::mem::zeroed();
+        let mut current_stack: libc::stack_t = crate::mem::zeroed();
         assert_eq!(libc::pthread_stackseg_np(libc::pthread_self(),
                                              &mut current_stack), 0);
 
-        let extra = if cfg!(target_os = "bitrig") {3} else {1} * PAGE_SIZE;
         let stackaddr = if libc::pthread_main_np() == 1 {
             // main thread
-            current_stack.ss_sp as usize - current_stack.ss_size + extra
+            current_stack.ss_sp as usize - current_stack.ss_size + PAGE_SIZE
         } else {
             // new thread
             current_stack.ss_sp as usize - current_stack.ss_size
@@ -259,14 +267,14 @@ pub mod guard {
               target_os = "linux", target_os = "netbsd", target_os = "l4re"))]
     unsafe fn get_stack_start() -> Option<*mut libc::c_void> {
         let mut ret = None;
-        let mut attr: libc::pthread_attr_t = ::mem::zeroed();
+        let mut attr: libc::pthread_attr_t = crate::mem::zeroed();
         assert_eq!(libc::pthread_attr_init(&mut attr), 0);
         #[cfg(target_os = "freebsd")]
             let e = libc::pthread_attr_get_np(libc::pthread_self(), &mut attr);
         #[cfg(not(target_os = "freebsd"))]
             let e = libc::pthread_getattr_np(libc::pthread_self(), &mut attr);
         if e == 0 {
-            let mut stackaddr = ::ptr::null_mut();
+            let mut stackaddr = crate::ptr::null_mut();
             let mut stacksize = 0;
             assert_eq!(libc::pthread_attr_getstack(&attr, &mut stackaddr,
                                                    &mut stacksize), 0);
@@ -345,7 +353,6 @@ pub mod guard {
     }
 
     #[cfg(any(target_os = "macos",
-              target_os = "bitrig",
               target_os = "openbsd",
               target_os = "solaris"))]
     pub unsafe fn current() -> Option<Guard> {
@@ -357,7 +364,7 @@ pub mod guard {
               target_os = "linux", target_os = "netbsd", target_os = "l4re"))]
     pub unsafe fn current() -> Option<Guard> {
         let mut ret = None;
-        let mut attr: libc::pthread_attr_t = ::mem::zeroed();
+        let mut attr: libc::pthread_attr_t = crate::mem::zeroed();
         assert_eq!(libc::pthread_attr_init(&mut attr), 0);
         #[cfg(target_os = "freebsd")]
             let e = libc::pthread_attr_get_np(libc::pthread_self(), &mut attr);
@@ -369,7 +376,7 @@ pub mod guard {
             if guardsize == 0 {
                 panic!("there is no guard page");
             }
-            let mut stackaddr = ::ptr::null_mut();
+            let mut stackaddr = crate::ptr::null_mut();
             let mut size = 0;
             assert_eq!(libc::pthread_attr_getstack(&attr, &mut stackaddr,
                                                    &mut size), 0);

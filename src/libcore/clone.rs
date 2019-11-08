@@ -133,6 +133,13 @@ pub trait Clone : Sized {
     }
 }
 
+/// Derive macro generating an impl of the trait `Clone`.
+#[rustc_builtin_macro]
+#[cfg_attr(bootstrap, rustc_macro_transparency = "semitransparent")]
+#[stable(feature = "builtin_macro_prelude", since = "1.38.0")]
+#[allow_internal_unstable(core_intrinsics, derive_clone_copy)]
+pub macro Clone($item:item) { /* compiler built-in */ }
+
 // FIXME(aburka): these structs are used solely by #[derive] to
 // assert that every component of a type implements Clone or Copy.
 //
@@ -142,13 +149,13 @@ pub trait Clone : Sized {
 #[unstable(feature = "derive_clone_copy",
            reason = "deriving hack, should not be public",
            issue = "0")]
-pub struct AssertParamIsClone<T: Clone + ?Sized> { _field: ::marker::PhantomData<T> }
+pub struct AssertParamIsClone<T: Clone + ?Sized> { _field: crate::marker::PhantomData<T> }
 #[doc(hidden)]
 #[allow(missing_debug_implementations)]
 #[unstable(feature = "derive_clone_copy",
            reason = "deriving hack, should not be public",
            issue = "0")]
-pub struct AssertParamIsCopy<T: Copy + ?Sized> { _field: ::marker::PhantomData<T> }
+pub struct AssertParamIsCopy<T: Copy + ?Sized> { _field: crate::marker::PhantomData<T> }
 
 /// Implementations of `Clone` for primitive types.
 ///

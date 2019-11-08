@@ -65,7 +65,53 @@ cfg_if! {
         }
 
         use std::ops::Add;
+        use std::panic::{resume_unwind, catch_unwind, AssertUnwindSafe};
 
+        /// This is a single threaded variant of AtomicCell provided by crossbeam.
+        /// Unlike `Atomic` this is intended for all `Copy` types,
+        /// but it lacks the explicit ordering arguments.
+        #[derive(Debug)]
+        pub struct AtomicCell<T: Copy>(Cell<T>);
+
+        impl<T: Copy> AtomicCell<T> {
+            #[inline]
+            pub fn new(v: T) -> Self {
+                AtomicCell(Cell::new(v))
+            }
+
+            #[inline]
+            pub fn get_mut(&mut self) -> &mut T {
+                self.0.get_mut()
+            }
+        }
+
+        impl<T: Copy> AtomicCell<T> {
+            #[inline]
+            pub fn into_inner(self) -> T {
+                self.0.into_inner()
+            }
+
+            #[inline]
+            pub fn load(&self) -> T {
+                self.0.get()
+            }
+
+            #[inline]
+            pub fn store(&self, val: T) {
+                self.0.set(val)
+            }
+
+            #[inline]
+            pub fn swap(&self, val: T) -> T {
+                self.0.replace(val)
+            }
+        }
+
+        /// This is a single threaded variant of `AtomicU64`, `AtomicUsize`, etc.
+        /// It differs from `AtomicCell` in that it has explicit ordering arguments
+        /// and is only intended for use with the native atomic types.
+        /// You should use this type through the `AtomicU64`, `AtomicUsize`, etc, type aliases
+        /// as it's not intended to be used separately.
         #[derive(Debug)]
         pub struct Atomic<T: Copy>(Cell<T>);
 
@@ -76,7 +122,8 @@ cfg_if! {
             }
         }
 
-        impl<T: Copy + PartialEq> Atomic<T> {
+        impl<T: Copy> Atomic<T> {
+            #[inline]
             pub fn into_inner(self) -> T {
                 self.0.into_inner()
             }
@@ -91,10 +138,14 @@ cfg_if! {
                 self.0.set(val)
             }
 
+            #[inline]
             pub fn swap(&self, val: T, _: Ordering) -> T {
                 self.0.replace(val)
             }
+        }
 
+        impl<T: Copy + PartialEq> Atomic<T> {
+            #[inline]
             pub fn compare_exchange(&self,
                                     current: T,
                                     new: T,
@@ -112,6 +163,7 @@ cfg_if! {
         }
 
         impl<T: Add<Output=T> + Copy> Atomic<T> {
+            #[inline]
             pub fn fetch_add(&self, val: T, _: Ordering) -> T {
                 let old = self.0.get();
                 self.0.set(old + val);
@@ -130,7 +182,21 @@ cfg_if! {
         #[macro_export]
         macro_rules! parallel {
             ($($blocks:tt),*) => {
-                $($blocks)*;
+                // We catch panics here ensuring that all the blocks execute.
+                // This makes behavior consistent with the parallel compiler.
+                let mut panic = None;
+                $(
+                    if let Err(p) = ::std::panic::catch_unwind(
+                        ::std::panic::AssertUnwindSafe(|| $blocks)
+                    ) {
+                        if panic.is_none() {
+                            panic = Some(p);
+                        }
+                    }
+                )*
+                if let Some(panic) = panic {
+                    ::std::panic::resume_unwind(panic);
+                }
             }
         }
 
@@ -138,6 +204,26 @@ cfg_if! {
 
         pub fn par_iter<T: IntoIterator>(t: T) -> T::IntoIter {
             t.into_iter()
+        }
+
+        pub fn par_for_each_in<T: IntoIterator>(
+            t: T,
+            for_each:
+                impl Fn(<<T as IntoIterator>::IntoIter as Iterator>::Item) + Sync + Send
+        ) {
+            // We catch panics here ensuring that all the loop iterations execute.
+            // This makes behavior consistent with the parallel compiler.
+            let mut panic = None;
+            t.into_iter().for_each(|i| {
+                if let Err(p) = catch_unwind(AssertUnwindSafe(|| for_each(i))) {
+                    if panic.is_none() {
+                        panic = Some(p);
+                    }
+                }
+            });
+            if let Some(panic) = panic {
+                resume_unwind(panic);
+            }
         }
 
         pub type MetadataRef = OwningRef<Box<dyn Erased>, [u8]>;
@@ -236,6 +322,8 @@ cfg_if! {
 
         pub use std::sync::atomic::{AtomicBool, AtomicUsize, AtomicU32, AtomicU64};
 
+        pub use crossbeam_utils::atomic::AtomicCell;
+
         pub use std::sync::Arc as Lrc;
         pub use std::sync::Weak as Weak;
 
@@ -278,23 +366,26 @@ cfg_if! {
         use std::thread;
         pub use rayon::{join, scope};
 
+        /// Runs a list of blocks in parallel. The first block is executed immediately on
+        /// the current thread. Use that for the longest running block.
         #[macro_export]
         macro_rules! parallel {
-            (impl [$($c:tt,)*] [$block:tt $(, $rest:tt)*]) => {
-                parallel!(impl [$block, $($c,)*] [$($rest),*])
+            (impl $fblock:tt [$($c:tt,)*] [$block:tt $(, $rest:tt)*]) => {
+                parallel!(impl $fblock [$block, $($c,)*] [$($rest),*])
             };
-            (impl [$($blocks:tt,)*] []) => {
+            (impl $fblock:tt [$($blocks:tt,)*] []) => {
                 ::rustc_data_structures::sync::scope(|s| {
                     $(
                         s.spawn(|_| $blocks);
                     )*
+                    $fblock;
                 })
             };
-            ($($blocks:tt),*) => {
-                // Reverse the order of the blocks since Rayon executes them in reverse order
+            ($fblock:tt, $($blocks:tt),*) => {
+                // Reverse the order of the later blocks since Rayon executes them in reverse order
                 // when using a single thread. This ensures the execution order matches that
                 // of a single threaded rustc
-                parallel!(impl [] [$($blocks),*]);
+                parallel!(impl $fblock [] [$($blocks),*]);
             };
         }
 
@@ -305,6 +396,15 @@ cfg_if! {
 
         pub fn par_iter<T: IntoParallelIterator>(t: T) -> T::Iter {
             t.into_par_iter()
+        }
+
+        pub fn par_for_each_in<T: IntoParallelIterator>(
+            t: T,
+            for_each: impl Fn(
+                <<T as IntoParallelIterator>::Iter as ParallelIterator>::Item
+            ) + Sync + Send
+        ) {
+            t.into_par_iter().for_each(for_each)
         }
 
         pub type MetadataRef = OwningRef<Box<dyn Erased + Send + Sync>, [u8]>;

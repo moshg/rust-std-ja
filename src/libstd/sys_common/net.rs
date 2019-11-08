@@ -1,47 +1,48 @@
-use cmp;
-use ffi::CString;
-use fmt;
-use io::{self, Error, ErrorKind, IoVec, IoVecMut};
+use crate::cmp;
+use crate::ffi::CString;
+use crate::fmt;
+use crate::io::{self, Error, ErrorKind, IoSlice, IoSliceMut};
+use crate::mem;
+use crate::net::{SocketAddr, Shutdown, Ipv4Addr, Ipv6Addr};
+use crate::ptr;
+use crate::sys::net::{cvt, cvt_r, cvt_gai, Socket, init, wrlen_t};
+use crate::sys::net::netc as c;
+use crate::sys_common::{AsInner, FromInner, IntoInner};
+use crate::time::Duration;
+use crate::convert::{TryFrom, TryInto};
+
 use libc::{c_int, c_void};
-use mem;
-use net::{SocketAddr, Shutdown, Ipv4Addr, Ipv6Addr};
-use ptr;
-use sys::net::{cvt, cvt_r, cvt_gai, Socket, init, wrlen_t};
-use sys::net::netc as c;
-use sys_common::{AsInner, FromInner, IntoInner};
-use time::Duration;
-use convert::{TryFrom, TryInto};
 
 #[cfg(any(target_os = "dragonfly", target_os = "freebsd",
           target_os = "ios", target_os = "macos",
           target_os = "openbsd", target_os = "netbsd",
           target_os = "solaris", target_os = "haiku", target_os = "l4re"))]
-use sys::net::netc::IPV6_JOIN_GROUP as IPV6_ADD_MEMBERSHIP;
+use crate::sys::net::netc::IPV6_JOIN_GROUP as IPV6_ADD_MEMBERSHIP;
 #[cfg(not(any(target_os = "dragonfly", target_os = "freebsd",
               target_os = "ios", target_os = "macos",
               target_os = "openbsd", target_os = "netbsd",
               target_os = "solaris", target_os = "haiku", target_os = "l4re")))]
-use sys::net::netc::IPV6_ADD_MEMBERSHIP;
+use crate::sys::net::netc::IPV6_ADD_MEMBERSHIP;
 #[cfg(any(target_os = "dragonfly", target_os = "freebsd",
           target_os = "ios", target_os = "macos",
           target_os = "openbsd", target_os = "netbsd",
           target_os = "solaris", target_os = "haiku", target_os = "l4re"))]
-use sys::net::netc::IPV6_LEAVE_GROUP as IPV6_DROP_MEMBERSHIP;
+use crate::sys::net::netc::IPV6_LEAVE_GROUP as IPV6_DROP_MEMBERSHIP;
 #[cfg(not(any(target_os = "dragonfly", target_os = "freebsd",
               target_os = "ios", target_os = "macos",
               target_os = "openbsd", target_os = "netbsd",
               target_os = "solaris", target_os = "haiku", target_os = "l4re")))]
-use sys::net::netc::IPV6_DROP_MEMBERSHIP;
+use crate::sys::net::netc::IPV6_DROP_MEMBERSHIP;
 
 #[cfg(any(target_os = "linux", target_os = "android",
           target_os = "dragonfly", target_os = "freebsd",
           target_os = "openbsd", target_os = "netbsd",
-          target_os = "haiku", target_os = "bitrig"))]
+          target_os = "haiku"))]
 use libc::MSG_NOSIGNAL;
 #[cfg(not(any(target_os = "linux", target_os = "android",
               target_os = "dragonfly", target_os = "freebsd",
               target_os = "openbsd", target_os = "netbsd",
-              target_os = "haiku", target_os = "bitrig")))]
+              target_os = "haiku")))]
 const MSG_NOSIGNAL: c_int = 0x0;
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -109,8 +110,8 @@ fn to_ipv6mr_interface(value: u32) -> c_int {
 }
 
 #[cfg(not(target_os = "android"))]
-fn to_ipv6mr_interface(value: u32) -> ::libc::c_uint {
-    value as ::libc::c_uint
+fn to_ipv6mr_interface(value: u32) -> libc::c_uint {
+    value as libc::c_uint
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -156,7 +157,7 @@ impl Drop for LookupHost {
     }
 }
 
-impl<'a> TryFrom<&'a str> for LookupHost {
+impl TryFrom<&str> for LookupHost {
     type Error = io::Error;
 
     fn try_from(s: &str) -> io::Result<LookupHost> {
@@ -255,7 +256,7 @@ impl TcpStream {
         self.inner.read(buf)
     }
 
-    pub fn read_vectored(&self, bufs: &mut [IoVecMut<'_>]) -> io::Result<usize> {
+    pub fn read_vectored(&self, bufs: &mut [IoSliceMut<'_>]) -> io::Result<usize> {
         self.inner.read_vectored(bufs)
     }
 
@@ -270,7 +271,7 @@ impl TcpStream {
         Ok(ret as usize)
     }
 
-    pub fn write_vectored(&self, bufs: &[IoVec<'_>]) -> io::Result<usize> {
+    pub fn write_vectored(&self, bufs: &[IoSlice<'_>]) -> io::Result<usize> {
         self.inner.write_vectored(bufs)
     }
 
@@ -327,7 +328,7 @@ impl FromInner<Socket> for TcpStream {
 }
 
 impl fmt::Debug for TcpStream {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let mut res = f.debug_struct("TcpStream");
 
         if let Ok(addr) = self.socket_addr() {
@@ -434,7 +435,7 @@ impl FromInner<Socket> for TcpListener {
 }
 
 impl fmt::Debug for TcpListener {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let mut res = f.debug_struct("TcpListener");
 
         if let Ok(addr) = self.socket_addr() {
@@ -470,6 +471,12 @@ impl UdpSocket {
     pub fn socket(&self) -> &Socket { &self.inner }
 
     pub fn into_socket(self) -> Socket { self.inner }
+
+    pub fn peer_addr(&self) -> io::Result<SocketAddr> {
+        sockname(|buf, len| unsafe {
+            c::getpeername(*self.inner.as_inner(), buf, len)
+        })
+    }
 
     pub fn socket_addr(&self) -> io::Result<SocketAddr> {
         sockname(|buf, len| unsafe {
@@ -637,7 +644,7 @@ impl FromInner<Socket> for UdpSocket {
 }
 
 impl fmt::Debug for UdpSocket {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let mut res = f.debug_struct("UdpSocket");
 
         if let Ok(addr) = self.socket_addr() {
@@ -653,7 +660,7 @@ impl fmt::Debug for UdpSocket {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use collections::HashMap;
+    use crate::collections::HashMap;
 
     #[test]
     fn no_lookup_host_duplicates() {

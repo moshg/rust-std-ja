@@ -9,42 +9,82 @@
 // Re-exported core operators
 #[stable(feature = "rust1", since = "1.0.0")]
 #[doc(no_inline)]
-pub use marker::{Copy, Send, Sized, Sync, Unpin};
+pub use crate::marker::{Send, Sized, Sync, Unpin};
 #[stable(feature = "rust1", since = "1.0.0")]
 #[doc(no_inline)]
-pub use ops::{Drop, Fn, FnMut, FnOnce};
+pub use crate::ops::{Drop, Fn, FnMut, FnOnce};
 
 // Re-exported functions
 #[stable(feature = "rust1", since = "1.0.0")]
 #[doc(no_inline)]
-pub use mem::drop;
+pub use crate::mem::drop;
 
 // Re-exported types and traits
 #[stable(feature = "rust1", since = "1.0.0")]
 #[doc(no_inline)]
-pub use clone::Clone;
+pub use crate::convert::{AsRef, AsMut, Into, From};
 #[stable(feature = "rust1", since = "1.0.0")]
 #[doc(no_inline)]
-pub use cmp::{PartialEq, PartialOrd, Eq, Ord};
+pub use crate::iter::{Iterator, Extend, IntoIterator};
 #[stable(feature = "rust1", since = "1.0.0")]
 #[doc(no_inline)]
-pub use convert::{AsRef, AsMut, Into, From};
+pub use crate::iter::{DoubleEndedIterator, ExactSizeIterator};
 #[stable(feature = "rust1", since = "1.0.0")]
 #[doc(no_inline)]
-pub use default::Default;
+pub use crate::option::Option::{self, Some, None};
 #[stable(feature = "rust1", since = "1.0.0")]
 #[doc(no_inline)]
-pub use iter::{Iterator, Extend, IntoIterator};
-#[stable(feature = "rust1", since = "1.0.0")]
-#[doc(no_inline)]
-pub use iter::{DoubleEndedIterator, ExactSizeIterator};
-#[stable(feature = "rust1", since = "1.0.0")]
-#[doc(no_inline)]
-pub use option::Option::{self, Some, None};
-#[stable(feature = "rust1", since = "1.0.0")]
-#[doc(no_inline)]
-pub use result::Result::{self, Ok, Err};
+pub use crate::result::Result::{self, Ok, Err};
 
+// Re-exported built-in macros
+#[stable(feature = "builtin_macro_prelude", since = "1.38.0")]
+#[doc(no_inline)]
+pub use core::prelude::v1::{
+    asm,
+    assert,
+    cfg,
+    column,
+    compile_error,
+    concat,
+    concat_idents,
+    env,
+    file,
+    format_args,
+    format_args_nl,
+    global_asm,
+    include,
+    include_bytes,
+    include_str,
+    line,
+    log_syntax,
+    module_path,
+    option_env,
+    stringify,
+    trace_macros,
+};
+
+// FIXME: Attribute and derive macros are not documented because for them rustdoc generates
+// dead links which fail link checker testing.
+#[stable(feature = "builtin_macro_prelude", since = "1.38.0")]
+#[allow(deprecated)]
+#[doc(hidden)]
+pub use core::prelude::v1::{
+    Clone,
+    Copy,
+    Debug,
+    Default,
+    Eq,
+    Hash,
+    Ord,
+    PartialEq,
+    PartialOrd,
+    RustcDecodable,
+    RustcEncodable,
+    bench,
+    global_allocator,
+    test,
+    test_case,
+};
 
 // The file so far is equivalent to src/libcore/prelude/v1.rs,
 // and below to src/liballoc/prelude.rs.
@@ -54,16 +94,13 @@ pub use result::Result::{self, Ok, Err};
 
 #[stable(feature = "rust1", since = "1.0.0")]
 #[doc(no_inline)]
-pub use boxed::Box;
+pub use crate::boxed::Box;
 #[stable(feature = "rust1", since = "1.0.0")]
 #[doc(no_inline)]
-pub use borrow::ToOwned;
+pub use crate::borrow::ToOwned;
 #[stable(feature = "rust1", since = "1.0.0")]
 #[doc(no_inline)]
-pub use slice::SliceConcatExt;
+pub use crate::string::{String, ToString};
 #[stable(feature = "rust1", since = "1.0.0")]
 #[doc(no_inline)]
-pub use string::{String, ToString};
-#[stable(feature = "rust1", since = "1.0.0")]
-#[doc(no_inline)]
-pub use vec::Vec;
+pub use crate::vec::Vec;

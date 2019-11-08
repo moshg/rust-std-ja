@@ -9,15 +9,16 @@ use crate::ty::relate::{Cause, Relate, RelateResult, TypeRelation};
 use std::mem;
 
 /// Ensures `a` is made a subtype of `b`. Returns `a` on success.
-pub struct Sub<'combine, 'infcx: 'combine, 'gcx: 'infcx+'tcx, 'tcx: 'infcx> {
-    fields: &'combine mut CombineFields<'infcx, 'gcx, 'tcx>,
+pub struct Sub<'combine, 'infcx, 'tcx> {
+    fields: &'combine mut CombineFields<'infcx, 'tcx>,
     a_is_expected: bool,
 }
 
-impl<'combine, 'infcx, 'gcx, 'tcx> Sub<'combine, 'infcx, 'gcx, 'tcx> {
-    pub fn new(f: &'combine mut CombineFields<'infcx, 'gcx, 'tcx>, a_is_expected: bool)
-        -> Sub<'combine, 'infcx, 'gcx, 'tcx>
-    {
+impl<'combine, 'infcx, 'tcx> Sub<'combine, 'infcx, 'tcx> {
+    pub fn new(
+        f: &'combine mut CombineFields<'infcx, 'tcx>,
+        a_is_expected: bool,
+    ) -> Sub<'combine, 'infcx, 'tcx> {
         Sub { fields: f, a_is_expected: a_is_expected }
     }
 
@@ -29,11 +30,12 @@ impl<'combine, 'infcx, 'gcx, 'tcx> Sub<'combine, 'infcx, 'gcx, 'tcx> {
     }
 }
 
-impl<'combine, 'infcx, 'gcx, 'tcx> TypeRelation<'infcx, 'gcx, 'tcx>
-    for Sub<'combine, 'infcx, 'gcx, 'tcx>
-{
+impl TypeRelation<'tcx> for Sub<'combine, 'infcx, 'tcx> {
     fn tag(&self) -> &'static str { "Sub" }
-    fn tcx(&self) -> TyCtxt<'infcx, 'gcx, 'tcx> { self.fields.infcx.tcx }
+    fn tcx(&self) -> TyCtxt<'tcx> { self.fields.infcx.tcx }
+
+    fn param_env(&self) -> ty::ParamEnv<'tcx> { self.fields.param_env }
+
     fn a_is_expected(&self) -> bool { self.a_is_expected }
 
     fn with_cause<F,R>(&mut self, cause: Cause, f: F) -> R
@@ -126,11 +128,19 @@ impl<'combine, 'infcx, 'gcx, 'tcx> TypeRelation<'infcx, 'gcx, 'tcx>
         // FIXME -- we have more fine-grained information available
         // from the "cause" field, we could perhaps give more tailored
         // error messages.
-        let origin = SubregionOrigin::Subtype(self.fields.trace.clone());
+        let origin = SubregionOrigin::Subtype(box self.fields.trace.clone());
         self.fields.infcx.borrow_region_constraints()
                          .make_subregion(origin, a, b);
 
         Ok(a)
+    }
+
+    fn consts(
+        &mut self,
+        a: &'tcx ty::Const<'tcx>,
+        b: &'tcx ty::Const<'tcx>,
+    ) -> RelateResult<'tcx, &'tcx ty::Const<'tcx>> {
+        self.fields.infcx.super_combine_consts(self, a, b)
     }
 
     fn binders<T>(&mut self, a: &ty::Binder<T>, b: &ty::Binder<T>)

@@ -8,7 +8,7 @@
 //!
 //! The [`Command`] struct is used to configure and spawn processes:
 //!
-//! ```
+//! ```no_run
 //! use std::process::Command;
 //!
 //! let output = Command::new("echo")
@@ -106,17 +106,17 @@
 
 #![stable(feature = "process", since = "1.0.0")]
 
-use io::prelude::*;
+use crate::io::prelude::*;
 
-use ffi::OsStr;
-use fmt;
-use fs;
-use io::{self, Initializer};
-use path::Path;
-use str;
-use sys::pipe::{read2, AnonPipe};
-use sys::process as imp;
-use sys_common::{AsInner, AsInnerMut, FromInner, IntoInner};
+use crate::ffi::OsStr;
+use crate::fmt;
+use crate::fs;
+use crate::io::{self, Initializer, IoSlice, IoSliceMut};
+use crate::path::Path;
+use crate::str;
+use crate::sys::pipe::{read2, AnonPipe};
+use crate::sys::process as imp;
+use crate::sys_common::{AsInner, AsInnerMut, FromInner, IntoInner};
 
 /// Representation of a running or exited child process.
 ///
@@ -133,6 +133,18 @@ use sys_common::{AsInner, AsInnerMut, FromInner, IntoInner};
 /// Calling [`wait`](#method.wait) (or other functions that wrap around it) will make
 /// the parent process wait until the child has actually exited before
 /// continuing.
+///
+/// # Warning
+///
+/// On some system, calling [`wait`] or similar is necessary for the OS to
+/// release resources. A process that terminated but has not been waited on is
+/// still around as a "zombie". Leaving too many zombies around may exhaust
+/// global resources (for example process IDs).
+///
+/// The standard library does *not* automatically wait on child processes (not
+/// even if the `Child` is dropped), it is up to the application developer to do
+/// so. As a consequence, dropping `Child` handles without waiting on them first
+/// is not recommended in long-running applications.
 ///
 /// # Examples
 ///
@@ -194,7 +206,7 @@ impl IntoInner<imp::Process> for Child {
 
 #[stable(feature = "std_debug", since = "1.16.0")]
 impl fmt::Debug for Child {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("Child")
             .field("stdin", &self.stdin)
             .field("stdout", &self.stdout)
@@ -225,6 +237,10 @@ impl Write for ChildStdin {
         self.inner.write(buf)
     }
 
+    fn write_vectored(&mut self, bufs: &[IoSlice<'_>]) -> io::Result<usize> {
+        self.inner.write_vectored(bufs)
+    }
+
     fn flush(&mut self) -> io::Result<()> {
         Ok(())
     }
@@ -246,7 +262,7 @@ impl FromInner<AnonPipe> for ChildStdin {
 
 #[stable(feature = "std_debug", since = "1.16.0")]
 impl fmt::Debug for ChildStdin {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.pad("ChildStdin { .. }")
     }
 }
@@ -271,6 +287,11 @@ impl Read for ChildStdout {
     fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
         self.inner.read(buf)
     }
+
+    fn read_vectored(&mut self, bufs: &mut [IoSliceMut<'_>]) -> io::Result<usize> {
+        self.inner.read_vectored(bufs)
+    }
+
     #[inline]
     unsafe fn initializer(&self) -> Initializer {
         Initializer::nop()
@@ -293,7 +314,7 @@ impl FromInner<AnonPipe> for ChildStdout {
 
 #[stable(feature = "std_debug", since = "1.16.0")]
 impl fmt::Debug for ChildStdout {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.pad("ChildStdout { .. }")
     }
 }
@@ -318,6 +339,11 @@ impl Read for ChildStderr {
     fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
         self.inner.read(buf)
     }
+
+    fn read_vectored(&mut self, bufs: &mut [IoSliceMut<'_>]) -> io::Result<usize> {
+        self.inner.read_vectored(bufs)
+    }
+
     #[inline]
     unsafe fn initializer(&self) -> Initializer {
         Initializer::nop()
@@ -340,7 +366,7 @@ impl FromInner<AnonPipe> for ChildStderr {
 
 #[stable(feature = "std_debug", since = "1.16.0")]
 impl fmt::Debug for ChildStderr {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.pad("ChildStderr { .. }")
     }
 }
@@ -396,7 +422,7 @@ impl fmt::Debug for ChildStderr {
 /// // Execute `ls` in the current directory of the program.
 /// list_dir.status().expect("process failed to execute");
 ///
-/// println!("");
+/// println!();
 ///
 /// // Change `ls` to execute in the root directory.
 /// list_dir.current_dir("/");
@@ -803,7 +829,7 @@ impl fmt::Debug for Command {
     /// Format the program and arguments of a Command for display. Any
     /// non-utf8 data is lossily converted using the utf8 replacement
     /// character.
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         self.inner.fmt(f)
     }
 }
@@ -844,7 +870,7 @@ pub struct Output {
 // strings, otherwise it prints the byte sequence instead
 #[stable(feature = "process_output_debug", since = "1.7.0")]
 impl fmt::Debug for Output {
-    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, fmt: &mut fmt::Formatter<'_>) -> fmt::Result {
 
         let stdout_utf8 = str::from_utf8(&self.stdout);
         let stdout_debug: &dyn fmt::Debug = match stdout_utf8 {
@@ -909,12 +935,12 @@ impl Stdio {
     ///     .expect("Failed to spawn child process");
     ///
     /// {
-    ///     let mut stdin = child.stdin.as_mut().expect("Failed to open stdin");
+    ///     let stdin = child.stdin.as_mut().expect("Failed to open stdin");
     ///     stdin.write_all("Hello, world!".as_bytes()).expect("Failed to write to stdin");
     /// }
     ///
     /// let output = child.wait_with_output().expect("Failed to read stdout");
-    /// assert_eq!(String::from_utf8_lossy(&output.stdout), "!dlrow ,olleH\n");
+    /// assert_eq!(String::from_utf8_lossy(&output.stdout), "!dlrow ,olleH");
     /// ```
     #[stable(feature = "process", since = "1.0.0")]
     pub fn piped() -> Stdio { Stdio(imp::Stdio::MakePipe) }
@@ -1002,7 +1028,7 @@ impl FromInner<imp::Stdio> for Stdio {
 
 #[stable(feature = "std_debug", since = "1.16.0")]
 impl fmt::Debug for Stdio {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.pad("Stdio { .. }")
     }
 }
@@ -1015,7 +1041,7 @@ impl From<ChildStdin> for Stdio {
     ///
     /// `ChildStdin` will be converted to `Stdio` using `Stdio::from` under the hood.
     ///
-    /// ```rust
+    /// ```rust,no_run
     /// use std::process::{Command, Stdio};
     ///
     /// let reverse = Command::new("rev")
@@ -1044,7 +1070,7 @@ impl From<ChildStdout> for Stdio {
     ///
     /// `ChildStdout` will be converted to `Stdio` using `Stdio::from` under the hood.
     ///
-    /// ```rust
+    /// ```rust,no_run
     /// use std::process::{Command, Stdio};
     ///
     /// let hello = Command::new("echo")
@@ -1127,10 +1153,13 @@ impl From<fs::File> for Stdio {
 ///
 /// This `struct` is used to represent the exit status of a child process.
 /// Child processes are created via the [`Command`] struct and their exit
-/// status is exposed through the [`status`] method.
+/// status is exposed through the [`status`] method, or the [`wait`] method
+/// of a [`Child`] process.
 ///
 /// [`Command`]: struct.Command.html
+/// [`Child`]: struct.Child.html
 /// [`status`]: struct.Command.html#method.status
+/// [`wait`]: struct.Child.html#method.wait
 #[derive(PartialEq, Eq, Clone, Copy, Debug)]
 #[stable(feature = "process", since = "1.0.0")]
 pub struct ExitStatus(imp::ExitStatus);
@@ -1199,7 +1228,7 @@ impl FromInner<imp::ExitStatus> for ExitStatus {
 
 #[stable(feature = "process", since = "1.0.0")]
 impl fmt::Display for ExitStatus {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         self.0.fmt(f)
     }
 }
@@ -1481,8 +1510,8 @@ impl Child {
 /// [platform-specific behavior]: #platform-specific-behavior
 #[stable(feature = "rust1", since = "1.0.0")]
 pub fn exit(code: i32) -> ! {
-    ::sys_common::cleanup();
-    ::sys::os::exit(code)
+    crate::sys_common::cleanup();
+    crate::sys::os::exit(code)
 }
 
 /// Terminates the process in an abnormal fashion.
@@ -1543,7 +1572,7 @@ pub fn exit(code: i32) -> ! {
 /// [panic hook]: ../../std/panic/fn.set_hook.html
 #[stable(feature = "process_abort", since = "1.17.0")]
 pub fn abort() -> ! {
-    unsafe { ::sys::abort_internal() };
+    unsafe { crate::sys::abort_internal() };
 }
 
 /// Returns the OS-assigned process identifier associated with this process.
@@ -1561,12 +1590,12 @@ pub fn abort() -> ! {
 ///
 #[stable(feature = "getpid", since = "1.26.0")]
 pub fn id() -> u32 {
-    ::sys::os::getpid()
+    crate::sys::os::getpid()
 }
 
 /// A trait for implementing arbitrary return types in the `main` function.
 ///
-/// The c-main function only supports to return integers as return type.
+/// The C-main function only supports to return integers as return type.
 /// So, every type implementing the `Termination` trait has to be converted
 /// to an integer.
 ///
@@ -1621,12 +1650,12 @@ impl Termination for ExitCode {
     }
 }
 
-#[cfg(all(test, not(any(target_os = "cloudabi", target_os = "emscripten"))))]
+#[cfg(all(test, not(any(target_os = "cloudabi", target_os = "emscripten", target_env = "sgx"))))]
 mod tests {
-    use io::prelude::*;
+    use crate::io::prelude::*;
 
-    use io::ErrorKind;
-    use str;
+    use crate::io::ErrorKind;
+    use crate::str;
     use super::{Command, Output, Stdio};
 
     // FIXME(#10380) these tests should not all be ignored on android.
@@ -1671,7 +1700,7 @@ mod tests {
     #[cfg(unix)]
     #[cfg_attr(target_os = "android", ignore)]
     fn signal_reported_right() {
-        use os::unix::process::ExitStatusExt;
+        use crate::os::unix::process::ExitStatusExt;
 
         let mut p = Command::new("/bin/sh")
                             .arg("-c").arg("read a")
@@ -1734,34 +1763,6 @@ mod tests {
         p.stdout.as_mut().unwrap().read_to_string(&mut out).unwrap();
         assert!(p.wait().unwrap().success());
         assert_eq!(out, "foobar\n");
-    }
-
-
-    #[test]
-    #[cfg_attr(target_os = "android", ignore)]
-    #[cfg(unix)]
-    fn uid_works() {
-        use os::unix::prelude::*;
-        use libc;
-        let mut p = Command::new("/bin/sh")
-                            .arg("-c").arg("true")
-                            .uid(unsafe { libc::getuid() })
-                            .gid(unsafe { libc::getgid() })
-                            .spawn().unwrap();
-        assert!(p.wait().unwrap().success());
-    }
-
-    #[test]
-    #[cfg_attr(target_os = "android", ignore)]
-    #[cfg(unix)]
-    fn uid_to_root_fails() {
-        use os::unix::prelude::*;
-        use libc;
-
-        // if we're already root, this isn't a valid test. Most of the bots run
-        // as non-root though (android is an exception).
-        if unsafe { libc::getuid() == 0 } { return }
-        assert!(Command::new("/bin/ls").uid(0).gid(0).spawn().is_err());
     }
 
     #[test]
@@ -1881,7 +1882,7 @@ mod tests {
 
     #[test]
     fn test_override_env() {
-        use env;
+        use crate::env;
 
         // In some build environments (such as chrooted Nix builds), `env` can
         // only be found in the explicitly-provided PATH env variable, not in
@@ -1910,7 +1911,7 @@ mod tests {
 
     #[test]
     fn test_capture_env_at_spawn() {
-        use env;
+        use crate::env;
 
         let mut cmd = env_cmd();
         cmd.env("RUN_TEST_NEW_ENV1", "123");
@@ -1985,8 +1986,8 @@ mod tests {
     #[test]
     #[cfg(windows)]
     fn test_creation_flags() {
-        use os::windows::process::CommandExt;
-        use sys::c::{BOOL, DWORD, INFINITE};
+        use crate::os::windows::process::CommandExt;
+        use crate::sys::c::{BOOL, DWORD, INFINITE};
         #[repr(C, packed)]
         struct DEBUG_EVENT {
             pub event_code: DWORD,

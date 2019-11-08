@@ -9,9 +9,9 @@
 #![allow(missing_docs)]
 
 #[cfg(not(test))]
-use intrinsics;
+use crate::intrinsics;
 #[cfg(not(test))]
-use sys::cmath;
+use crate::sys::cmath;
 
 #[stable(feature = "rust1", since = "1.0.0")]
 pub use core::f32::{RADIX, MANTISSA_DIGITS, DIGITS, EPSILON};
@@ -32,11 +32,13 @@ impl f32 {
     /// # Examples
     ///
     /// ```
-    /// let f = 3.99_f32;
+    /// let f = 3.7_f32;
     /// let g = 3.0_f32;
+    /// let h = -3.7_f32;
     ///
     /// assert_eq!(f.floor(), 3.0);
     /// assert_eq!(g.floor(), 3.0);
+    /// assert_eq!(h.floor(), -4.0);
     /// ```
     #[stable(feature = "rust1", since = "1.0.0")]
     #[inline]
@@ -104,11 +106,13 @@ impl f32 {
     /// # Examples
     ///
     /// ```
-    /// let f = 3.3_f32;
-    /// let g = -3.7_f32;
+    /// let f = 3.7_f32;
+    /// let g = 3.0_f32;
+    /// let h = -3.7_f32;
     ///
     /// assert_eq!(f.trunc(), 3.0);
-    /// assert_eq!(g.trunc(), -3.0);
+    /// assert_eq!(g.trunc(), 3.0);
+    /// assert_eq!(h.trunc(), -3.0);
     /// ```
     #[stable(feature = "rust1", since = "1.0.0")]
     #[inline]
@@ -184,21 +188,20 @@ impl f32 {
         if self.is_nan() {
             NAN
         } else {
-            unsafe { intrinsics::copysignf32(1.0, self) }
+            1.0_f32.copysign(self)
         }
     }
 
     /// Returns a number composed of the magnitude of `self` and the sign of
-    /// `y`.
+    /// `sign`.
     ///
-    /// Equal to `self` if the sign of `self` and `y` are the same, otherwise
+    /// Equal to `self` if the sign of `self` and `sign` are the same, otherwise
     /// equal to `-self`. If `self` is a `NAN`, then a `NAN` with the sign of
-    /// `y` is returned.
+    /// `sign` is returned.
     ///
     /// # Examples
     ///
     /// ```
-    /// #![feature(copysign)]
     /// use std::f32;
     ///
     /// let f = 3.5_f32;
@@ -212,9 +215,9 @@ impl f32 {
     /// ```
     #[inline]
     #[must_use]
-    #[unstable(feature="copysign", issue="55169")]
-    pub fn copysign(self, y: f32) -> f32 {
-        unsafe { intrinsics::copysignf32(self, y) }
+    #[stable(feature = "copysign", since = "1.35.0")]
+    pub fn copysign(self, sign: f32) -> f32 {
+        unsafe { intrinsics::copysignf32(self, sign) }
     }
 
     /// Fused multiply-add. Computes `(self * a) + b` with only one rounding
@@ -233,7 +236,7 @@ impl f32 {
     /// let b = 60.0_f32;
     ///
     /// // 100.0
-    /// let abs_difference = (m.mul_add(x, b) - (m*x + b)).abs();
+    /// let abs_difference = (m.mul_add(x, b) - ((m * x) + b)).abs();
     ///
     /// assert!(abs_difference <= f32::EPSILON);
     /// ```
@@ -253,7 +256,6 @@ impl f32 {
     /// # Examples
     ///
     /// ```
-    /// #![feature(euclidean_division)]
     /// let a: f32 = 7.0;
     /// let b = 4.0;
     /// assert_eq!(a.div_euclid(b), 1.0); // 7.0 > 4.0 * 1.0
@@ -262,7 +264,7 @@ impl f32 {
     /// assert_eq!((-a).div_euclid(-b), 2.0); // -7.0 >= -4.0 * 2.0
     /// ```
     #[inline]
-    #[unstable(feature = "euclidean_division", issue = "49048")]
+    #[stable(feature = "euclidean_division", since = "1.38.0")]
     pub fn div_euclid(self, rhs: f32) -> f32 {
         let q = (self / rhs).trunc();
         if self % rhs < 0.0 {
@@ -285,7 +287,6 @@ impl f32 {
     /// # Examples
     ///
     /// ```
-    /// #![feature(euclidean_division)]
     /// let a: f32 = 7.0;
     /// let b = 4.0;
     /// assert_eq!(a.rem_euclid(b), 3.0);
@@ -296,7 +297,7 @@ impl f32 {
     /// assert!((-std::f32::EPSILON).rem_euclid(3.0) != 0.0);
     /// ```
     #[inline]
-    #[unstable(feature = "euclidean_division", issue = "49048")]
+    #[stable(feature = "euclidean_division", since = "1.38.0")]
     pub fn rem_euclid(self, rhs: f32) -> f32 {
         let r = self % rhs;
         if r < 0.0 {
@@ -317,7 +318,7 @@ impl f32 {
     /// use std::f32;
     ///
     /// let x = 2.0_f32;
-    /// let abs_difference = (x.powi(2) - x*x).abs();
+    /// let abs_difference = (x.powi(2) - (x * x)).abs();
     ///
     /// assert!(abs_difference <= f32::EPSILON);
     /// ```
@@ -335,7 +336,7 @@ impl f32 {
     /// use std::f32;
     ///
     /// let x = 2.0_f32;
-    /// let abs_difference = (x.powf(2.0) - x*x).abs();
+    /// let abs_difference = (x.powf(2.0) - (x * x)).abs();
     ///
     /// assert!(abs_difference <= f32::EPSILON);
     /// ```
@@ -488,7 +489,7 @@ impl f32 {
     #[inline]
     pub fn log2(self) -> f32 {
         #[cfg(target_os = "android")]
-        return ::sys::android::log2f32(self);
+        return crate::sys::android::log2f32(self);
         #[cfg(not(target_os = "android"))]
         return unsafe { intrinsics::log2f32(self) };
     }
@@ -599,7 +600,7 @@ impl f32 {
     /// ```
     /// use std::f32;
     ///
-    /// let x = f32::consts::PI/2.0;
+    /// let x = f32::consts::FRAC_PI_2;
     ///
     /// let abs_difference = (x.sin() - 1.0).abs();
     ///
@@ -622,7 +623,7 @@ impl f32 {
     /// ```
     /// use std::f32;
     ///
-    /// let x = 2.0*f32::consts::PI;
+    /// let x = 2.0 * f32::consts::PI;
     ///
     /// let abs_difference = (x.cos() - 1.0).abs();
     ///
@@ -645,7 +646,7 @@ impl f32 {
     /// ```
     /// use std::f32;
     ///
-    /// let x = f32::consts::PI / 4.0;
+    /// let x = f32::consts::FRAC_PI_4;
     /// let abs_difference = (x.tan() - 1.0).abs();
     ///
     /// assert!(abs_difference <= f32::EPSILON);
@@ -665,10 +666,10 @@ impl f32 {
     /// ```
     /// use std::f32;
     ///
-    /// let f = f32::consts::PI / 2.0;
+    /// let f = f32::consts::FRAC_PI_2;
     ///
     /// // asin(sin(pi/2))
-    /// let abs_difference = (f.sin().asin() - f32::consts::PI / 2.0).abs();
+    /// let abs_difference = (f.sin().asin() - f32::consts::FRAC_PI_2).abs();
     ///
     /// assert!(abs_difference <= f32::EPSILON);
     /// ```
@@ -687,10 +688,10 @@ impl f32 {
     /// ```
     /// use std::f32;
     ///
-    /// let f = f32::consts::PI / 4.0;
+    /// let f = f32::consts::FRAC_PI_4;
     ///
     /// // acos(cos(pi/4))
-    /// let abs_difference = (f.cos().acos() - f32::consts::PI / 4.0).abs();
+    /// let abs_difference = (f.cos().acos() - f32::consts::FRAC_PI_4).abs();
     ///
     /// assert!(abs_difference <= f32::EPSILON);
     /// ```
@@ -733,7 +734,6 @@ impl f32 {
     /// ```
     /// use std::f32;
     ///
-    /// let pi = f32::consts::PI;
     /// // Positive angles measured counter-clockwise
     /// // from positive x axis
     /// // -pi/4 radians (45 deg clockwise)
@@ -744,8 +744,8 @@ impl f32 {
     /// let x2 = -3.0f32;
     /// let y2 = 3.0f32;
     ///
-    /// let abs_difference_1 = (y1.atan2(x1) - (-pi/4.0)).abs();
-    /// let abs_difference_2 = (y2.atan2(x2) - 3.0*pi/4.0).abs();
+    /// let abs_difference_1 = (y1.atan2(x1) - (-f32::consts::FRAC_PI_4)).abs();
+    /// let abs_difference_2 = (y2.atan2(x2) - (3.0 * f32::consts::FRAC_PI_4)).abs();
     ///
     /// assert!(abs_difference_1 <= f32::EPSILON);
     /// assert!(abs_difference_2 <= f32::EPSILON);
@@ -764,7 +764,7 @@ impl f32 {
     /// ```
     /// use std::f32;
     ///
-    /// let x = f32::consts::PI/4.0;
+    /// let x = f32::consts::FRAC_PI_4;
     /// let f = x.sin_cos();
     ///
     /// let abs_difference_0 = (f.0 - x.sin()).abs();
@@ -833,7 +833,7 @@ impl f32 {
     ///
     /// let f = x.sinh();
     /// // Solving sinh() at 1 gives `(e^2-1)/(2e)`
-    /// let g = (e*e - 1.0)/(2.0*e);
+    /// let g = ((e * e) - 1.0) / (2.0 * e);
     /// let abs_difference = (f - g).abs();
     ///
     /// assert!(abs_difference <= f32::EPSILON);
@@ -855,7 +855,7 @@ impl f32 {
     /// let x = 1.0f32;
     /// let f = x.cosh();
     /// // Solving cosh() at 1 gives this result
-    /// let g = (e*e + 1.0)/(2.0*e);
+    /// let g = ((e * e) + 1.0) / (2.0 * e);
     /// let abs_difference = (f - g).abs();
     ///
     /// // Same result
@@ -879,7 +879,7 @@ impl f32 {
     ///
     /// let f = x.tanh();
     /// // Solving tanh() at 1 gives `(1 - e^(-2))/(1 + e^(-2))`
-    /// let g = (1.0 - e.powi(-2))/(1.0 + e.powi(-2));
+    /// let g = (1.0 - e.powi(-2)) / (1.0 + e.powi(-2));
     /// let abs_difference = (f - g).abs();
     ///
     /// assert!(abs_difference <= f32::EPSILON);
@@ -910,7 +910,7 @@ impl f32 {
         if self == NEG_INFINITY {
             NEG_INFINITY
         } else {
-            (self + ((self * self) + 1.0).sqrt()).ln()
+            (self + ((self * self) + 1.0).sqrt()).ln().copysign(self)
         }
     }
 
@@ -931,9 +931,10 @@ impl f32 {
     #[stable(feature = "rust1", since = "1.0.0")]
     #[inline]
     pub fn acosh(self) -> f32 {
-        match self {
-            x if x < 1.0 => ::f32::NAN,
-            x => (x + ((x * x) - 1.0).sqrt()).ln(),
+        if self < 1.0 {
+            crate::f32::NAN
+        } else {
+            (self + ((self * self) - 1.0).sqrt()).ln()
         }
     }
 
@@ -956,14 +957,46 @@ impl f32 {
     pub fn atanh(self) -> f32 {
         0.5 * ((2.0 * self) / (1.0 - self)).ln_1p()
     }
+
+    /// Restrict a value to a certain interval unless it is NaN.
+    ///
+    /// Returns `max` if `self` is greater than `max`, and `min` if `self` is
+    /// less than `min`. Otherwise this returns `self`.
+    ///
+    /// Not that this function returns NaN if the initial value was NaN as
+    /// well.
+    ///
+    /// # Panics
+    ///
+    /// Panics if `min > max`, `min` is NaN, or `max` is NaN.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// #![feature(clamp)]
+    /// assert!((-3.0f32).clamp(-2.0, 1.0) == -2.0);
+    /// assert!((0.0f32).clamp(-2.0, 1.0) == 0.0);
+    /// assert!((2.0f32).clamp(-2.0, 1.0) == 1.0);
+    /// assert!((std::f32::NAN).clamp(-2.0, 1.0).is_nan());
+    /// ```
+    #[unstable(feature = "clamp", issue = "44095")]
+    #[inline]
+    pub fn clamp(self, min: f32, max: f32) -> f32 {
+        assert!(min <= max);
+        let mut x = self;
+        if x < min { x = min; }
+        if x > max { x = max; }
+        x
+    }
+
 }
 
 #[cfg(test)]
 mod tests {
-    use f32;
-    use f32::*;
-    use num::*;
-    use num::FpCategory as Fp;
+    use crate::f32;
+    use crate::f32::*;
+    use crate::num::*;
+    use crate::num::FpCategory as Fp;
 
     #[test]
     fn test_num_f32() {
@@ -1455,6 +1488,7 @@ mod tests {
         assert_eq!(inf.asinh(), inf);
         assert_eq!(neg_inf.asinh(), neg_inf);
         assert!(nan.asinh().is_nan());
+        assert!((-0.0f32).asinh().is_sign_negative()); // issue 63271
         assert_approx_eq!(2.0f32.asinh(), 1.443635475178810342493276740273105f32);
         assert_approx_eq!((-2.0f32).asinh(), -1.443635475178810342493276740273105f32);
     }
@@ -1555,5 +1589,23 @@ mod tests {
 
         assert_eq!(f32::from_bits(masked_nan1).to_bits(), masked_nan1);
         assert_eq!(f32::from_bits(masked_nan2).to_bits(), masked_nan2);
+    }
+
+    #[test]
+    #[should_panic]
+    fn test_clamp_min_greater_than_max() {
+        1.0f32.clamp(3.0, 1.0);
+    }
+
+    #[test]
+    #[should_panic]
+    fn test_clamp_min_is_nan() {
+        1.0f32.clamp(NAN, 1.0);
+    }
+
+    #[test]
+    #[should_panic]
+    fn test_clamp_max_is_nan() {
+        1.0f32.clamp(3.0, NAN);
     }
 }

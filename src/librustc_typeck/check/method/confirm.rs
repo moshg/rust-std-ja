@@ -4,11 +4,10 @@ use crate::astconv::AstConv;
 use crate::check::{FnCtxt, PlaceOp, callee, Needs};
 use crate::hir::GenericArg;
 use crate::hir::def_id::DefId;
-use rustc::ty::subst::Substs;
+use rustc::ty::subst::{Subst, SubstsRef};
 use rustc::traits;
 use rustc::ty::{self, Ty, GenericParamDefKind};
-use rustc::ty::subst::Subst;
-use rustc::ty::adjustment::{Adjustment, Adjust, OverloadedDeref};
+use rustc::ty::adjustment::{Adjustment, Adjust, OverloadedDeref, PointerCast};
 use rustc::ty::adjustment::{AllowTwoPhase, AutoBorrow, AutoBorrowMutability};
 use rustc::ty::fold::TypeFoldable;
 use rustc::infer::{self, InferOk};
@@ -17,15 +16,15 @@ use syntax_pos::Span;
 
 use std::ops::Deref;
 
-struct ConfirmContext<'a, 'gcx: 'a + 'tcx, 'tcx: 'a> {
-    fcx: &'a FnCtxt<'a, 'gcx, 'tcx>,
+struct ConfirmContext<'a, 'tcx> {
+    fcx: &'a FnCtxt<'a, 'tcx>,
     span: Span,
-    self_expr: &'gcx hir::Expr,
-    call_expr: &'gcx hir::Expr,
+    self_expr: &'tcx hir::Expr,
+    call_expr: &'tcx hir::Expr,
 }
 
-impl<'a, 'gcx, 'tcx> Deref for ConfirmContext<'a, 'gcx, 'tcx> {
-    type Target = FnCtxt<'a, 'gcx, 'tcx>;
+impl<'a, 'tcx> Deref for ConfirmContext<'a, 'tcx> {
+    type Target = FnCtxt<'a, 'tcx>;
     fn deref(&self) -> &Self::Target {
         &self.fcx
     }
@@ -36,12 +35,12 @@ pub struct ConfirmResult<'tcx> {
     pub illegal_sized_bound: bool,
 }
 
-impl<'a, 'gcx, 'tcx> FnCtxt<'a, 'gcx, 'tcx> {
+impl<'a, 'tcx> FnCtxt<'a, 'tcx> {
     pub fn confirm_method(
         &self,
         span: Span,
-        self_expr: &'gcx hir::Expr,
-        call_expr: &'gcx hir::Expr,
+        self_expr: &'tcx hir::Expr,
+        call_expr: &'tcx hir::Expr,
         unadjusted_self_ty: Ty<'tcx>,
         pick: probe::Pick<'tcx>,
         segment: &hir::PathSegment,
@@ -58,12 +57,13 @@ impl<'a, 'gcx, 'tcx> FnCtxt<'a, 'gcx, 'tcx> {
     }
 }
 
-impl<'a, 'gcx, 'tcx> ConfirmContext<'a, 'gcx, 'tcx> {
-    fn new(fcx: &'a FnCtxt<'a, 'gcx, 'tcx>,
-           span: Span,
-           self_expr: &'gcx hir::Expr,
-           call_expr: &'gcx hir::Expr)
-           -> ConfirmContext<'a, 'gcx, 'tcx> {
+impl<'a, 'tcx> ConfirmContext<'a, 'tcx> {
+    fn new(
+        fcx: &'a FnCtxt<'a, 'tcx>,
+        span: Span,
+        self_expr: &'tcx hir::Expr,
+        call_expr: &'tcx hir::Expr,
+    ) -> ConfirmContext<'a, 'tcx> {
         ConfirmContext {
             fcx,
             span,
@@ -141,14 +141,24 @@ impl<'a, 'gcx, 'tcx> ConfirmContext<'a, 'gcx, 'tcx> {
     ///////////////////////////////////////////////////////////////////////////
     // ADJUSTMENTS
 
-    fn adjust_self_ty(&mut self,
-                      unadjusted_self_ty: Ty<'tcx>,
-                      pick: &probe::Pick<'tcx>)
-                      -> Ty<'tcx> {
+    fn adjust_self_ty(
+        &mut self,
+        unadjusted_self_ty: Ty<'tcx>,
+        pick: &probe::Pick<'tcx>,
+    ) -> Ty<'tcx> {
         // Commit the autoderefs by calling `autoderef` again, but this
         // time writing the results into the various tables.
         let mut autoderef = self.autoderef(self.span, unadjusted_self_ty);
-        let (_, n) = autoderef.nth(pick.autoderefs).unwrap();
+        let (_, n) = match autoderef.nth(pick.autoderefs) {
+            Some(n) => n,
+            None => {
+                self.tcx.sess.delay_span_bug(
+                    syntax_pos::DUMMY_SP,
+                    &format!("failed autoderef {}", pick.autoderefs),
+                );
+                return self.tcx.types.err;
+            }
+        };
         assert_eq!(n, pick.autoderefs);
 
         let mut adjustments = autoderef.adjust_steps(self, Needs::None);
@@ -180,7 +190,7 @@ impl<'a, 'gcx, 'tcx> ConfirmContext<'a, 'gcx, 'tcx> {
                     ty: unsize_target
                 });
                 adjustments.push(Adjustment {
-                    kind: Adjust::Unsize,
+                    kind: Adjust::Pointer(PointerCast::Unsize),
                     target
                 });
             }
@@ -209,7 +219,7 @@ impl<'a, 'gcx, 'tcx> ConfirmContext<'a, 'gcx, 'tcx> {
     fn fresh_receiver_substs(&mut self,
                              self_ty: Ty<'tcx>,
                              pick: &probe::Pick<'tcx>)
-                             -> &'tcx Substs<'tcx> {
+                             -> SubstsRef<'tcx> {
         match pick.kind {
             probe::InherentImplPick => {
                 let impl_def_id = pick.item.container.id();
@@ -264,10 +274,8 @@ impl<'a, 'gcx, 'tcx> ConfirmContext<'a, 'gcx, 'tcx> {
     }
 
     fn extract_existential_trait_ref<R, F>(&mut self, self_ty: Ty<'tcx>, mut closure: F) -> R
-        where F: FnMut(&mut ConfirmContext<'a, 'gcx, 'tcx>,
-                       Ty<'tcx>,
-                       ty::PolyExistentialTraitRef<'tcx>)
-                       -> R
+    where
+        F: FnMut(&mut ConfirmContext<'a, 'tcx>, Ty<'tcx>, ty::PolyExistentialTraitRef<'tcx>) -> R,
     {
         // If we specified that this is an object method, then the
         // self-type ought to be something that can be dereferenced to
@@ -300,8 +308,8 @@ impl<'a, 'gcx, 'tcx> ConfirmContext<'a, 'gcx, 'tcx> {
         &mut self,
         pick: &probe::Pick<'tcx>,
         seg: &hir::PathSegment,
-        parent_substs: &Substs<'tcx>,
-    ) -> &'tcx Substs<'tcx> {
+        parent_substs: SubstsRef<'tcx>,
+    ) -> SubstsRef<'tcx> {
         // Determine the values for the generic parameters of the method.
         // If they were not explicitly supplied, just construct fresh
         // variables.
@@ -342,6 +350,9 @@ impl<'a, 'gcx, 'tcx> ConfirmContext<'a, 'gcx, 'tcx> {
                     (GenericParamDefKind::Type { .. }, GenericArg::Type(ty)) => {
                         self.to_ty(ty).into()
                     }
+                    (GenericParamDefKind::Const, GenericArg::Const(ct)) => {
+                        self.to_const(&ct.value, self.tcx.type_of(param.def_id)).into()
+                    }
                     _ => unreachable!(),
                 }
             },
@@ -369,7 +380,7 @@ impl<'a, 'gcx, 'tcx> ConfirmContext<'a, 'gcx, 'tcx> {
     // until we unify the `Self` type.
     fn instantiate_method_sig(&mut self,
                               pick: &probe::Pick<'tcx>,
-                              all_substs: &'tcx Substs<'tcx>)
+                              all_substs: SubstsRef<'tcx>)
                               -> (ty::FnSig<'tcx>, ty::InstantiatedPredicates<'tcx>) {
         debug!("instantiate_method_sig(pick={:?}, all_substs={:?})",
                pick,
@@ -404,7 +415,7 @@ impl<'a, 'gcx, 'tcx> ConfirmContext<'a, 'gcx, 'tcx> {
 
     fn add_obligations(&mut self,
                        fty: Ty<'tcx>,
-                       all_substs: &Substs<'tcx>,
+                       all_substs: SubstsRef<'tcx>,
                        method_predicates: &ty::InstantiatedPredicates<'tcx>) {
         debug!("add_obligations: fty={:?} all_substs={:?} method_predicates={:?}",
                fty,
@@ -509,7 +520,7 @@ impl<'a, 'gcx, 'tcx> ConfirmContext<'a, 'gcx, 'tcx> {
 
         let base_ty = self.tables.borrow().expr_adjustments(base_expr).last()
             .map_or_else(|| self.node_ty(expr.hir_id), |adj| adj.target);
-        let base_ty = self.resolve_type_vars_if_possible(&base_ty);
+        let base_ty = self.resolve_vars_if_possible(&base_ty);
 
         // Need to deref because overloaded place ops take self by-reference.
         let base_ty = base_ty.builtin_deref(false)
@@ -563,7 +574,7 @@ impl<'a, 'gcx, 'tcx> ConfirmContext<'a, 'gcx, 'tcx> {
             // If we have an autoref followed by unsizing at the end, fix the unsize target.
             match adjustments[..] {
                 [.., Adjustment { kind: Adjust::Borrow(AutoBorrow::Ref(..)), .. },
-                 Adjustment { kind: Adjust::Unsize, ref mut target }] => {
+                 Adjustment { kind: Adjust::Pointer(PointerCast::Unsize), ref mut target }] => {
                     *target = method.sig.inputs()[0];
                 }
                 _ => {}

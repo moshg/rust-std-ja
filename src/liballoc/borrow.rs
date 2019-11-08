@@ -32,6 +32,7 @@ impl<'a, B: ?Sized> Borrow<B> for Cow<'a, B>
 /// from any borrow of a given type.
 #[stable(feature = "rust1", since = "1.0.0")]
 pub trait ToOwned {
+    /// The resulting type after obtaining ownership.
     #[stable(feature = "rust1", since = "1.0.0")]
     type Owned: Borrow<Self>;
 
@@ -135,7 +136,7 @@ impl<T> ToOwned for T
 /// Another example showing how to keep `Cow` in a struct:
 ///
 /// ```
-/// use std::borrow::{Cow, ToOwned};
+/// use std::borrow::Cow;
 ///
 /// struct Items<'a, X: 'a> where [X]: ToOwned<Owned = Vec<X>> {
 ///     values: Cow<'a, [X]>,
@@ -328,8 +329,8 @@ impl<'a, B: ?Sized> PartialOrd for Cow<'a, B>
 
 #[stable(feature = "rust1", since = "1.0.0")]
 impl<B: ?Sized> fmt::Debug for Cow<'_, B>
-    where B: fmt::Debug + ToOwned,
-          <B as ToOwned>::Owned: fmt::Debug
+where
+    B: fmt::Debug + ToOwned<Owned: fmt::Debug>,
 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match *self {
@@ -341,8 +342,8 @@ impl<B: ?Sized> fmt::Debug for Cow<'_, B>
 
 #[stable(feature = "rust1", since = "1.0.0")]
 impl<B: ?Sized> fmt::Display for Cow<'_, B>
-    where B: fmt::Display + ToOwned,
-          <B as ToOwned>::Owned: fmt::Display
+where
+    B: fmt::Display + ToOwned<Owned: fmt::Display>,
 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match *self {
@@ -354,8 +355,8 @@ impl<B: ?Sized> fmt::Display for Cow<'_, B>
 
 #[stable(feature = "default", since = "1.11.0")]
 impl<B: ?Sized> Default for Cow<'_, B>
-    where B: ToOwned,
-          <B as ToOwned>::Owned: Default
+where
+    B: ToOwned<Owned: Default>,
 {
     /// Creates an owned Cow<'a, B> with the default value for the contained owned value.
     fn default() -> Self {

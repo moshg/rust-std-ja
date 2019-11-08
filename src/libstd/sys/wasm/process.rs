@@ -1,17 +1,19 @@
-use ffi::OsStr;
-use fmt;
-use io;
-use sys::fs::File;
-use sys::pipe::AnonPipe;
-use sys::{unsupported, Void};
-use sys_common::process::{CommandEnv, DefaultEnvKey};
+use crate::ffi::OsStr;
+use crate::fmt;
+use crate::io;
+use crate::sys::fs::File;
+use crate::sys::pipe::AnonPipe;
+use crate::sys::{unsupported, Void};
+use crate::sys_common::process::CommandEnv;
+
+pub use crate::ffi::OsString as EnvKey;
 
 ////////////////////////////////////////////////////////////////////////////////
 // Command
 ////////////////////////////////////////////////////////////////////////////////
 
 pub struct Command {
-    env: CommandEnv<DefaultEnvKey>
+    env: CommandEnv,
 }
 
 // passed back to std::process with the pipes connected to the child, if any
@@ -38,7 +40,7 @@ impl Command {
     pub fn arg(&mut self, _arg: &OsStr) {
     }
 
-    pub fn env_mut(&mut self) -> &mut CommandEnv<DefaultEnvKey> {
+    pub fn env_mut(&mut self) -> &mut CommandEnv {
         &mut self.env
     }
 
@@ -73,7 +75,7 @@ impl From<File> for Stdio {
 }
 
 impl fmt::Debug for Command {
-    fn fmt(&self, _f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, _f: &mut fmt::Formatter<'_>) -> fmt::Result {
         Ok(())
     }
 }
@@ -108,13 +110,13 @@ impl Eq for ExitStatus {
 }
 
 impl fmt::Debug for ExitStatus {
-    fn fmt(&self, _f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, _f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self.0 {}
     }
 }
 
 impl fmt::Display for ExitStatus {
-    fn fmt(&self, _f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, _f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self.0 {}
     }
 }

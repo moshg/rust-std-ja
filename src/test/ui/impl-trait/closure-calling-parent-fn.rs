@@ -1,5 +1,3 @@
-#![feature(nll)]
-
 // Regression test for #54593: the MIR type checker was going wrong
 // when a closure returns the `impl Copy` from its parent fn. It was
 // (incorrectly) replacing the `impl Copy` in its return type with the
@@ -7,7 +5,7 @@
 // `foo` and hence is treated opaquely within the closure body.  This
 // resulted in a failed subtype relationship.
 //
-// run-pass
+// check-pass
 
 fn foo() -> impl Copy { || foo(); }
 fn bar() -> impl Copy { || bar(); }

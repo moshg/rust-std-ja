@@ -15,13 +15,12 @@ use super::fs::*;
 use super::file_format;
 use super::work_product;
 
-pub fn dep_graph_tcx_init<'a, 'tcx>(tcx: TyCtxt<'a, 'tcx, 'tcx>) {
+pub fn dep_graph_tcx_init(tcx: TyCtxt<'_>) {
     if !tcx.dep_graph.is_fully_enabled() {
         return
     }
 
     tcx.allocate_metadata_dep_nodes();
-    tcx.precompute_in_scope_traits_hashes();
 }
 
 type WorkProductMap = FxHashMap<WorkProductId, WorkProduct>;
@@ -94,10 +93,10 @@ impl<T> MaybeAsync<T> {
     }
 }
 
+pub type DepGraphFuture = MaybeAsync<LoadResult<(PreviousDepGraph, WorkProductMap)>>;
+
 /// Launch a thread and load the dependency graph in the background.
-pub fn load_dep_graph(sess: &Session) ->
-    MaybeAsync<LoadResult<(PreviousDepGraph, WorkProductMap)>>
-{
+pub fn load_dep_graph(sess: &Session) -> DepGraphFuture {
     // Since `sess` isn't `Sync`, we perform all accesses to `sess`
     // before we fire the background thread.
 
@@ -193,7 +192,7 @@ pub fn load_dep_graph(sess: &Session) ->
     }))
 }
 
-pub fn load_query_result_cache<'sess>(sess: &'sess Session) -> OnDiskCache<'sess> {
+pub fn load_query_result_cache(sess: &Session) -> OnDiskCache<'_> {
     if sess.opts.incremental.is_none() ||
        !sess.opts.debugging_opts.incremental_queries {
         return OnDiskCache::new_empty(sess.source_map());

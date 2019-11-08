@@ -19,15 +19,16 @@ use rustc::ty;
 use rustc::ty::layout::{Integer, IntegerExt, Size};
 use syntax::attr::{SignedInt, UnsignedInt};
 use rustc::hir::RangeEnd;
+use rustc::mir::interpret::truncate;
 
 use std::mem;
 
-impl<'a, 'gcx, 'tcx> Builder<'a, 'gcx, 'tcx> {
+impl<'a, 'tcx> Builder<'a, 'tcx> {
     pub fn simplify_candidate<'pat>(&mut self,
                                     candidate: &mut Candidate<'pat, 'tcx>) {
         // repeatedly simplify match pairs until fixed point is reached
         loop {
-            let match_pairs = mem::replace(&mut candidate.match_pairs, vec![]);
+            let match_pairs = mem::take(&mut candidate.match_pairs);
             let mut changed = false;
             for match_pair in match_pairs {
                 match self.simplify_match_pair(match_pair, candidate) {
@@ -107,22 +108,20 @@ impl<'a, 'gcx, 'tcx> Builder<'a, 'gcx, 'tcx> {
                 Err(match_pair)
             }
 
-            PatternKind::Range(PatternRange { lo, hi, ty, end }) => {
-                let (range, bias) = match ty.sty {
+            PatternKind::Range(PatternRange { lo, hi, end }) => {
+                let (range, bias) = match lo.ty.sty {
                     ty::Char => {
                         (Some(('\u{0000}' as u128, '\u{10FFFF}' as u128, Size::from_bits(32))), 0)
                     }
                     ty::Int(ity) => {
-                        // FIXME(49937): refactor these bit manipulations into interpret.
                         let size = Integer::from_attr(&tcx, SignedInt(ity)).size();
-                        let max = !0u128 >> (128 - size.bits());
+                        let max = truncate(u128::max_value(), size);
                         let bias = 1u128 << (size.bits() - 1);
                         (Some((0, max, size)), bias)
                     }
                     ty::Uint(uty) => {
-                        // FIXME(49937): refactor these bit manipulations into interpret.
                         let size = Integer::from_attr(&tcx, UnsignedInt(uty)).size();
-                        let max = !0u128 >> (128 - size.bits());
+                        let max = truncate(u128::max_value(), size);
                         (Some((0, max, size)), 0)
                     }
                     _ => (None, 0),
@@ -162,9 +161,8 @@ impl<'a, 'gcx, 'tcx> Builder<'a, 'gcx, 'tcx> {
             PatternKind::Variant { adt_def, substs, variant_index, ref subpatterns } => {
                 let irrefutable = adt_def.variants.iter_enumerated().all(|(i, v)| {
                     i == variant_index || {
-                        self.hir.tcx().features().never_type &&
                         self.hir.tcx().features().exhaustive_patterns &&
-                        self.hir.tcx().is_variant_uninhabited_from_all_modules(v, substs)
+                        !v.uninhabited_from(self.hir.tcx(), substs, adt_def.adt_kind()).is_empty()
                     }
                 });
                 if irrefutable {
@@ -196,6 +194,10 @@ impl<'a, 'gcx, 'tcx> Builder<'a, 'gcx, 'tcx> {
                 let place = match_pair.place.deref();
                 candidate.match_pairs.push(MatchPair::new(place, subpattern));
                 Ok(())
+            }
+
+            PatternKind::Or { .. } => {
+                Err(match_pair)
             }
         }
     }

@@ -1,13 +1,16 @@
 error: unexpected close delimiter: `)`
   --> $DIR/invalid-punct-ident-4.rs:6:1
    |
-LL | lexer_failure!(); //~ ERROR proc macro panicked
-   | ^^^^^^^^^^^^^^^^^ unexpected close delimiter
+LL | lexer_failure!();
+   | ^^^^^^^^^^^^^^^^^
+   | |
+   | unexpected close delimiter
+   | in this macro invocation
 
 error: proc macro panicked
   --> $DIR/invalid-punct-ident-4.rs:6:1
    |
-LL | lexer_failure!(); //~ ERROR proc macro panicked
+LL | lexer_failure!();
    | ^^^^^^^^^^^^^^^^^
 
 error: aborting due to 2 previous errors

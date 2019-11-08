@@ -1,12 +1,13 @@
 #![allow(const_err)]
 
+#[repr(C)]
 union Foo {
     a: &'static u32,
     b: usize,
 }
 
 fn main() {
-    let x: &'static bool = &unsafe { //~ borrowed value does not live long enough
+    let x: &'static bool = &unsafe { //~ temporary value dropped while borrowed
         Foo { a: &1 }.b == Foo { a: &2 }.b
     };
 }

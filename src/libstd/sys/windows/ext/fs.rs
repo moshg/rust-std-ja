@@ -2,11 +2,11 @@
 
 #![stable(feature = "rust1", since = "1.0.0")]
 
-use fs::{self, OpenOptions, Metadata};
-use io;
-use path::Path;
-use sys;
-use sys_common::{AsInnerMut, AsInner};
+use crate::fs::{self, OpenOptions, Metadata};
+use crate::io;
+use crate::path::Path;
+use crate::sys;
+use crate::sys_common::{AsInnerMut, AsInner};
 
 /// Windows-specific extensions to [`File`].
 ///
@@ -220,13 +220,27 @@ pub trait OpenOptionsExt {
     /// the specified value (or combines it with `custom_flags` and `attributes`
     /// to set the `dwFlagsAndAttributes` for [`CreateFile`]).
     ///
-    /// By default, `security_qos_flags` is set to `SECURITY_ANONYMOUS`. For
-    /// information about possible values, see [Impersonation Levels] on the
-    /// Windows Dev Center site.
+    /// By default `security_qos_flags` is not set. It should be specified when
+    /// opening a named pipe, to control to which degree a server process can
+    /// act on behalf of a client process (security impersonation level).
     ///
+    /// When `security_qos_flags` is not set a malicious program can gain the
+    /// elevated privileges of a privileged Rust process when it allows opening
+    /// user-specified paths, by tricking it into opening a named pipe. So
+    /// arguably `security_qos_flags` should also be set when opening arbitrary
+    /// paths. However the bits can then conflict with other flags, specifically
+    /// `FILE_FLAG_OPEN_NO_RECALL`.
+    ///
+    /// For information about possible values, see [Impersonation Levels] on the
+    /// Windows Dev Center site. The `SECURITY_SQOS_PRESENT` flag is set
+    /// automatically when using this method.
+
     /// # Examples
     ///
     /// ```no_run
+    /// # #[cfg(for_demonstration_only)]
+    /// extern crate winapi;
+    /// # mod winapi { pub const SECURITY_IDENTIFICATION: u32 = 0; }
     /// use std::fs::OpenOptions;
     /// use std::os::windows::prelude::*;
     ///
@@ -235,9 +249,9 @@ pub trait OpenOptionsExt {
     ///     .create(true)
     ///
     ///     // Sets the flag value to `SecurityIdentification`.
-    ///     .security_qos_flags(1)
+    ///     .security_qos_flags(winapi::SECURITY_IDENTIFICATION)
     ///
-    ///     .open("foo.txt");
+    ///     .open(r"\\.\pipe\MyPipe");
     /// ```
     ///
     /// [`CreateFile`]: https://msdn.microsoft.com/en-us/library/windows/desktop/aa363858.aspx
@@ -423,6 +437,33 @@ pub trait MetadataExt {
     /// ```
     #[stable(feature = "metadata_ext", since = "1.1.0")]
     fn file_size(&self) -> u64;
+
+    /// Returns the value of the `dwVolumeSerialNumber` field of this
+    /// metadata.
+    ///
+    /// This will return `None` if the `Metadata` instance was created from a
+    /// call to `DirEntry::metadata`. If this `Metadata` was created by using
+    /// `fs::metadata` or `File::metadata`, then this will return `Some`.
+    #[unstable(feature = "windows_by_handle", issue = "63010")]
+    fn volume_serial_number(&self) -> Option<u32>;
+
+    /// Returns the value of the `nNumberOfLinks` field of this
+    /// metadata.
+    ///
+    /// This will return `None` if the `Metadata` instance was created from a
+    /// call to `DirEntry::metadata`. If this `Metadata` was created by using
+    /// `fs::metadata` or `File::metadata`, then this will return `Some`.
+    #[unstable(feature = "windows_by_handle", issue = "63010")]
+    fn number_of_links(&self) -> Option<u32>;
+
+    /// Returns the value of the `nFileIndex{Low,High}` fields of this
+    /// metadata.
+    ///
+    /// This will return `None` if the `Metadata` instance was created from a
+    /// call to `DirEntry::metadata`. If this `Metadata` was created by using
+    /// `fs::metadata` or `File::metadata`, then this will return `Some`.
+    #[unstable(feature = "windows_by_handle", issue = "63010")]
+    fn file_index(&self) -> Option<u64>;
 }
 
 #[stable(feature = "metadata_ext", since = "1.1.0")]
@@ -432,6 +473,9 @@ impl MetadataExt for Metadata {
     fn last_access_time(&self) -> u64 { self.as_inner().accessed_u64() }
     fn last_write_time(&self) -> u64 { self.as_inner().modified_u64() }
     fn file_size(&self) -> u64 { self.as_inner().size() }
+    fn volume_serial_number(&self) -> Option<u32> { self.as_inner().volume_serial_number() }
+    fn number_of_links(&self) -> Option<u32> { self.as_inner().number_of_links() }
+    fn file_index(&self) -> Option<u64> { self.as_inner().file_index() }
 }
 
 /// Windows-specific extensions to [`FileType`].

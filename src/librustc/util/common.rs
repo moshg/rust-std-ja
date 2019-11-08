@@ -1,64 +1,31 @@
 #![allow(non_camel_case_types)]
 
-use rustc_data_structures::sync::Lock;
+use rustc_data_structures::{fx::FxHashMap, sync::Lock};
 
 use std::cell::{RefCell, Cell};
-use std::collections::HashMap;
 use std::fmt::Debug;
-use std::hash::{Hash, BuildHasher};
-use std::panic;
-use std::env;
+use std::hash::Hash;
 use std::time::{Duration, Instant};
 
 use std::sync::mpsc::{Sender};
 use syntax_pos::{SpanData};
-use crate::ty::TyCtxt;
+use syntax::symbol::{Symbol, sym};
+use rustc_macros::HashStable;
 use crate::dep_graph::{DepNode};
-use lazy_static;
 use crate::session::Session;
 
-// The name of the associated type for `Fn` return types
-pub const FN_OUTPUT_NAME: &str = "Output";
+#[cfg(test)]
+mod tests;
+
+// The name of the associated type for `Fn` return types.
+pub const FN_OUTPUT_NAME: Symbol = sym::Output;
 
 // Useful type to use with `Result<>` indicate that an error has already
 // been reported to the user, so no need to continue checking.
-#[derive(Clone, Copy, Debug, RustcEncodable, RustcDecodable)]
+#[derive(Clone, Copy, Debug, RustcEncodable, RustcDecodable, HashStable)]
 pub struct ErrorReported;
 
 thread_local!(static TIME_DEPTH: Cell<usize> = Cell::new(0));
-
-lazy_static! {
-    static ref DEFAULT_HOOK: Box<dyn Fn(&panic::PanicInfo<'_>) + Sync + Send + 'static> = {
-        let hook = panic::take_hook();
-        panic::set_hook(Box::new(panic_hook));
-        hook
-    };
-}
-
-fn panic_hook(info: &panic::PanicInfo<'_>) {
-    (*DEFAULT_HOOK)(info);
-
-    let backtrace = env::var_os("RUST_BACKTRACE").map(|x| &x != "0").unwrap_or(false);
-
-    if backtrace {
-        TyCtxt::try_print_query_stack();
-    }
-
-        #[cfg(windows)]
-        unsafe {
-            if env::var("RUSTC_BREAK_ON_ICE").is_ok() {
-                extern "system" {
-                    fn DebugBreak();
-                }
-                // Trigger a debugger if we crashed during bootstrap
-                DebugBreak();
-            }
-        }
-}
-
-pub fn install_panic_hook() {
-    lazy_static::initialize(&DEFAULT_HOOK);
-}
 
 /// Parameters to the `Dump` variant of type `ProfileQueriesMsg`.
 #[derive(Clone,Debug)]
@@ -79,42 +46,42 @@ pub struct QueryMsg {
 }
 
 /// A sequence of these messages induce a trace of query-based incremental compilation.
-/// FIXME(matthewhammer): Determine whether we should include cycle detection here or not.
+// FIXME(matthewhammer): Determine whether we should include cycle detection here or not.
 #[derive(Clone,Debug)]
 pub enum ProfileQueriesMsg {
-    /// begin a timed pass
+    /// Begin a timed pass.
     TimeBegin(String),
-    /// end a timed pass
+    /// End a timed pass.
     TimeEnd,
-    /// begin a task (see dep_graph::graph::with_task)
+    /// Begin a task (see `dep_graph::graph::with_task`).
     TaskBegin(DepNode),
-    /// end a task
+    /// End a task.
     TaskEnd,
-    /// begin a new query
-    /// can't use `Span` because queries are sent to other thread
+    /// Begin a new query.
+    /// Cannot use `Span` because queries are sent to other thread.
     QueryBegin(SpanData, QueryMsg),
-    /// query is satisfied by using an already-known value for the given key
+    /// Query is satisfied by using an already-known value for the given key.
     CacheHit,
-    /// query requires running a provider; providers may nest, permitting queries to nest.
+    /// Query requires running a provider; providers may nest, permitting queries to nest.
     ProviderBegin,
-    /// query is satisfied by a provider terminating with a value
+    /// Query is satisfied by a provider terminating with a value.
     ProviderEnd,
-    /// dump a record of the queries to the given path
+    /// Dump a record of the queries to the given path.
     Dump(ProfQDumpParams),
-    /// halt the profiling/monitoring background thread
+    /// Halt the profiling/monitoring background thread.
     Halt
 }
 
-/// If enabled, send a message to the profile-queries thread
+/// If enabled, send a message to the profile-queries thread.
 pub fn profq_msg(sess: &Session, msg: ProfileQueriesMsg) {
     if let Some(s) = sess.profile_channel.borrow().as_ref() {
         s.send(msg).unwrap()
     } else {
-        // Do nothing
+        // Do nothing.
     }
 }
 
-/// Set channel for profile queries channel
+/// Set channel for profile queries channel.
 pub fn profq_set_chan(sess: &Session, s: Sender<ProfileQueriesMsg>) -> bool {
     let mut channel = sess.profile_channel.borrow_mut();
     if channel.is_none() {
@@ -169,7 +136,7 @@ pub fn time_ext<T, F>(do_it: bool, sess: Option<&Session>, what: &str, f: F) -> 
         }
     }
 
-    print_time_passes_entry_internal(what, dur);
+    print_time_passes_entry(true, what, dur);
 
     TIME_DEPTH.with(|slot| slot.set(old));
 
@@ -181,18 +148,6 @@ pub fn print_time_passes_entry(do_it: bool, what: &str, dur: Duration) {
         return
     }
 
-    let old = TIME_DEPTH.with(|slot| {
-        let r = slot.get();
-        slot.set(r + 1);
-        r
-    });
-
-    print_time_passes_entry_internal(what, dur);
-
-    TIME_DEPTH.with(|slot| slot.set(old));
-}
-
-fn print_time_passes_entry_internal(what: &str, dur: Duration) {
     let indentation = TIME_DEPTH.with(|slot| slot.get());
 
     let mem_string = match get_resident() {
@@ -340,8 +295,8 @@ pub trait MemoizationMap {
         where OP: FnOnce() -> Self::Value;
 }
 
-impl<K, V, S> MemoizationMap for RefCell<HashMap<K,V,S>>
-    where K: Hash+Eq+Clone, V: Clone, S: BuildHasher
+impl<K, V> MemoizationMap for RefCell<FxHashMap<K,V>>
+    where K: Hash+Eq+Clone, V: Clone
 {
     type Key = K;
     type Value = V;
@@ -359,17 +314,4 @@ impl<K, V, S> MemoizationMap for RefCell<HashMap<K,V,S>>
             }
         }
     }
-}
-
-#[test]
-fn test_to_readable_str() {
-    assert_eq!("0", to_readable_str(0));
-    assert_eq!("1", to_readable_str(1));
-    assert_eq!("99", to_readable_str(99));
-    assert_eq!("999", to_readable_str(999));
-    assert_eq!("1_000", to_readable_str(1_000));
-    assert_eq!("1_001", to_readable_str(1_001));
-    assert_eq!("999_999", to_readable_str(999_999));
-    assert_eq!("1_000_000", to_readable_str(1_000_000));
-    assert_eq!("1_234_567", to_readable_str(1_234_567));
 }

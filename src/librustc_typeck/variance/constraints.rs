@@ -4,16 +4,15 @@
 //! We walk the set of items and, for each member, generate new constraints.
 
 use hir::def_id::DefId;
-use rustc::ty::subst::{Substs, UnpackedKind};
+use rustc::ty::subst::{SubstsRef, UnpackedKind};
 use rustc::ty::{self, Ty, TyCtxt};
-use syntax::ast;
 use rustc::hir;
 use rustc::hir::itemlikevisit::ItemLikeVisitor;
 
 use super::terms::*;
 use super::terms::VarianceTerm::*;
 
-pub struct ConstraintContext<'a, 'tcx: 'a> {
+pub struct ConstraintContext<'a, 'tcx> {
     pub terms_cx: TermsContext<'a, 'tcx>,
 
     // These are pointers to common `ConstantTerm` instances
@@ -72,31 +71,31 @@ impl<'a, 'tcx, 'v> ItemLikeVisitor<'v> for ConstraintContext<'a, 'tcx> {
         match item.node {
             hir::ItemKind::Struct(ref struct_def, _) |
             hir::ItemKind::Union(ref struct_def, _) => {
-                self.visit_node_helper(item.id);
+                self.visit_node_helper(item.hir_id);
 
                 if let hir::VariantData::Tuple(..) = *struct_def {
-                    self.visit_node_helper(struct_def.id());
+                    self.visit_node_helper(struct_def.ctor_hir_id().unwrap());
                 }
             }
 
             hir::ItemKind::Enum(ref enum_def, _) => {
-                self.visit_node_helper(item.id);
+                self.visit_node_helper(item.hir_id);
 
                 for variant in &enum_def.variants {
-                    if let hir::VariantData::Tuple(..) = variant.node.data {
-                        self.visit_node_helper(variant.node.data.id());
+                    if let hir::VariantData::Tuple(..) = variant.data {
+                        self.visit_node_helper(variant.data.ctor_hir_id().unwrap());
                     }
                 }
             }
 
             hir::ItemKind::Fn(..) => {
-                self.visit_node_helper(item.id);
+                self.visit_node_helper(item.hir_id);
             }
 
             hir::ItemKind::ForeignMod(ref foreign_mod) => {
                 for foreign_item in &foreign_mod.items {
                     if let hir::ForeignItemKind::Fn(..) = foreign_item.node {
-                        self.visit_node_helper(foreign_item.id);
+                        self.visit_node_helper(foreign_item.hir_id);
                     }
                 }
             }
@@ -107,38 +106,38 @@ impl<'a, 'tcx, 'v> ItemLikeVisitor<'v> for ConstraintContext<'a, 'tcx> {
 
     fn visit_trait_item(&mut self, trait_item: &hir::TraitItem) {
         if let hir::TraitItemKind::Method(..) = trait_item.node {
-            self.visit_node_helper(trait_item.id);
+            self.visit_node_helper(trait_item.hir_id);
         }
     }
 
     fn visit_impl_item(&mut self, impl_item: &hir::ImplItem) {
         if let hir::ImplItemKind::Method(..) = impl_item.node {
-            self.visit_node_helper(impl_item.id);
+            self.visit_node_helper(impl_item.hir_id);
         }
     }
 }
 
 impl<'a, 'tcx> ConstraintContext<'a, 'tcx> {
-    fn visit_node_helper(&mut self, id: ast::NodeId) {
+    fn visit_node_helper(&mut self, id: hir::HirId) {
         let tcx = self.terms_cx.tcx;
         let def_id = tcx.hir().local_def_id(id);
         self.build_constraints_for_item(def_id);
     }
 
-    fn tcx(&self) -> TyCtxt<'a, 'tcx, 'tcx> {
+    fn tcx(&self) -> TyCtxt<'tcx> {
         self.terms_cx.tcx
     }
 
     fn build_constraints_for_item(&mut self, def_id: DefId) {
         let tcx = self.tcx();
-        debug!("build_constraints_for_item({})", tcx.item_path_str(def_id));
+        debug!("build_constraints_for_item({})", tcx.def_path_str(def_id));
 
         // Skip items with no generics - there's nothing to infer in them.
         if tcx.generics_of(def_id).count() == 0 {
             return;
         }
 
-        let id = tcx.hir().as_local_node_id(def_id).unwrap();
+        let id = tcx.hir().as_local_hir_id(def_id).unwrap();
         let inferred_start = self.terms_cx.inferred_starts[&id];
         let current_item = &CurrentItem { inferred_start };
         match tcx.type_of(def_id).sty {
@@ -222,7 +221,7 @@ impl<'a, 'tcx> ConstraintContext<'a, 'tcx> {
 
     fn add_constraints_from_invariant_substs(&mut self,
                                              current: &CurrentItem,
-                                             substs: &Substs<'tcx>,
+                                             substs: SubstsRef<'tcx>,
                                              variance: VarianceTermPtr<'a>) {
         debug!("add_constraints_from_invariant_substs: substs={:?} variance={:?}",
                substs,
@@ -230,12 +229,19 @@ impl<'a, 'tcx> ConstraintContext<'a, 'tcx> {
 
         // Trait are always invariant so we can take advantage of that.
         let variance_i = self.invariant(variance);
-        for ty in substs.types() {
-            self.add_constraints_from_ty(current, ty, variance_i);
-        }
 
-        for region in substs.regions() {
-            self.add_constraints_from_region(current, region, variance_i);
+        for k in substs {
+            match k.unpack() {
+                UnpackedKind::Lifetime(lt) => {
+                    self.add_constraints_from_region(current, lt, variance_i)
+                }
+                UnpackedKind::Type(ty) => {
+                    self.add_constraints_from_ty(current, ty, variance_i)
+                }
+                UnpackedKind::Const(_) => {
+                    // Consts impose no constraints.
+                }
+            }
         }
     }
 
@@ -268,7 +274,10 @@ impl<'a, 'tcx> ConstraintContext<'a, 'tcx> {
                 self.add_constraints_from_mt(current, &ty::TypeAndMut { ty, mutbl }, variance);
             }
 
-            ty::Array(typ, _) |
+            ty::Array(typ, _) => {
+                self.add_constraints_from_ty(current, typ, variance);
+            }
+
             ty::Slice(typ) => {
                 self.add_constraints_from_ty(current, typ, variance);
             }
@@ -279,7 +288,7 @@ impl<'a, 'tcx> ConstraintContext<'a, 'tcx> {
 
             ty::Tuple(subtys) => {
                 for &subty in subtys {
-                    self.add_constraints_from_ty(current, subty, variance);
+                    self.add_constraints_from_ty(current, subty.expect_ty(), variance);
                 }
             }
 
@@ -315,7 +324,7 @@ impl<'a, 'tcx> ConstraintContext<'a, 'tcx> {
             }
 
             ty::Param(ref data) => {
-                self.add_constraint(current, data.idx, variance);
+                self.add_constraint(current, data.index, variance);
             }
 
             ty::FnPtr(sig) => {
@@ -344,7 +353,7 @@ impl<'a, 'tcx> ConstraintContext<'a, 'tcx> {
     fn add_constraints_from_substs(&mut self,
                                    current: &CurrentItem,
                                    def_id: DefId,
-                                   substs: &Substs<'tcx>,
+                                   substs: SubstsRef<'tcx>,
                                    variance: VarianceTermPtr<'a>) {
         debug!("add_constraints_from_substs(def_id={:?}, substs={:?}, variance={:?})",
                def_id,
@@ -356,7 +365,7 @@ impl<'a, 'tcx> ConstraintContext<'a, 'tcx> {
             return;
         }
 
-        let (local, remote) = if let Some(id) = self.tcx().hir().as_local_node_id(def_id) {
+        let (local, remote) = if let Some(id) = self.tcx().hir().as_local_hir_id(def_id) {
             (Some(self.terms_cx.inferred_starts[&id]), None)
         } else {
             (None, Some(self.tcx().variances_of(def_id)))
@@ -383,6 +392,9 @@ impl<'a, 'tcx> ConstraintContext<'a, 'tcx> {
                 }
                 UnpackedKind::Type(ty) => {
                     self.add_constraints_from_ty(current, ty, variance_i)
+                }
+                UnpackedKind::Const(_) => {
+                    // Consts impose no constraints.
                 }
             }
         }

@@ -1,7 +1,5 @@
-// Test that a borrow which starts as a 2-phase borrow and gets
+// Test that a borrow which starts as a two-phase borrow and gets
 // carried around a loop winds up conflicting with itself.
-
-#![feature(nll)]
 
 struct Foo { x: String }
 

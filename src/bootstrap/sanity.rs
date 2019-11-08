@@ -15,7 +15,7 @@ use std::fs;
 use std::path::PathBuf;
 use std::process::Command;
 
-use build_helper::output;
+use build_helper::{output, t};
 
 use crate::Build;
 
@@ -34,15 +34,17 @@ impl Finder {
 
     fn maybe_have<S: AsRef<OsStr>>(&mut self, cmd: S) -> Option<PathBuf> {
         let cmd: OsString = cmd.as_ref().into();
-        let path = self.path.clone();
+        let path = &self.path;
         self.cache.entry(cmd.clone()).or_insert_with(|| {
-            for path in env::split_paths(&path) {
+            for path in env::split_paths(path) {
                 let target = path.join(&cmd);
-                let mut cmd_alt = cmd.clone();
-                cmd_alt.push(".exe");
-                if target.is_file() || // some/path/git
-                target.with_extension("exe").exists() || // some/path/git.exe
-                target.join(&cmd_alt).exists() { // some/path/git/git.exe
+                let mut cmd_exe = cmd.clone();
+                cmd_exe.push(".exe");
+
+                if target.is_file()                   // some/path/git
+                    || path.join(&cmd_exe).exists()   // some/path/git.exe
+                    || target.join(&cmd_exe).exists() // some/path/git/git.exe
+                {
                     return Some(target);
                 }
             }
@@ -76,8 +78,11 @@ pub fn check(build: &mut Build) {
 
     // We need cmake, but only if we're actually building LLVM or sanitizers.
     let building_llvm = build.hosts.iter()
-        .filter_map(|host| build.config.target_config.get(host))
-        .any(|config| config.llvm_config.is_none());
+        .map(|host| build.config.target_config
+            .get(host)
+            .map(|config| config.llvm_config.is_none())
+            .unwrap_or(true))
+        .any(|build_llvm_ourselves| build_llvm_ourselves);
     if building_llvm || build.config.sanitizers {
         cmd_finder.must_have("cmake");
     }
@@ -104,12 +109,20 @@ pub fn check(build: &mut Build) {
                 build.config.ninja = true;
             }
         }
+
+        if build.config.lldb_enabled {
+            cmd_finder.must_have("swig");
+            let out = output(Command::new("swig").arg("-version"));
+            if !out.contains("SWIG Version 3") && !out.contains("SWIG Version 4") {
+                panic!("Ensure that Swig 3.x.x or 4.x.x is installed.");
+            }
+        }
     }
 
     build.config.python = build.config.python.take().map(|p| cmd_finder.must_have(p))
-        .or_else(|| env::var_os("BOOTSTRAP_PYTHON").map(PathBuf::from)) // set by bootstrap.py
         .or_else(|| cmd_finder.maybe_have("python2.7"))
         .or_else(|| cmd_finder.maybe_have("python2"))
+        .or_else(|| env::var_os("BOOTSTRAP_PYTHON").map(PathBuf::from)) // set by bootstrap.py
         .or_else(|| Some(cmd_finder.must_have("python")));
 
     build.config.nodejs = build.config.nodejs.take().map(|p| cmd_finder.must_have(p))
@@ -126,6 +139,11 @@ pub fn check(build: &mut Build) {
         // build the target artifacts, only for testing. For the sake
         // of easier bot configuration, just skip detection.
         if target.contains("emscripten") {
+            continue;
+        }
+
+        // We don't use a C compiler on wasm32
+        if target.contains("wasm32") {
             continue;
         }
 
@@ -182,10 +200,6 @@ pub fn check(build: &mut Build) {
                 Some(root) => {
                     if fs::metadata(root.join("lib/libc.a")).is_err() {
                         panic!("couldn't find libc.a in musl dir: {}",
-                               root.join("lib").display());
-                    }
-                    if fs::metadata(root.join("lib/libunwind.a")).is_err() {
-                        panic!("couldn't find libunwind.a in musl dir: {}",
                                root.join("lib").display());
                     }
                 }

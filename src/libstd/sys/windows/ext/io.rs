@@ -1,12 +1,12 @@
 #![stable(feature = "rust1", since = "1.0.0")]
 
-use fs;
-use os::windows::raw;
-use net;
-use sys_common::{self, AsInner, FromInner, IntoInner};
-use sys;
-use io;
-use sys::c;
+use crate::fs;
+use crate::os::windows::raw;
+use crate::net;
+use crate::sys_common::{self, AsInner, FromInner, IntoInner};
+use crate::sys;
+use crate::sys::c;
+use crate::io;
 
 /// Raw HANDLEs.
 #[stable(feature = "rust1", since = "1.0.0")]
@@ -78,6 +78,27 @@ impl AsRawHandle for io::Stdout {
 
 #[stable(feature = "asraw_stdio", since = "1.21.0")]
 impl AsRawHandle for io::Stderr {
+    fn as_raw_handle(&self) -> RawHandle {
+        unsafe { c::GetStdHandle(c::STD_ERROR_HANDLE) as RawHandle }
+    }
+}
+
+#[stable(feature = "asraw_stdio_locks", since = "1.35.0")]
+impl<'a> AsRawHandle for io::StdinLock<'a> {
+    fn as_raw_handle(&self) -> RawHandle {
+        unsafe { c::GetStdHandle(c::STD_INPUT_HANDLE) as RawHandle }
+    }
+}
+
+#[stable(feature = "asraw_stdio_locks", since = "1.35.0")]
+impl<'a> AsRawHandle for io::StdoutLock<'a> {
+    fn as_raw_handle(&self) -> RawHandle {
+        unsafe { c::GetStdHandle(c::STD_OUTPUT_HANDLE) as RawHandle }
+    }
+}
+
+#[stable(feature = "asraw_stdio_locks", since = "1.35.0")]
+impl<'a> AsRawHandle for io::StderrLock<'a> {
     fn as_raw_handle(&self) -> RawHandle {
         unsafe { c::GetStdHandle(c::STD_ERROR_HANDLE) as RawHandle }
     }

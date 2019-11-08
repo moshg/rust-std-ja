@@ -1,8 +1,8 @@
 #![allow(dead_code)]
 
-use alloc::{GlobalAlloc, Layout, System};
-use cmp;
-use ptr;
+use crate::alloc::{GlobalAlloc, Layout, System};
+use crate::cmp;
+use crate::ptr;
 
 // The minimum alignment guaranteed by the architecture. This value is used to
 // add fast paths for low alignment values.
@@ -12,7 +12,8 @@ use ptr;
               target_arch = "powerpc",
               target_arch = "powerpc64",
               target_arch = "asmjs",
-              target_arch = "wasm32")))]
+              target_arch = "wasm32",
+              target_arch = "hexagon")))]
 pub const MIN_ALIGN: usize = 8;
 #[cfg(all(any(target_arch = "x86_64",
               target_arch = "aarch64",

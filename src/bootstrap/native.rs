@@ -14,7 +14,7 @@ use std::fs::{self, File};
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
-use build_helper::output;
+use build_helper::{output, t};
 use cmake;
 use cc;
 
@@ -67,41 +67,52 @@ impl Step for Llvm {
             }
         }
 
-        let rebuild_trigger = builder.src.join("src/rustllvm/llvm-rebuild-trigger");
-        let rebuild_trigger_contents = t!(fs::read_to_string(&rebuild_trigger));
-
-        let (out_dir, llvm_config_ret_dir) = if emscripten {
+        let (llvm_info, root, out_dir, llvm_config_ret_dir) = if emscripten {
+            let info = &builder.emscripten_llvm_info;
             let dir = builder.emscripten_llvm_out(target);
             let config_dir = dir.join("bin");
-            (dir, config_dir)
+            (info, "src/llvm-emscripten", dir, config_dir)
         } else {
+            let info = &builder.in_tree_llvm_info;
             let mut dir = builder.llvm_out(builder.config.build);
             if !builder.config.build.contains("msvc") || builder.config.ninja {
                 dir.push("build");
             }
-            (builder.llvm_out(target), dir.join("bin"))
+            (info, "src/llvm-project/llvm", builder.llvm_out(target), dir.join("bin"))
         };
-        let done_stamp = out_dir.join("llvm-finished-building");
+
         let build_llvm_config = llvm_config_ret_dir
             .join(exe("llvm-config", &*builder.config.build));
-        if done_stamp.exists() {
-            let done_contents = t!(fs::read_to_string(&done_stamp));
+        let done_stamp = out_dir.join("llvm-finished-building");
 
-            // If LLVM was already built previously and contents of the rebuild-trigger file
-            // didn't change from the previous build, then no action is required.
-            if done_contents == rebuild_trigger_contents {
-                return build_llvm_config
+        if done_stamp.exists() {
+            if let Some(llvm_commit) = llvm_info.sha() {
+                let done_contents = t!(fs::read(&done_stamp));
+
+                // If LLVM was already built previously and the submodule's commit didn't change
+                // from the previous build, then no action is required.
+                if done_contents == llvm_commit.as_bytes() {
+                    return build_llvm_config;
+                }
+            } else {
+                builder.info(
+                    "Could not determine the LLVM submodule commit hash. \
+                     Assuming that an LLVM rebuild is not necessary.",
+                );
+                builder.info(&format!(
+                    "To force LLVM to rebuild, remove the file `{}`",
+                    done_stamp.display()
+                ));
+                return build_llvm_config;
             }
         }
 
-        let _folder = builder.fold_output(|| "llvm");
         let descriptor = if emscripten { "Emscripten " } else { "" };
         builder.info(&format!("Building {}LLVM for {}", descriptor, target));
         let _time = util::timeit(&builder);
         t!(fs::create_dir_all(&out_dir));
 
         // http://llvm.org/docs/CMake.html
-        let root = if self.emscripten { "src/llvm-emscripten" } else { "src/llvm-project/llvm" };
         let mut cfg = cmake::Config::new(builder.src.join(root));
 
         let profile = match (builder.config.llvm_optimize, builder.config.llvm_release_debuginfo) {
@@ -117,14 +128,18 @@ impl Step for Llvm {
         } else {
             match builder.config.llvm_targets {
                 Some(ref s) => s,
-                None => "X86;ARM;AArch64;Mips;PowerPC;SystemZ;MSP430;Sparc;NVPTX;Hexagon",
+                None => "AArch64;ARM;Hexagon;MSP430;Mips;NVPTX;PowerPC;RISCV;\
+                         Sparc;SystemZ;WebAssembly;X86",
             }
         };
 
         let llvm_exp_targets = if self.emscripten {
             ""
         } else {
-            &builder.config.llvm_experimental_targets[..]
+            match builder.config.llvm_experimental_targets {
+                Some(ref s) => s,
+                None => "",
+            }
         };
 
         let assertions = if builder.config.llvm_assertions {"ON"} else {"OFF"};
@@ -142,13 +157,16 @@ impl Step for Llvm {
            .define("WITH_POLLY", "OFF")
            .define("LLVM_ENABLE_TERMINFO", "OFF")
            .define("LLVM_ENABLE_LIBEDIT", "OFF")
+           .define("LLVM_ENABLE_Z3_SOLVER", "OFF")
            .define("LLVM_PARALLEL_COMPILE_JOBS", builder.jobs().to_string())
            .define("LLVM_TARGET_ARCH", target.split('-').next().unwrap())
            .define("LLVM_DEFAULT_TARGET_TRIPLE", target);
 
         if builder.config.llvm_thin_lto && !emscripten {
-            cfg.define("LLVM_ENABLE_LTO", "Thin")
-               .define("LLVM_ENABLE_LLD", "ON");
+            cfg.define("LLVM_ENABLE_LTO", "Thin");
+            if !target.contains("apple") {
+               cfg.define("LLVM_ENABLE_LLD", "ON");
+            }
         }
 
         // By default, LLVM will automatically find OCaml and, if it finds it,
@@ -192,8 +210,16 @@ impl Step for Llvm {
             cfg.define("LLVM_BUILD_32_BITS", "ON");
         }
 
+        let mut enabled_llvm_projects = Vec::new();
+
+        if util::forcing_clang_based_tests() {
+            enabled_llvm_projects.push("clang");
+            enabled_llvm_projects.push("compiler-rt");
+        }
+
         if want_lldb {
-            cfg.define("LLVM_ENABLE_PROJECTS", "clang;lldb");
+            enabled_llvm_projects.push("clang");
+            enabled_llvm_projects.push("lldb");
             // For the time being, disable code signing.
             cfg.define("LLDB_CODESIGN_IDENTITY", "");
             cfg.define("LLDB_NO_DEBUGSERVER", "ON");
@@ -201,6 +227,12 @@ impl Step for Llvm {
             // LLDB requires libxml2; but otherwise we want it to be disabled.
             // See https://github.com/rust-lang/rust/pull/50104
             cfg.define("LLVM_ENABLE_LIBXML2", "OFF");
+        }
+
+        if enabled_llvm_projects.len() > 0 {
+            enabled_llvm_projects.sort();
+            enabled_llvm_projects.dedup();
+            cfg.define("LLVM_ENABLE_PROJECTS", enabled_llvm_projects.join(";"));
         }
 
         if let Some(num_linkers) = builder.config.llvm_link_jobs {
@@ -242,11 +274,6 @@ impl Step for Llvm {
                 channel::CFG_RELEASE_NUM,
                 builder.config.channel,
             );
-            let llvm_info = if self.emscripten {
-                &builder.emscripten_llvm_info
-            } else {
-                &builder.in_tree_llvm_info
-            };
             if let Some(sha) = llvm_info.sha_short() {
                 default_suffix.push_str("-");
                 default_suffix.push_str(sha);
@@ -256,6 +283,10 @@ impl Step for Llvm {
 
         if let Some(ref linker) = builder.config.llvm_use_linker {
             cfg.define("LLVM_USE_LINKER", linker);
+        }
+
+        if let Some(true) = builder.config.llvm_allow_old_toolchain {
+            cfg.define("LLVM_TEMPORARILY_ALLOW_OLD_TOOLCHAIN", "YES");
         }
 
         if let Some(ref python) = builder.config.python {
@@ -275,7 +306,7 @@ impl Step for Llvm {
 
         cfg.build();
 
-        t!(fs::write(&done_stamp, &rebuild_trigger_contents));
+        t!(fs::write(&done_stamp, llvm_info.sha().unwrap_or("")));
 
         build_llvm_config
     }
@@ -305,6 +336,10 @@ fn check_llvm_version(builder: &Builder<'_>, llvm_config: &Path) {
 fn configure_cmake(builder: &Builder<'_>,
                    target: Interned<String>,
                    cfg: &mut cmake::Config) {
+    // Do not print installation messages for up-to-date files.
+    // LLVM and LLD builds can produce a lot of those and hit CI limits on log size.
+    cfg.define("CMAKE_INSTALL_MESSAGE", "LAZY");
+
     if builder.config.ninja {
         cfg.generator("Ninja");
     }
@@ -386,7 +421,7 @@ fn configure_cmake(builder: &Builder<'_>,
 
     cfg.build_arg("-j").build_arg(builder.jobs().to_string());
     let mut cflags = builder.cflags(target, GitRepo::Llvm).join(" ");
-    if let Some(ref s) = builder.config.llvm_cxxflags {
+    if let Some(ref s) = builder.config.llvm_cflags {
         cflags.push_str(&format!(" {}", s));
     }
     cfg.define("CMAKE_C_FLAGS", cflags);
@@ -424,7 +459,7 @@ fn configure_cmake(builder: &Builder<'_>,
     }
 
     if env::var_os("SCCACHE_ERROR_LOG").is_some() {
-        cfg.env("RUST_LOG", "sccache=warn");
+        cfg.env("RUSTC_LOG", "sccache=warn");
     }
 }
 
@@ -463,7 +498,6 @@ impl Step for Lld {
             return out_dir
         }
 
-        let _folder = builder.fold_output(|| "lld");
         builder.info(&format!("Building LLD for {}", target));
         let _time = util::timeit(&builder);
         t!(fs::create_dir_all(&out_dir));
@@ -518,7 +552,7 @@ impl Step for TestHelpers {
     }
 
     /// Compiles the `rust_test_helpers.c` library which we used in various
-    /// `run-pass` test suites for ABI testing.
+    /// `run-pass` tests for ABI testing.
     fn run(self, builder: &Builder<'_>) {
         if builder.config.dry_run {
             return;
@@ -530,7 +564,6 @@ impl Step for TestHelpers {
             return
         }
 
-        let _folder = builder.fold_output(|| "build_test_helpers");
         builder.info("Building test helpers");
         t!(fs::create_dir_all(&dst));
         let mut cfg = cc::Build::new();

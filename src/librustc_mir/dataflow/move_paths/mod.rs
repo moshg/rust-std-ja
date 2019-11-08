@@ -1,9 +1,10 @@
-use rustc::ty::{self, TyCtxt};
+use core::slice::Iter;
 use rustc::mir::*;
+use rustc::ty::{Ty, TyCtxt};
 use rustc::util::nodemap::FxHashMap;
-use rustc_data_structures::indexed_vec::{IndexVec};
+use rustc_data_structures::indexed_vec::{Enumerated, Idx, IndexVec};
 use smallvec::SmallVec;
-use syntax_pos::{Span};
+use syntax_pos::Span;
 
 use std::fmt;
 use std::ops::{Index, IndexMut};
@@ -12,54 +13,23 @@ use self::abs_domain::{AbstractElem, Lift};
 
 mod abs_domain;
 
-// This submodule holds some newtype'd Index wrappers that are using
-// NonZero to ensure that Option<Index> occupies only a single word.
-// They are in a submodule to impose privacy restrictions; namely, to
-// ensure that other code does not accidentally access `index.0`
-// (which is likely to yield a subtle off-by-one error).
-pub(crate) mod indexes {
-    use std::fmt;
-    use std::num::NonZeroUsize;
-    use rustc_data_structures::indexed_vec::Idx;
-
-    macro_rules! new_index {
-        ($Index:ident, $debug_name:expr) => {
-            #[derive(Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
-            pub struct $Index(NonZeroUsize);
-
-            impl Idx for $Index {
-                fn new(idx: usize) -> Self {
-                    $Index(NonZeroUsize::new(idx + 1).unwrap())
-                }
-                fn index(self) -> usize {
-                    self.0.get() - 1
-                }
-            }
-
-            impl fmt::Debug for $Index {
-                fn fmt(&self, fmt: &mut fmt::Formatter<'_>) -> fmt::Result {
-                    write!(fmt, "{}{}", $debug_name, self.index())
-                }
-            }
-        }
+newtype_index! {
+    pub struct MovePathIndex {
+        DEBUG_FORMAT = "mp{}"
     }
-
-    /// Index into MovePathData.move_paths
-    new_index!(MovePathIndex, "mp");
-
-    /// Index into MoveData.moves.
-    new_index!(MoveOutIndex, "mo");
-
-    /// Index into MoveData.inits.
-    new_index!(InitIndex, "in");
-
-    /// Index into Borrows.locations
-    new_index!(BorrowIndex, "bw");
 }
 
-pub use self::indexes::MovePathIndex;
-pub use self::indexes::MoveOutIndex;
-pub use self::indexes::InitIndex;
+newtype_index! {
+    pub struct MoveOutIndex {
+        DEBUG_FORMAT = "mo{}"
+    }
+}
+
+newtype_index! {
+    pub struct InitIndex {
+        DEBUG_FORMAT = "in{}"
+    }
+}
 
 impl MoveOutIndex {
     pub fn move_path_index(&self, move_data: &MoveData<'_>) -> MovePathIndex {
@@ -136,7 +106,7 @@ pub struct MoveData<'tcx> {
     /// particular path being moved.)
     pub loc_map: LocationMap<SmallVec<[MoveOutIndex; 4]>>,
     pub path_map: IndexVec<MovePathIndex, SmallVec<[MoveOutIndex; 4]>>,
-    pub rev_lookup: MovePathLookup<'tcx>,
+    pub rev_lookup: MovePathLookup,
     pub inits: IndexVec<InitIndex, Init>,
     /// Each Location `l` is mapped to the Inits that are effects
     /// of executing the code at `l`.
@@ -168,12 +138,17 @@ impl<T> IndexMut<Location> for LocationMap<T> {
     }
 }
 
-impl<T> LocationMap<T> where T: Default + Clone {
-    fn new(mir: &Mir<'_>) -> Self {
+impl<T> LocationMap<T>
+where
+    T: Default + Clone,
+{
+    fn new(body: &Body<'_>) -> Self {
         LocationMap {
-            map: mir.basic_blocks().iter().map(|block| {
-                vec![T::default(); block.statements.len()+1]
-            }).collect()
+            map: body
+                .basic_blocks()
+                .iter()
+                .map(|block| vec![T::default(); block.statements.len() + 1])
+                .collect(),
         }
     }
 }
@@ -209,7 +184,6 @@ pub struct Init {
     pub kind: InitKind,
 }
 
-
 /// Initializations can be from an argument or from a statement. Arguments
 /// do not have locations, in those cases the `Local` is kept..
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
@@ -236,17 +210,17 @@ impl fmt::Debug for Init {
 }
 
 impl Init {
-    crate fn span<'gcx>(&self, mir: &Mir<'gcx>) -> Span {
+    crate fn span<'tcx>(&self, body: &Body<'tcx>) -> Span {
         match self.location {
-            InitLocation::Argument(local) => mir.local_decls[local].source_info.span,
-            InitLocation::Statement(location) => mir.source_info(location).span,
+            InitLocation::Argument(local) => body.local_decls[local].source_info.span,
+            InitLocation::Statement(location) => body.source_info(location).span,
         }
     }
 }
 
 /// Tables mapping from a place to its MovePathIndex.
 #[derive(Debug)]
-pub struct MovePathLookup<'tcx> {
+pub struct MovePathLookup {
     locals: IndexVec<Local, MovePathIndex>,
 
     /// projections are made from a base-place and a projection
@@ -255,7 +229,7 @@ pub struct MovePathLookup<'tcx> {
     /// subsequent search so that it is solely relative to that
     /// base-place). For the remaining lookup, we map the projection
     /// elem to the associated MovePathIndex.
-    projections: FxHashMap<(MovePathIndex, AbstractElem<'tcx>), MovePathIndex>
+    projections: FxHashMap<(MovePathIndex, AbstractElem), MovePathIndex>,
 }
 
 mod builder;
@@ -263,35 +237,39 @@ mod builder;
 #[derive(Copy, Clone, Debug)]
 pub enum LookupResult {
     Exact(MovePathIndex),
-    Parent(Option<MovePathIndex>)
+    Parent(Option<MovePathIndex>),
 }
 
-impl<'tcx> MovePathLookup<'tcx> {
+impl MovePathLookup {
     // Unlike the builder `fn move_path_for` below, this lookup
     // alternative will *not* create a MovePath on the fly for an
     // unknown place, but will rather return the nearest available
     // parent.
-    pub fn find(&self, place: &Place<'tcx>) -> LookupResult {
-        match *place {
-            Place::Local(local) => LookupResult::Exact(self.locals[local]),
-            Place::Promoted(_) |
-            Place::Static(..) => LookupResult::Parent(None),
-            Place::Projection(ref proj) => {
-                match self.find(&proj.base) {
-                    LookupResult::Exact(base_path) => {
-                        match self.projections.get(&(base_path, proj.elem.lift())) {
-                            Some(&subpath) => LookupResult::Exact(subpath),
-                            None => LookupResult::Parent(Some(base_path))
-                        }
-                    }
-                    inexact => inexact
-                }
+    pub fn find(&self, place: PlaceRef<'_, '_>) -> LookupResult {
+        let mut result = match place.base {
+            PlaceBase::Local(local) => self.locals[*local],
+            PlaceBase::Static(..) => return LookupResult::Parent(None),
+        };
+
+        for elem in place.projection.iter() {
+            if let Some(&subpath) = self.projections.get(&(result, elem.lift())) {
+                result = subpath;
+            } else {
+                return LookupResult::Parent(Some(result));
             }
         }
+
+        LookupResult::Exact(result)
     }
 
     pub fn find_local(&self, local: Local) -> MovePathIndex {
         self.locals[local]
+    }
+
+    /// An enumerated iterator of `local`s and their associated
+    /// `MovePathIndex`es.
+    pub fn iter_locals_enumerated(&self) -> Enumerated<Local, Iter<'_, MovePathIndex>> {
+        self.locals.iter_enumerated()
     }
 }
 
@@ -317,10 +295,10 @@ pub(crate) enum IllegalMoveOriginKind<'tcx> {
     /// implements `Drop`. Rust maintains invariant that all `Drop`
     /// ADT's remain fully-initialized so that user-defined destructor
     /// can safely read from all of the ADT's fields.
-    InteriorOfTypeWithDestructor { container_ty: ty::Ty<'tcx> },
+    InteriorOfTypeWithDestructor { container_ty: Ty<'tcx> },
 
     /// Illegal move due to attempt to move out of a slice or array.
-    InteriorOfSliceOrArray { ty: ty::Ty<'tcx>, is_index: bool, },
+    InteriorOfSliceOrArray { ty: Ty<'tcx>, is_index: bool },
 }
 
 #[derive(Debug)]
@@ -336,10 +314,12 @@ impl<'tcx> MoveError<'tcx> {
     }
 }
 
-impl<'a, 'gcx, 'tcx> MoveData<'tcx> {
-    pub fn gather_moves(mir: &Mir<'tcx>, tcx: TyCtxt<'a, 'gcx, 'tcx>)
-                        -> Result<Self, (Self, Vec<(Place<'tcx>, MoveError<'tcx>)>)> {
-        builder::gather_moves(mir, tcx)
+impl<'tcx> MoveData<'tcx> {
+    pub fn gather_moves(
+        body: &Body<'tcx>,
+        tcx: TyCtxt<'tcx>,
+    ) -> Result<Self, (Self, Vec<(Place<'tcx>, MoveError<'tcx>)>)> {
+        builder::gather_moves(body, tcx)
     }
 
     /// For the move path `mpi`, returns the root local variable (if any) that starts the path.
@@ -347,8 +327,15 @@ impl<'a, 'gcx, 'tcx> MoveData<'tcx> {
     pub fn base_local(&self, mut mpi: MovePathIndex) -> Option<Local> {
         loop {
             let path = &self.move_paths[mpi];
-            if let Place::Local(l) = path.place { return Some(l); }
-            if let Some(parent) = path.parent { mpi = parent; continue } else { return None }
+            if let Place { base: PlaceBase::Local(l), projection: box [] } = path.place {
+                return Some(l);
+            }
+            if let Some(parent) = path.parent {
+                mpi = parent;
+                continue;
+            } else {
+                return None;
+            }
         }
     }
 }

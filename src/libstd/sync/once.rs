@@ -52,11 +52,11 @@
 // You'll find a few more details in the implementation, but that's the gist of
 // it!
 
-use fmt;
-use marker;
-use ptr;
-use sync::atomic::{AtomicUsize, AtomicBool, Ordering};
-use thread::{self, Thread};
+use crate::fmt;
+use crate::marker;
+use crate::ptr;
+use crate::sync::atomic::{AtomicUsize, AtomicBool, Ordering};
+use crate::thread::{self, Thread};
 
 /// A synchronization primitive which can be used to run a one-time global
 /// initialization. Useful for one-time initialization for FFI or related
@@ -115,6 +115,11 @@ pub struct OnceState {
 /// static START: Once = ONCE_INIT;
 /// ```
 #[stable(feature = "rust1", since = "1.0.0")]
+#[rustc_deprecated(
+    since = "1.38.0",
+    reason = "the `new` function is now preferred",
+    suggestion = "Once::new()",
+)]
 pub const ONCE_INIT: Once = Once::new();
 
 // Four states that a Once can be in, encoded into the lower bits of `state` in
@@ -431,7 +436,7 @@ impl Once {
 
 #[stable(feature = "std_debug", since = "1.16.0")]
 impl fmt::Debug for Once {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.pad("Once { .. }")
     }
 }
@@ -514,9 +519,9 @@ impl OnceState {
 
 #[cfg(all(test, not(target_os = "emscripten")))]
 mod tests {
-    use panic;
-    use sync::mpsc::channel;
-    use thread;
+    use crate::panic;
+    use crate::sync::mpsc::channel;
+    use crate::thread;
     use super::Once;
 
     #[test]

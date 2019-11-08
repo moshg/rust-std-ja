@@ -118,21 +118,37 @@
 
 use self::Ordering::*;
 
-use intrinsics;
-use cell::UnsafeCell;
-use fmt;
+use crate::intrinsics;
+use crate::cell::UnsafeCell;
+use crate::fmt;
 
-use hint::spin_loop;
+use crate::hint::spin_loop;
 
-/// Save power or switch hyperthreads in a busy-wait spin-loop.
+/// Signals the processor that it is inside a busy-wait spin-loop ("spin lock").
 ///
-/// This function is deliberately more primitive than
-/// [`std::thread::yield_now`](../../../std/thread/fn.yield_now.html) and
-/// does not directly yield to the system's scheduler.
-/// In some cases it might be useful to use a combination of both functions.
-/// Careful benchmarking is advised.
+/// Upon receiving spin-loop signal the processor can optimize its behavior by, for example, saving
+/// power or switching hyper-threads.
 ///
-/// On some platforms this function may not do anything at all.
+/// This function is different from [`std::thread::yield_now`] which directly yields to the
+/// system's scheduler, whereas `spin_loop_hint` does not interact with the operating system.
+///
+/// Spin locks can be very efficient for short lock durations because they do not involve context
+/// switches or interaction with the operating system. For long lock durations they become wasteful
+/// however because they use CPU cycles for the entire lock duration, and using a
+/// [`std::sync::Mutex`] is likely the better approach. If actively spinning for a long time is
+/// required, e.g. because code polls a non-blocking API, calling [`std::thread::yield_now`]
+/// or [`std::thread::sleep`] may be the best option.
+///
+/// **Note**: Spin locks are based on the underlying assumption that another thread will release
+/// the lock 'soon'. In order for this to work, that other thread must run on a different CPU or
+/// core (at least potentially). Spin locks do not work efficiently on single CPU / core platforms.
+///
+/// **Note**: On platforms that do not support receiving spin-loop hints this function does not
+/// do anything at all.
+///
+/// [`std::thread::yield_now`]: ../../../std/thread/fn.yield_now.html
+/// [`std::thread::sleep`]: ../../../std/thread/fn.sleep.html
+/// [`std::sync::Mutex`]: ../../../std/sync/struct.Mutex.html
 #[inline]
 #[stable(feature = "spin_loop_hint", since = "1.24.0")]
 pub fn spin_loop_hint() {
@@ -182,7 +198,7 @@ pub struct AtomicPtr<T> {
 impl<T> Default for AtomicPtr<T> {
     /// Creates a null `AtomicPtr<T>`.
     fn default() -> AtomicPtr<T> {
-        AtomicPtr::new(::ptr::null_mut())
+        AtomicPtr::new(crate::ptr::null_mut())
     }
 }
 
@@ -290,15 +306,11 @@ pub enum Ordering {
 /// [`AtomicBool`]: struct.AtomicBool.html
 #[cfg(target_has_atomic = "8")]
 #[stable(feature = "rust1", since = "1.0.0")]
-#[cfg_attr(not(stage0), rustc_deprecated(
+#[rustc_deprecated(
     since = "1.34.0",
     reason = "the `new` function is now preferred",
     suggestion = "AtomicBool::new(false)",
-))]
-#[cfg_attr(stage0, rustc_deprecated(
-    since = "1.34.0",
-    reason = "the `new` function is now preferred",
-))]
+)]
 pub const ATOMIC_BOOL_INIT: AtomicBool = AtomicBool::new(false);
 
 #[cfg(target_has_atomic = "8")]
@@ -970,9 +982,8 @@ impl<T> AtomicPtr<T> {
     /// let some_ptr  = AtomicPtr::new(ptr);
     ///
     /// let other_ptr   = &mut 10;
-    /// let another_ptr = &mut 10;
     ///
-    /// let value = some_ptr.compare_and_swap(other_ptr, another_ptr, Ordering::Relaxed);
+    /// let value = some_ptr.compare_and_swap(ptr, other_ptr, Ordering::Relaxed);
     /// ```
     #[inline]
     #[stable(feature = "rust1", since = "1.0.0")]
@@ -1012,9 +1023,8 @@ impl<T> AtomicPtr<T> {
     /// let some_ptr  = AtomicPtr::new(ptr);
     ///
     /// let other_ptr   = &mut 10;
-    /// let another_ptr = &mut 10;
     ///
-    /// let value = some_ptr.compare_exchange(other_ptr, another_ptr,
+    /// let value = some_ptr.compare_exchange(ptr, other_ptr,
     ///                                       Ordering::SeqCst, Ordering::Relaxed);
     /// ```
     #[inline]
@@ -1158,15 +1168,11 @@ macro_rules! atomic_int {
 
         /// An atomic integer initialized to `0`.
         #[$stable_init_const]
-        #[cfg_attr(stage0, rustc_deprecated(
-            since = "1.34.0",
-            reason = "the `new` function is now preferred",
-        ))]
-        #[cfg_attr(not(stage0), rustc_deprecated(
+        #[rustc_deprecated(
             since = "1.34.0",
             reason = "the `new` function is now preferred",
             suggestion = $atomic_new,
-        ))]
+        )]
         pub const $atomic_init: $atomic_type = $atomic_type::new(0);
 
         #[$stable]
@@ -1188,7 +1194,7 @@ macro_rules! atomic_int {
 
         #[$stable_debug]
         impl fmt::Debug for $atomic_type {
-            fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+            fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
                 fmt::Debug::fmt(&self.load(Ordering::SeqCst), f)
             }
         }
@@ -1894,7 +1900,7 @@ atomic_int! {
     stable(feature = "integer_atomics_stable", since = "1.34.0"),
     unstable(feature = "integer_atomics", issue = "32976"),
     "i8", "../../../std/primitive.i8.html",
-    "#![feature(integer_atomics)]\n\n",
+    "",
     atomic_min, atomic_max,
     1,
     "AtomicI8::new(0)",
@@ -1910,7 +1916,7 @@ atomic_int! {
     stable(feature = "integer_atomics_stable", since = "1.34.0"),
     unstable(feature = "integer_atomics", issue = "32976"),
     "u8", "../../../std/primitive.u8.html",
-    "#![feature(integer_atomics)]\n\n",
+    "",
     atomic_umin, atomic_umax,
     1,
     "AtomicU8::new(0)",
@@ -1926,7 +1932,7 @@ atomic_int! {
     stable(feature = "integer_atomics_stable", since = "1.34.0"),
     unstable(feature = "integer_atomics", issue = "32976"),
     "i16", "../../../std/primitive.i16.html",
-    "#![feature(integer_atomics)]\n\n",
+    "",
     atomic_min, atomic_max,
     2,
     "AtomicI16::new(0)",
@@ -1942,7 +1948,7 @@ atomic_int! {
     stable(feature = "integer_atomics_stable", since = "1.34.0"),
     unstable(feature = "integer_atomics", issue = "32976"),
     "u16", "../../../std/primitive.u16.html",
-    "#![feature(integer_atomics)]\n\n",
+    "",
     atomic_umin, atomic_umax,
     2,
     "AtomicU16::new(0)",
@@ -1958,7 +1964,7 @@ atomic_int! {
     stable(feature = "integer_atomics_stable", since = "1.34.0"),
     unstable(feature = "integer_atomics", issue = "32976"),
     "i32", "../../../std/primitive.i32.html",
-    "#![feature(integer_atomics)]\n\n",
+    "",
     atomic_min, atomic_max,
     4,
     "AtomicI32::new(0)",
@@ -1974,7 +1980,7 @@ atomic_int! {
     stable(feature = "integer_atomics_stable", since = "1.34.0"),
     unstable(feature = "integer_atomics", issue = "32976"),
     "u32", "../../../std/primitive.u32.html",
-    "#![feature(integer_atomics)]\n\n",
+    "",
     atomic_umin, atomic_umax,
     4,
     "AtomicU32::new(0)",
@@ -1990,7 +1996,7 @@ atomic_int! {
     stable(feature = "integer_atomics_stable", since = "1.34.0"),
     unstable(feature = "integer_atomics", issue = "32976"),
     "i64", "../../../std/primitive.i64.html",
-    "#![feature(integer_atomics)]\n\n",
+    "",
     atomic_min, atomic_max,
     8,
     "AtomicI64::new(0)",
@@ -2006,7 +2012,7 @@ atomic_int! {
     stable(feature = "integer_atomics_stable", since = "1.34.0"),
     unstable(feature = "integer_atomics", issue = "32976"),
     "u64", "../../../std/primitive.u64.html",
-    "#![feature(integer_atomics)]\n\n",
+    "",
     atomic_umin, atomic_umax,
     8,
     "AtomicU64::new(0)",
@@ -2501,7 +2507,7 @@ pub fn compiler_fence(order: Ordering) {
 #[cfg(target_has_atomic = "8")]
 #[stable(feature = "atomic_debug", since = "1.3.0")]
 impl fmt::Debug for AtomicBool {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         fmt::Debug::fmt(&self.load(Ordering::SeqCst), f)
     }
 }
@@ -2509,7 +2515,7 @@ impl fmt::Debug for AtomicBool {
 #[cfg(target_has_atomic = "ptr")]
 #[stable(feature = "atomic_debug", since = "1.3.0")]
 impl<T> fmt::Debug for AtomicPtr<T> {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         fmt::Debug::fmt(&self.load(Ordering::SeqCst), f)
     }
 }
@@ -2517,7 +2523,7 @@ impl<T> fmt::Debug for AtomicPtr<T> {
 #[cfg(target_has_atomic = "ptr")]
 #[stable(feature = "atomic_pointer", since = "1.24.0")]
 impl<T> fmt::Pointer for AtomicPtr<T> {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         fmt::Pointer::fmt(&self.load(Ordering::SeqCst), f)
     }
 }

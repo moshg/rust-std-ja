@@ -1,13 +1,12 @@
 #![unstable(issue = "0", feature = "windows_handle")]
 
-use cmp;
-use io::{ErrorKind, Read};
-use io;
-use mem;
-use ops::Deref;
-use ptr;
-use sys::c;
-use sys::cvt;
+use crate::cmp;
+use crate::io::{self, ErrorKind, Read, IoSlice, IoSliceMut};
+use crate::mem;
+use crate::ops::Deref;
+use crate::ptr;
+use crate::sys::c;
+use crate::sys::cvt;
 
 /// An owned container for `HANDLE` object, closing them on Drop.
 ///
@@ -90,6 +89,10 @@ impl RawHandle {
         }
     }
 
+    pub fn read_vectored(&self, bufs: &mut [IoSliceMut<'_>]) -> io::Result<usize> {
+        crate::io::default_read_vectored(|buf| self.read(buf), bufs)
+    }
+
     pub fn read_at(&self, buf: &mut [u8], offset: u64) -> io::Result<usize> {
         let mut read = 0;
         let len = cmp::min(buf.len(), <c::DWORD>::max_value() as usize) as c::DWORD;
@@ -170,6 +173,10 @@ impl RawHandle {
         Ok(amt as usize)
     }
 
+    pub fn write_vectored(&self, bufs: &[IoSlice<'_>]) -> io::Result<usize> {
+        crate::io::default_write_vectored(|buf| self.write(buf), bufs)
+    }
+
     pub fn write_at(&self, buf: &[u8], offset: u64) -> io::Result<usize> {
         let mut written = 0;
         let len = cmp::min(buf.len(), <c::DWORD>::max_value() as usize) as c::DWORD;
@@ -199,5 +206,9 @@ impl RawHandle {
 impl<'a> Read for &'a RawHandle {
     fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
         (**self).read(buf)
+    }
+
+    fn read_vectored(&mut self, bufs: &mut [IoSliceMut<'_>]) -> io::Result<usize> {
+        (**self).read_vectored(bufs)
     }
 }

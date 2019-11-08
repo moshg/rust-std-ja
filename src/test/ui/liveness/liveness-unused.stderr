@@ -1,15 +1,17 @@
 warning: unreachable statement
   --> $DIR/liveness-unused.rs:92:9
    |
-LL |         drop(*x as i32); //~ WARNING unreachable statement
-   |         ^^^^^^^^^^^^^^^^
+LL |         continue;
+   |         -------- any code following this expression is unreachable
+LL |         drop(*x as i32);
+   |         ^^^^^^^^^^^^^^^^ unreachable statement
    |
 note: lint level defined here
   --> $DIR/liveness-unused.rs:1:9
    |
 LL | #![warn(unused)]
    |         ^^^^^^
-   = note: #[warn(unreachable_code)] implied by #[warn(unused)]
+   = note: `#[warn(unreachable_code)]` implied by `#[warn(unused)]`
 
 error: unused variable: `x`
   --> $DIR/liveness-unused.rs:8:7
@@ -105,7 +107,7 @@ LL |     let x;
 error: value assigned to `x` is never read
   --> $DIR/liveness-unused.rs:116:9
    |
-LL |         x = 0;  //~ ERROR value assigned to `x` is never read
+LL |         x = 0;
    |         ^
    |
    = help: maybe it is overwritten before being read?
